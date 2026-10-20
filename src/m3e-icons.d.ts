@@ -1,4 +1,4 @@
-// @m3e/icons exporta apenas side-effect registrations (sem .d.ts publicados).
+// @m3e/icons ships side-effect registrations only (no published .d.ts).
 declare module "@m3e/icons/outlined";
 declare module "@m3e/icons/filled";
 declare module "@m3e/icons/rounded";
