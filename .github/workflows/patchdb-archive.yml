@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
     paths: [patchdb/tables.json]
+  workflow_dispatch:
 
 concurrency:
   group: patchdb-json
@@ -17,7 +18,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 1
       - name: Adjunta tables.json na release patchdb
         run: |
           gh release create patchdb --target "$GITHUB_SHA" --title "Patch DB" --notes "Snapshot automático de cada push em patchdb/tables.json. O app lê o raw do main; este asset existe para histórico e rollback." || echo "release já existe"

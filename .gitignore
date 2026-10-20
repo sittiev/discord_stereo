@@ -29,3 +29,7 @@ src-tauri/gen/schemas/
 
 # opencode
 .omp/
+
+# docs locais de trabalho (não públicos)
+AGENTS.md
+dev/backup/
