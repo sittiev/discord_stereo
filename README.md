@@ -26,6 +26,8 @@
 
 <p align="center">
   <a href="#what-it-does">What it does</a> •
+  <a href="#client-support">Client support</a> •
+  <a href="#checking-your-version">Version</a> •
   <a href="#goals">Goals</a> •
   <a href="#patch-db">Patch-DB</a> •
   <a href="#download">Download</a> •
@@ -46,15 +48,55 @@ Point it at your Discord install. Every action below is explicit:
 - Refuses to touch the binary while that Discord client is running (checked in `/proc` on
   Linux; on other platforms the byte verification is the safety layer).
 
+## Client support
+
+The engine patches any client whose `discord_voice.node` still matches a Patch-DB table.
+Branch channels on the same OS ship the same voice binary; other platforms compile their
+own node, so they need their own tables. Current coverage:
+
+<p align="left">
+  <img src="https://img.shields.io/badge/Discord%20Stable-tested%20on%20Linux-success?logo=discord" alt="Discord Stable">
+  <img src="https://img.shields.io/badge/Discord%20PTB-untested-orange?logo=discord" alt="Discord PTB">
+  <img src="https://img.shields.io/badge/Discord%20Canary-untested-orange?logo=discord" alt="Discord Canary">
+  <img src="https://img.shields.io/badge/Vencord-untested%20but%20likely-orange?logo=vencord" alt="Vencord">
+</p>
+
+| Client | Windows | Linux | macOS |
+|---|---|---|---|
+| Discord Stable | needs own tables | **tested** | needs own tables |
+| Discord PTB | needs own tables | untested* | needs own tables |
+| Discord Canary | needs own tables | untested* | needs own tables |
+| Vencord | needs own tables | untested — same binary as stable, likely works | needs own tables |
+
+- **Tested** = analyzed, applied and reverted with every byte check passing against the real
+  client.
+- \* Cross-channel cells should behave like the tested row — the voice binary family is the
+  same; re-verify before relying on it.
+- The wizard is the referee: when a table covers your build, Apply lights up; otherwise it
+  analyzes only and never writes.
+
+## Checking your version
+
+- **First, the wizard**: the Info step prints the install paths it found plus the MD5 of the
+  original voice binary; tables are keyed by MD5, not by the version label.
+- **Windows**: look inside `%LOCALAPPDATA%\Discord\` — the `app-1.0.xXXX` folder name is the
+  client version (`DiscordPTB\` / `DiscordCanary\` for the other channels).
+- **Linux (deb/rpm)**: `dpkg -s discord | grep -i version` or `rpm -q discord`.
+- **macOS**: right-click `/Applications/Discord.app` → Get Info → Version.
+- **Vencord** is a client mod on a regular install — it has no version of its own; read the
+  underlying client's.
+- Current tables were cut against **`app-1.0.161`, linux x86_64** (`discord_voice.node`
+  MD5 `0bd81054ee44228a03928e84044a4d32`).
+
 ## Goals
 
 Each goal is a byte-site table matched to a Discord binary generation:
 
 | Goal | What it does |
 |---|---|
-| v3 — Filtros Removido | Stereo core without krisp/highpass/downmix; server bitrate (~64k + boost). |
+| v3 — Filters Out | Stereo core without krisp/highpass/downmix; server bitrate (~64k + boost). |
 | v4 — Stereo Full (recommended) | v3 + 510 kbps CBR lock + force-stereo + RemixAndResample fix. Best centroid in the bench. |
-| v5 — Stereo Profundo | v4 + Opus kAudio: more depth and separation, lower spectral centroid (music-mode trade-off). |
+| v5 — Deep Stereo | v4 + Opus kAudio: more depth and separation, lower spectral centroid (music-mode trade-off). |
 
 ## Patch-DB
 
@@ -114,13 +156,12 @@ cd src-tauri && cargo check --locked && cargo test
 ## Limits
 
 > [!IMPORTANT]
-> Builds are unsigned. On Windows, SmartScreen may warn; on macOS, right-click > Open on
-> first launch. This project is unofficial and not affiliated with Discord Inc. — it
-> modifies local app files at your own risk, never automating Discord itself.
+> Builds are unsigned. This project is unofficial and not affiliated with Discord Inc. — it
+> modifies local app files at your own risk and never automates Discord.
 
 - The offset tables pin one Linux build of `discord_voice.node`. Other client versions get
   analyzed (never patched) until a matching table or a unique AOB pattern ships to the
   Patch-DB.
 - The CI has no word on how patched audio behaves in closed Discord builds. The bench that
   picked the flags is a local measurement setup, not a Discord endorsement.
-- The app speaks pt-BR. The plan is to keep it that way.
+- The app interface is in English.
