@@ -21,9 +21,9 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 1
-      - name: Adjunta tables.json na release patchdb
+      - name: Attach tables.json to the patchdb release
         run: |
-          gh release create patchdb --target "$GITHUB_SHA" --title "Patch DB" --notes "Snapshot automático de cada push em patchdb/tables.json. O app lê o raw do main; este asset existe para histórico e rollback." || echo "release já existe"
+          gh release create patchdb --target "$GITHUB_SHA" --title "Patch DB" --notes "Automatic snapshot of every push to patchdb/tables.json. The app reads the raw main pointer; this asset exists for history and rollback." || echo "release already exists"
           gh release upload patchdb patchdb/tables.json --clobber
         env:
           GH_TOKEN: ${{ github.token }}

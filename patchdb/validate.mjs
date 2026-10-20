@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Valida patchdb/tables.json (schema v1) sem dependências. Uso:
-//   node dev/validate-patchdb.mjs [caminho]
+// Validates patchdb/tables.json (schema v1) with no dependencies. Usage:
+//   node dev/validate-patchdb.mjs [path]
 import { readFileSync } from "node:fs";
 import { argv, exit } from "node:process";
 
@@ -19,69 +19,69 @@ let db;
 try {
   db = JSON.parse(readFileSync(file, "utf8"));
 } catch (e) {
-  fail(`JSON inválido: ${e.message}`);
+  fail(`invalid JSON: ${e.message}`);
 }
 
-if (db.schema !== 1) fail(`schema desconhecido: ${db.schema}`);
-if (!Number.isInteger(db.db_version)) fail("db_version deve ser número inteiro");
+if (db.schema !== 1) fail(`unknown schema: ${db.schema}`);
+if (!Number.isInteger(db.db_version)) fail("db_version must be an integer");
 if (typeof db.updated !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(db.updated)) {
-  fail("updated deve ser YYYY-MM-DD");
+  fail("updated must be YYYY-MM-DD");
 }
 
 const goalIds = new Set((db.goals ?? []).map((g) => g.id));
-if (goalIds.size !== db.goals.length) fail("goal id duplicado em goals");
+if (goalIds.size !== db.goals.length) fail("duplicate goal id in goals");
 for (const g of db.goals) {
-  if (typeof g.id !== "string" || !g.id) fail("goal.id obrigatório");
+  if (typeof g.id !== "string" || !g.id) fail("goal.id is required");
   if (typeof g.title !== "string" || !g.title) {
-    fail(`goal ${g.id}.title obrigatório`);
+    fail(`goal ${g.id}: title is required`);
   }
   if (typeof g.description !== "string" || !g.description) {
-    fail(`goal ${g.id}.description obrigatório`);
+    fail(`goal ${g.id}: description is required`);
   }
 }
 
 const tables = db.tables ?? [];
-if (tables.length === 0) fail("nenhuma tabela");
+if (tables.length === 0) fail("no tables");
 const seen = new Set();
 for (const t of tables) {
-  if (!goalIds.has(t.goal)) fail(`tabela com goal desconhecido: ${t.goal}`);
+  if (!goalIds.has(t.goal)) fail(`table with unknown goal: ${t.goal}`);
   const hasOffsetSites = t.sites.some((s) => s.kind === "offset");
   if (hasOffsetSites && typeof t.binary_md5 !== "string") {
-    fail(`tabela ${t.goal} (${t.discord ?? "sem discord"}) com sites offset exige binary_md5`);
+    fail(`table ${t.goal} (${t.discord ?? "no discord"}) with offset sites requires binary_md5`);
   }
   if (t.binary_md5 !== undefined && !/^[0-9a-f]{32}$/.test(t.binary_md5)) {
-    fail(`tabela ${t.goal}/${t.discord ?? "qualquer"}: binary_md5 deve ser md5 hex minúsculo de 32`);
+    fail(`table ${t.goal}/${t.discord ?? "any"}: binary_md5 must be lowercase 32-char md5 hex`);
   }
   const pair = `${t.goal}:${t.binary_md5 ?? "*"}:${t.discord ?? "*"}`;
-  if (seen.has(pair)) fail(`tabela duplicada: ${pair}`);
+  if (seen.has(pair)) fail(`duplicate table: ${pair}`);
   seen.add(pair);
   for (const s of t.sites) {
     if (s.kind !== "offset" && s.kind !== "pattern") {
-      fail(`site com kind inválido: ${s.kind} (${s.name})`);
+      fail(`invalid site kind: ${s.kind} (${s.name})`);
     }
-    if (typeof s.name !== "string" || !s.name) fail("name obrigatório nos sites");
+    if (typeof s.name !== "string" || !s.name) fail("site name is required");
     if (s.kind === "offset") {
       if (!/^0x[0-9a-fA-F]{1,8}$/.test(s.offset)) {
-        fail(`site ${s.name}: offset deve ser hex 0x...`);
+        fail(`site ${s.name}: offset must be 0x... hex`);
       }
       if (!HEX(s.orig) || !HEX(s.patch)) {
-        fail(`site ${s.name}: orig/patch devem ser hex pares`);
+        fail(`site ${s.name}: orig/patch must be even-length hex`);
       }
       if (s.orig.length !== s.patch.length) {
-        fail(`site ${s.name}: orig e patch de mesmo comprimento`);
+        fail(`site ${s.name}: orig and patch must be the same length`);
       }
     } else {
       if (!HEX_OR_WILD(s.pattern)) {
-        fail(`site ${s.name}: pattern deve ser hex com ?? (2 chars por token)`);
+        fail(`site ${s.name}: pattern must be hex with ?? (2 chars per token)`);
       }
-      if (!HEX(s.patch)) fail(`site ${s.name}: patch deve ser hex par`);
+      if (!HEX(s.patch)) fail(`site ${s.name}: patch must be even-length hex`);
       if (spanBytes(s.pattern) * 2 !== s.patch.length) {
-        fail(`site ${s.name}: patch deve cobrir o span inteiro do pattern`);
+        fail(`site ${s.name}: patch must cover the full pattern span`);
       }
       if (s.expect !== undefined) {
-        if (!HEX(s.expect)) fail(`site ${s.name}: expect deve ser hex par`);
+        if (!HEX(s.expect)) fail(`site ${s.name}: expect must be even-length hex`);
         if (s.expect.length !== s.patch.length) {
-          fail(`site ${s.name}: expect mesmo comprimento do patch`);
+          fail(`site ${s.name}: expect must be the same length as patch`);
         }
       }
     }
@@ -89,5 +89,5 @@ for (const t of tables) {
 }
 
 console.log(
-  `patchdb ok: ${db.goals.length} goals, ${tables.length} tabelas, db_version ${db.db_version}`,
+  `patchdb ok: ${db.goals.length} goals, ${tables.length} tables, db_version ${db.db_version}`,
 );

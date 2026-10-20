@@ -1,10 +1,10 @@
-//! Patch-DB: schema do `tables.json`, bootstrap embutido, cache e adoção.
+//! Patch-DB: `tables.json` schema, embedded bootstrap, cache and adoption.
 //!
-//! Fonte única: `patchdb/tables.json` na raiz do repo. O binário embute o
-//! arquivo (`include_str!`) como bootstrap offline; o download da raw do
-//! `main` entra como cache no app_data e vence o bootstrap com `db_version`
-//! maior. Nota serde: `deny_unknown_fields` em enums com `tag` é ignorado
-//! pela crate — o gate real de schema é o validador do CI
+//! Single source: `patchdb/tables.json` at the repo root. The binary embeds
+//! the file (`include_str!`) as the offline bootstrap; a download of the
+//! `main` raw lands as cache in app_data and wins over the bootstrap with a
+//! higher `db_version`. serde note: `deny_unknown_fields` on tagged enums
+//! is ignored by the crate — the real schema gate is the CI validator
 //! (`dev/validate-patchdb.mjs`).
 
 use std::path::PathBuf;
@@ -12,25 +12,25 @@ use std::sync::{OnceLock, RwLock};
 
 use serde::{Deserialize, Serialize};
 
-/// Fonte viva das tabelas. Override de dev: `STEREO_DB_URL` aponta para um
-/// JSON local (harness `python3 -m http.server`), senão usa a raw do main.
+/// Live source for the tables. Dev override: `STEREO_DB_URL` points to a
+/// local JSON (harness `python3 -m http.server`); otherwise uses the main raw.
 pub const REMOTE_DB: &str =
     "https://raw.githubusercontent.com/sittiev/discord_stereo/main/patchdb/tables.json";
 
 const BUILTIN_DB: &str = include_str!("../../patchdb/tables.json");
 
-/// Teto de tamanho do download; o arquivo hoje tem ~30 KB.
+/// Download size cap; the file is ~30 KB today.
 const DOWNLOAD_CAP: u64 = 2 * 1024 * 1024;
 
 #[derive(Debug, thiserror::Error)]
 pub enum DbError {
     #[error("patchdb: {0}")]
     Json(#[from] serde_json::Error),
-    #[error("patchdb: campo inválido em {where_}: {why}")]
+    #[error("patchdb: invalid field in {where_}: {why}")]
     Field { where_: String, why: String },
 }
 
-/// Teto de leitura para o download remoto; exposto para o comando de fetch.
+/// Read cap for the remote download; exposed for the fetch command.
 pub const DOWNLOAD_CAP_BYTES: u64 = DOWNLOAD_CAP;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -54,8 +54,8 @@ pub struct GoalMeta {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Table {
-    /// md5 do binário alvo. Obrigatório quando há sites `offset`;
-    /// tabela pattern-only pode omitir e atravessa builds menores.
+    /// md5 of the target binary. Required when there are `offset` sites;
+    /// a pattern-only table may omit it and spans smaller builds.
     pub binary_md5: Option<String>,
     /// Version dir informativo, ex. `app-1.0.161`.
     pub discord: Option<String>,
@@ -68,15 +68,15 @@ pub struct Table {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum TableSite {
-    /// Cirúrgico: offset fixo no binário apontado por `binary_md5`.
+    /// Surgical: fixed offset in the binary pointed to by `binary_md5`.
     Offset {
         offset: String,
         orig: String,
         patch: String,
         name: String,
     },
-    /// Scan por assinatura (AOB), `??` = wildcard. Exige único match;
-    /// `expect` confere os bytes correntes antes de escrever.
+    /// Signature scan (AOB), `??` = wildcard. Requires a unique match;
+    /// `expect` checks the current bytes before writing.
     Pattern {
         name: String,
         pattern: String,
@@ -86,8 +86,8 @@ pub enum TableSite {
     },
 }
 
-/// Valida estrutura lógica além do serde: ids únicos, goal conhecido e
-/// sites offset exigindo `binary_md5` na tabela.
+/// Validates structure beyond serde: unique ids, known goals, and offset
+/// sites requiring `binary_md5` on the table.
 pub fn parse_db(json: &str) -> Result<PatchDb, DbError> {
     let db: PatchDb = serde_json::from_str(json)?;
     let mut ids = db.goals.iter().map(|g| g.id.as_str()).collect::<Vec<_>>();
@@ -95,38 +95,39 @@ pub fn parse_db(json: &str) -> Result<PatchDb, DbError> {
     if ids.windows(2).any(|w| w[0] == w[1]) {
         return Err(DbError::Field {
             where_: "goals".into(),
-            why: "id duplicado".into(),
+            why: "duplicate id".into(),
         });
     }
     for t in &db.tables {
         if !db.goals.iter().any(|g| g.id == t.goal) {
             return Err(DbError::Field {
                 where_: "tables".into(),
-                why: format!("goal desconhecido {}", t.goal),
+                why: format!("unknown goal {}", t.goal),
             });
         }
         if t.sites.iter().any(|s| matches!(s, TableSite::Offset { .. })) && t.binary_md5.is_none() {
             return Err(DbError::Field {
                 where_: format!("table {}", t.goal),
-                why: "site offset exige binary_md5".into(),
+                why: "offset site requires binary_md5".into(),
             });
         }
     }
     Ok(db)
 }
 
-// ---- estado global (app de janela única: uma DB por processo) ----
+// ---- global state (single-window app: one DB per process) ----
 static DB: OnceLock<RwLock<PatchDb>> = OnceLock::new();
 static CACHE_FILE: OnceLock<PathBuf> = OnceLock::new();
 
 fn cell() -> &'static RwLock<PatchDb> {
     DB.get_or_init(|| {
-        RwLock::new(parse_db(BUILTIN_DB).expect("patchdb embutido inválido"))
+        RwLock::new(parse_db(BUILTIN_DB).expect("invalid embedded patchdb"))
     })
 }
 
-/// Bootstrap: embutido sempre carrega; cache no app_data vence se
-/// `db_version` maior. Erro de cache é silencioso (volta pro embutido).
+/// Bootstrap: the embedded DB always loads; a cache in app_data wins when
+/// its `db_version` is higher. Cache errors are silent (falls back to the
+/// embedded DB).
 pub fn init(cache_dir: PathBuf) {
     cell();
     let cache = cache_dir.join("patchdb.json");
@@ -141,13 +142,14 @@ pub fn init(cache_dir: PathBuf) {
     let _ = CACHE_FILE.set(cache);
 }
 
-/// Snapshot para os comandos.
+/// Snapshot for the commands.
 pub fn snapshot() -> PatchDb {
     cell().read().expect("db lock").clone()
 }
 
-/// Adota um JSON baixado: valida, salva cache (tmp + rename) e troca o
-/// global quando `db_version` é maior. Retorna se algo mudou.
+/// Adopts a downloaded JSON: validates, saves the cache (tmp + rename) and
+/// swaps the global when its `db_version` is higher. Returns whether
+/// anything changed.
 pub fn adopt_remote(json: &str) -> Result<bool, DbError> {
     let new_db = parse_db(json)?;
     let cell = cell();
@@ -178,21 +180,21 @@ mod tests {
     use super::*;
 
     #[test]
-    fn builtin_valido_com_goals_e_tabelas() {
-        let db = parse_db(BUILTIN_DB).expect("embutido válido");
+    fn builtin_valid_with_goals_and_tables() {
+        let db = parse_db(BUILTIN_DB).expect("embedded patchdb valid");
         assert_eq!(db.schema, 1);
         assert!(db.goals.iter().any(|g| g.id == "v4"));
         assert_eq!(db.tables.len(), 3);
     }
 
     #[test]
-    fn offset_sem_md5_recusado() {
+    fn offset_without_md5_rejected() {
         let bad = r#"{"schema":1,"db_version":2,"updated":"2026-01-01","goals":[{"id":"v3","title":"a","description":"b"}],"tables":[{"goal":"v3","sites":[{"kind":"offset","offset":"0x0","orig":"02","patch":"00","name":"x"}]}]}"#;
         assert!(parse_db(bad).is_err());
     }
 
     #[test]
-    fn pattern_sem_md5_aceito() {
+    fn pattern_without_md5_accepted() {
         let ok = r#"{"schema":1,"db_version":2,"updated":"2026-01-01","goals":[{"id":"v3","title":"a","description":"b"}],"tables":[{"goal":"v3","sites":[{"kind":"pattern","name":"x","pattern":"55 ??","patch":"c3 c3","expect":"55 48"}]}]}"#;
         assert!(parse_db(ok).is_ok());
     }

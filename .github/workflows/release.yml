@@ -46,7 +46,7 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           workspaces: src-tauri
-      - name: Dependências do Linux
+      - name: Linux dependencies
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
@@ -57,7 +57,6 @@ jobs:
         with:
           tagName: v__VERSION__
           releaseName: "Stereo Wizard v__VERSION__"
-          releaseBody: "Builds unsigned — macOS: right-click open; Windows: SmartScreen pode avisar. Portable Windows: zip com o .exe solto; exige WebView2 Runtime (padrão no Win10/11)."
           releaseDraft: false
           prerelease: false
           generateReleaseNotes: true

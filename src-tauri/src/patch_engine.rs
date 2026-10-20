@@ -1,8 +1,9 @@
-//! Stereo patch engine: sites da Patch-DB, verify-then-write, backup, revert.
+//! Stereo patch engine: Patch-DB sites, verify-then-write, backup, revert.
 //!
-//! Tabelas vêm de [`crate::tables::PatchDb`]: tabela com `binary_md5` é
-//! cirúrgica (offset fixo); tabela pattern-only resolve por assinatura AOB
-//! com match único e `expect`. Binário sem tabela resolvível nunca é gravado.
+//! Tables come from [`crate::tables::PatchDb`]: a table with `binary_md5` is
+//! surgical (fixed offset); a pattern-only table resolves via AOB signature
+//! with a unique match and `expect`. A binary without a resolvable table is
+//! never written.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -11,10 +12,10 @@ use serde::Serialize;
 
 use crate::tables::{PatchDb, Table, TableSite};
 
-/// Site resolvido: pattern e offset terminam no mesmo formato.
+/// Resolved site: pattern and offset converge to the same shape.
 ///
-/// `reason` preenchida = pattern não casou (0/2+ matches, token inválido);
-/// o site conta como mismatch e nunca é escrito.
+/// `reason` set = pattern did not match (0/2+ matches, invalid token);
+/// the site counts as mismatch and is never written.
 #[derive(Debug, Clone)]
 pub struct Resolved {
     pub name: String,
@@ -55,16 +56,16 @@ pub struct Analysis {
 pub enum EngineError {
     #[error("io: {0}")]
     Io(#[from] std::io::Error),
-    #[error("hex decode em {site}: {source}")]
+    #[error("hex decode in {site}: {source}")]
     Hex {
         site: String,
         source: hex::FromHexError,
     },
-    #[error("validacao falhou em {n} site(s); nada foi escrito")]
+    #[error("validation failed on {n} site(s); nothing was written")]
     Validation { n: usize },
-    #[error("nenhum backup encontrado para reverter")]
+    #[error("no backup found to revert")]
     NoBackup,
-    #[error("sem tabela para o goal {goal} (md5 {md5}); nada foi escrito")]
+    #[error("no table for goal {goal} (md5 {md5}); nothing was written")]
     NoTable { md5: String, goal: String },
 }
 
@@ -84,7 +85,7 @@ fn parse_offset(s: &str, site_name: &str) -> Result<u32, EngineError> {
     })
 }
 
-/// Tokens do pattern: `??` = wildcard (qualquer byte), hex = byte exato.
+/// Pattern tokens: `??` = wildcard (any byte), hex = exact byte.
 struct Aob {
     pat: Vec<u8>,
     mask: Vec<bool>,
@@ -115,7 +116,7 @@ fn parse_aob(pattern: &str) -> Option<Aob> {
     Some(aob)
 }
 
-/// Scan AOB: retorna o offset do ÚNICO match, ou None (0 ou 2+ matches).
+/// AOB scan: returns the offset of the single match, or None (0 or 2+ matches).
 fn scan_pattern(bytes: &[u8], aob: &Aob) -> Option<usize> {
     if aob.pat.len() > bytes.len() {
         return None;
@@ -135,10 +136,10 @@ fn scan_pattern(bytes: &[u8], aob: &Aob) -> Option<usize> {
     found
 }
 
-/// Motivo legível quando o pattern não produziu match único.
+/// Readable reason when the pattern did not produce a unique match.
 fn pattern_reason(bytes: &[u8], pattern: &str) -> String {
     let Some(aob) = parse_aob(pattern) else {
-        return "pattern inválido".into();
+        return "invalid pattern".into();
     };
     if aob.pat.len() > bytes.len() {
         return "0 matches".into();
@@ -155,10 +156,10 @@ fn pattern_reason(bytes: &[u8], pattern: &str) -> String {
     format!("{hits} matches")
 }
 
-/// Tabela aplicável a (goal, md5): tabela com o md5 exato primeiro; senão a
-/// primeira tabela do goal (pattern-only ou md5 de outro build). O
-/// verify-then-write recusa bytes inesperados em qualquer caso, então um
-/// binário estranho nunca é gravado.
+/// Table applicable to (goal, md5): the exact-md5 table first; otherwise the
+/// first table for the goal (pattern-only or another build's md5). The
+/// verify-then-write pass rejects unexpected bytes in either case, so a
+/// foreign binary is never written.
 fn table_for<'a>(db: &'a PatchDb, goal: &str, md5: &str) -> Option<&'a Table> {
     db.tables
         .iter()
@@ -207,7 +208,7 @@ fn resolve_sites(table: &Table, bytes: &[u8]) -> Result<Vec<Resolved>, EngineErr
                         offset: 0,
                         orig: Vec::new(),
                         patch: patched,
-                        reason: Some("pattern além do fim do binário".into()),
+                        reason: Some("pattern beyond binary end".into()),
                     });
                     continue;
                 }
@@ -295,9 +296,9 @@ pub fn analyze_bytes(
 /// Apply a goal to a node: verify-then-write with backup.
 ///
 /// Idempotent: already-patched sites are skipped. Any mismatch (bytes
-/// diferentes ou pattern sem match único) aborta antes de escrever um
-/// único byte. Binário com pattern já aplicado que quebrou a própria
-/// assinatura precisa de `revert` antes do apply.
+/// differing or a pattern without a unique match) aborts before a single
+/// byte is written. A binary where an already-applied pattern broke its own
+/// signature needs `revert` before apply.
 ///
 /// # Errors
 /// - [`EngineError::NoTable`]: the goal has no tables at all.
@@ -437,7 +438,7 @@ mod tests {
             "goals": [{ "id": "t", "title": "T", "description": "d" }],
             "tables": [table_json("t", md5, site)]
         });
-        parse_db(&v.to_string()).expect("db de teste válida")
+        parse_db(&v.to_string()).expect("valid test db")
     }
 
     fn offset_site() -> serde_json::Value {
@@ -462,7 +463,7 @@ mod tests {
 
     fn node_created(tag: &str, bytes: &[u8]) -> PathBuf {
         let path = std::env::temp_dir().join(format!("sw-engine-{}-{tag}.node", std::process::id()));
-        fs::write(&path, bytes).expect("tmp node gravado");
+        fs::write(&path, bytes).expect("tmp node written");
         path
     }
 
@@ -482,7 +483,7 @@ mod tests {
     }
 
     #[test]
-    fn offset_state_ok_e_patched() {
+    fn offset_state_ok_and_patched() {
         let bytes = vec![0x02u8, 0, 0, 0];
         let db = db_of(Some(&md5_hex(&bytes)), offset_site());
         let r = analyze_bytes(Path::new("mem"), &bytes, "t", &db).unwrap();
@@ -495,13 +496,13 @@ mod tests {
     }
 
     #[test]
-    fn offset_mismatch_e_eof() {
+    fn offset_mismatch_and_eof() {
         let bytes = vec![0x99u8, 0, 0, 0];
         let db = db_of(Some(&md5_hex(&bytes)), offset_site());
         let r = analyze_bytes(Path::new("mem"), &bytes, "t", &db).unwrap();
         match find_state(&r.sites, "slot0") {
             SiteState::Mismatch { found } => assert_eq!(found, "99"),
-            other => panic!("esperava mismatch, veio {other:?}"),
+            other => panic!("expected mismatch, got {other:?}"),
         }
 
         let short = vec![0x02u8, 0, 0];
@@ -511,12 +512,12 @@ mod tests {
         let r = analyze_bytes(Path::new("mem"), &short, "t", &db_shifted).unwrap();
         match find_state(&r.sites, "slot0") {
             SiteState::Mismatch { found } => assert_eq!(found, "eof"),
-            other => panic!("esperava eof, veio {other:?}"),
+            other => panic!("expected eof, got {other:?}"),
         }
     }
 
     #[test]
-    fn sem_tabela_somente_analisa() {
+    fn no_table_analyze_only() {
         let bytes = vec![0x02u8, 0, 0, 0];
         let db = db_of(Some(&md5_hex(&bytes)), offset_site());
         let r = analyze_bytes(Path::new("mem"), &bytes, "sem-goal", &db).unwrap();
@@ -525,18 +526,18 @@ mod tests {
     }
 
     #[test]
-    fn pattern_zero_matches_recusa_apply() {
+    fn pattern_zero_matches_reject_apply() {
         let bytes = vec![0u8; 64];
         let db = db_of(None, pattern_site("AA 00 ?? FF", "AA 00 99 FF", "AB 00 CD FF"));
         let r = analyze_bytes(Path::new("mem"), &bytes, "t", &db).unwrap();
         match find_state(&r.sites, "sig") {
             SiteState::Mismatch { found } => assert_eq!(found, "0 matches"),
-            other => panic!("esperava 0 matches, veio {other:?}"),
+            other => panic!("expected 0 matches, got {other:?}"),
         }
     }
 
     #[test]
-    fn pattern_multi_matches_recusa_apply() {
+    fn pattern_multi_matches_reject_apply() {
         let mut bytes = vec![0u8; 64];
         for off in [10usize, 40] {
             bytes[off] = 0xAA;
@@ -547,12 +548,12 @@ mod tests {
         let r = analyze_bytes(Path::new("mem"), &bytes, "t", &db).unwrap();
         match find_state(&r.sites, "sig") {
             SiteState::Mismatch { found } => assert_eq!(found, "2 matches"),
-            other => panic!("esperava multi matches, veio {other:?}"),
+            other => panic!("expected multi matches, got {other:?}"),
         }
     }
 
     #[test]
-    fn pattern_unique_aplica_e_reverte() {
+    fn pattern_unique_apply_and_revert() {
         let mut bytes = vec![0u8; 64];
         bytes[30] = 0xAA;
         bytes[31] = 0x00;
@@ -577,13 +578,13 @@ mod tests {
         assert_eq!(
             &reverted[30..34],
             &[0xAA, 0x00, 0x99, 0xFF],
-            "revert restaurou os bytes originais"
+            "revert restored original bytes"
         );
         cleanup(&path);
     }
 
     #[test]
-    fn offset_apply_idempotente_e_revert() {
+    fn offset_apply_idempotent_and_revert() {
         let bytes = vec![0x02u8, 0, 0, 0];
         let db = db_of(Some(&md5_hex(&bytes)), offset_site());
 
@@ -602,7 +603,7 @@ mod tests {
     }
 
     #[test]
-    fn offset_bytes_inesperados_abortam_sem_escrever() {
+    fn offset_unexpected_bytes_abort_without_write() {
         let bytes = vec![0x99u8, 0, 0, 0];
         let db = db_of(Some(&md5_hex(&bytes)), offset_site());
         let path = node_created("invalid", &bytes);
@@ -613,7 +614,7 @@ mod tests {
     }
 
     #[test]
-    fn apply_sem_tabela_e_rejeitada() {
+    fn apply_no_table_rejected() {
         let bytes = vec![0x02u8, 0, 0, 0];
         let db = db_of(Some(&md5_hex(&bytes)), offset_site());
         let path = node_created("notable", &bytes);
@@ -623,7 +624,7 @@ mod tests {
     }
 
     #[test]
-    fn pattern_sem_expect_guarda_bytes_correntes() {
+    fn pattern_no_expect_checks_current_bytes() {
         let mut bytes = vec![0u8; 64];
         bytes[10] = 0xAA;
         bytes[11] = 0x00;
@@ -640,7 +641,7 @@ mod tests {
         let r = analyze_bytes(Path::new("mem"), &bytes, "t", &db).unwrap();
         match find_state(&r.sites, "sig") {
             SiteState::Ok => {}
-            other => panic!("esperava Ok sem expect, veio {other:?}"),
+            other => panic!("expected Ok without expect, got {other:?}"),
         }
     }
 }

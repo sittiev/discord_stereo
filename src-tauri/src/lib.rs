@@ -63,7 +63,7 @@ fn analyze_node(node: String, goal: String) -> Result<Analysis, String> {
 fn apply_goal(node: String, goal: String) -> Result<Analysis, String> {
     let path = PathBuf::from(&node);
     if discord_running() {
-        return Err("o Discord está rodando — feche-o antes de aplicar o patch".into());
+        return Err("Discord is running — close it before applying the patch".into());
     }
     apply(&path, &goal, &tables::snapshot()).map_err(|e| e.to_string())
 }
@@ -73,7 +73,7 @@ fn apply_goal(node: String, goal: String) -> Result<Analysis, String> {
 fn revert_node(node: String) -> Result<String, String> {
     let path = PathBuf::from(&node);
     if discord_running() {
-        return Err("o Discord está rodando — feche-o antes de reverter".into());
+        return Err("Discord is running — close it before reverting".into());
     }
     revert(&path)
         .map(|p| p.to_string_lossy().into_owned())
@@ -120,7 +120,7 @@ struct PatchDbInfo {
 
 fn db_info(db: tables::PatchDb) -> PatchDbInfo {
     let remote_url = match std::env::var("STEREO_DB_URL") {
-        Ok(url) => format!("{url} (override de dev)"),
+        Ok(url) => format!("{url} (dev override)"),
         Err(_) => tables::REMOTE_DB.to_owned(),
     };
     PatchDbInfo {
@@ -148,7 +148,7 @@ async fn check_db_update() -> DbCheck {
         .unwrap_or(DbCheck {
             adopted: false,
             info: None,
-            error: Some("check_db_update: a tarefa foi cancelada".into()),
+            error: Some("check_db_update: task was cancelled".into()),
         })
 }
 
@@ -164,7 +164,7 @@ fn fetch_adopt_db() -> DbCheck {
         .build();
     let response = match agent.get(&url).call() {
         Ok(resp) => resp,
-        Err(e) => return denied(format!("baixando patchdb: {e}")),
+        Err(e) => return denied(format!("fetching patchdb: {e}")),
     };
     let mut json = String::new();
     if let Err(e) = response
@@ -172,7 +172,7 @@ fn fetch_adopt_db() -> DbCheck {
         .take(tables::DOWNLOAD_CAP_BYTES)
         .read_to_string(&mut json)
     {
-        return denied(format!("lendo patchdb: {e}"));
+        return denied(format!("parsing patchdb: {e}"));
     }
     match tables::adopt_remote(&json) {
         Ok(adopted) => DbCheck {

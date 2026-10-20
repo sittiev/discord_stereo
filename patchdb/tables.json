@@ -5,18 +5,18 @@
   "goals": [
     {
       "id": "v3",
-      "title": "Filtros Removido",
-      "description": "Stereo core sem krisp/highpass/downmix; bitrate do servidor (~64k+boost)."
+      "title": "Filters Out",
+      "description": "Stereo core without krisp/highpass/downmix; server bitrate (~64k+boost)."
     },
     {
       "id": "v4",
       "title": "Stereo Full",
-      "description": "Recomendado: v3 + 510 kbps CBR travado + force-stereo + RemixAndResample fix. Melhor CENTROID no bench."
+      "description": "Recommended: v3 + locked 510 kbps CBR + force-stereo + RemixAndResample fix. Best CENTROID on the bench."
     },
     {
       "id": "v5",
-      "title": "Stereo Profundo",
-      "description": "v4 + Opus kAudio: mais profundidade e cantos; centroide espectral mais baixo (trade-off do modo música)."
+      "title": "Deep Stereo",
+      "description": "v4 + Opus kAudio: more depth and separation; lower spectral centroid (music-mode trade-off)."
     }
   ],
   "tables": [
