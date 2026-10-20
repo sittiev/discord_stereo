@@ -1,0 +1,25 @@
+{
+  "name": "stereo-wizard",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@m3e/icons": "^1.0.20",
+    "@m3e/web": "2.10.1",
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-opener": "^2",
+    "canvas-confetti": "^1.9.4"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2",
+    "@types/canvas-confetti": "^1.9.0",
+    "typescript": "~6.0.3",
+    "vite": "^8.0.16"
+  }
+}
