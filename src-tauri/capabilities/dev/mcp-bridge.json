@@ -1,0 +1,7 @@
+{
+  "$schema": "../../gen/schemas/desktop-schema.json",
+  "identifier": "dev-mcp-bridge",
+  "description": "MCP bridge for agent-assisted development. Included only when the `dev-tools` feature is enabled; never in release builds.",
+  "windows": ["main"],
+  "permissions": ["mcp-bridge:default"]
+}

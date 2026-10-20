@@ -1,0 +1,4 @@
+- remover todas mudanças de cursor ao passar o mouse em cima dos elementos a não ser o de link
+- adicionar CI/CD Github Actions para auto-release do app
+- verificar se há suporte para futuras atualizações no Discord para funcionar os patches mesmo após atualizações do Discord e nos clientes modfiicados, de forma dinâmica e flexivel.
+- verificar uma opção para update automatico dos patches para lançamento pro usuario, a prova de updates do discord como uma toolbox

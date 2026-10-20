@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#131314" />
+    <title>Stereo Wizard — Discord Voice</title>
+    <script type="module" src="/src/main.ts" defer></script>
+    <style>
+      /* Fonte do sistema: app nativo não baixa webfont. */
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+      }
+      html {
+        color-scheme: light dark;
+      }
+      :root {
+        /* Largura da coluna de conteúdo; topbar e rodapé se alinham a ela. */
+        --pane-w: 520px;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        user-select: none;
+        cursor: default;
+        touch-action: manipulation;
+      }
+      [hidden] {
+        display: none !important;
+      }
+      /* Barra do topo: só o stepper — indica o progresso e também navega.
+         Mesma coluna do conteúdo (`main` + .pane): 520px + 16px de padding
+         de cada lado. Em janela larga o stepper não estica. */
+      .topbar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        box-sizing: border-box;
+        width: 100%;
+        max-width: calc(var(--pane-w) + 32px);
+        margin: 0 auto;
+        padding: 8px 16px 0;
+        flex-shrink: 0;
+      }
+      .topbar m3e-stepper {
+        flex: 1;
+        min-width: 0;
+      }
+      main {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding: 8px 16px 16px;
+        box-sizing: border-box;
+      }
+      .pane {
+        width: 100%;
+        min-width: 0;
+        max-width: var(--pane-w);
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+      /* Troca de etapa: carrossel com offset e fade (padrão "item offset" do
+         Motion), animado via WAAPI no main.ts. #panels recorta o painel que
+         passa da borda durante o deslize. */
+      #panels {
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        overflow-x: clip;
+      }
+      @supports not (overflow-x: clip) {
+        #panels {
+          overflow: hidden;
+        }
+      }
+      .grid {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .goal-body {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 4px 4px 4px 8px;
+      }
+      .about-body {
+        padding: 12px 16px;
+      }
+      .pref-body {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        padding: 12px 16px;
+      }
+      .pref-text {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+      }
+      .pref-text .muted {
+        font-size: 0.85em;
+      }
+      m3e-card.selectable {
+        cursor: pointer;
+      }
+      .row-between {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .row-between > :first-child {
+        min-width: 0;
+      }
+      .row-between > :last-child {
+        flex-shrink: 0;
+      }
+      .muted {
+        opacity: 0.72;
+      }
+      .nowrap {
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+      m3e-callout {
+        width: 100%;
+      }
+      /* Ações da etapa Aplicar: recuperação separada à esquerda; o fluxo
+         (Analisar, Aplicar) à direita, na coluna dos botões de avanço. */
+      .actions-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .actions-row #btn-revert {
+        margin-right: auto;
+      }
+      .wizard-nav {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        padding-top: 8px;
+      }
+      /* Rodapé fixo: Sobre vive aqui, não numa etapa. O toggle de tema
+         fica à esquerda, separado dos links; a borda corre a janela toda,
+         o conteúdo alinha com a coluna (`--pane-w`). */
+      #app-footer {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 2px;
+        padding: 4px max(16px, calc((100% - var(--pane-w)) / 2));
+        flex-shrink: 0;
+        border-top: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+      }
+      #app-footer #btn-theme {
+        margin-right: auto;
+      }
+      m3e-snackbar#snackbar {
+        position: fixed;
+        top: auto;
+        bottom: 64px;
+        left: 12px;
+        right: 12px;
+        z-index: 50;
+      }
+      m3e-icon-button svg {
+        pointer-events: none;
+      }
+      m3e-theme {
+        display: contents;
+      }
+      .cell {
+        display: block;
+        width: 0;
+        min-width: 100%;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .path {
+        font-size: 0.8em;
+        user-select: text;
+        cursor: text;
+      }
+      m3e-list-item {
+        min-width: 0;
+      }
+      /* Linha do cliente: flex próprio com ícone sempre no centro ótico.
+         (O `m3e-list-item` fixa leading no topo em 3 linhas, por spec.) */
+      .client-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+        padding: 12px 16px;
+      }
+      .client-text {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .client-text .overline {
+        font-size: 0.72em;
+        opacity: 0.72;
+      }
+      /* Seleção limpa: relevo do filled + anel no primary do tema.
+         `box-shadow` sem blur segue o raio e pinta fora do `.base`
+         opaco (outline negativo ficava enterrado). Sem ícone extra;
+         `aria-pressed` leva o estado p/ leitor de tela. */
+      m3e-card.selectable {
+        border-radius: 12px;
+      }
+      m3e-card.selectable[variant="filled"] {
+        box-shadow: 0 0 0 2px var(--md-sys-color-primary, #7289da);
+      }
+      /* Ícone do cliente: marca real em 24px, mesma medida em todos,
+         sempre no centro vertical da linha. */
+      .client-icon {
+        display: inline-flex;
+        width: 24px;
+        height: 24px;
+        flex-shrink: 0;
+      }
+      .client-icon svg {
+        width: 24px;
+        height: 24px;
+      }
+      m3e-list-item > [slot="leading"] {
+        align-self: center;
+        display: inline-flex;
+      }
+      #client-list,
+      #site-list {
+        width: 100%;
+        min-width: 0;
+      }
+      #sysinfo {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        font-variant-numeric: tabular-nums;
+      }
+    </style>
+  </head>
+
+  <body>
+    <m3e-theme color="#7289da" scheme="auto" strong-focus>
+      <div class="topbar">
+        <m3e-stepper
+          id="wizard"
+          orientation="horizontal"
+          header-position="above"
+          label-position="below"
+        >
+          <m3e-step for="s-clients" slot="step" selected>Cliente</m3e-step>
+          <m3e-step for="s-goal" slot="step">Patchs</m3e-step>
+          <m3e-step for="s-apply" slot="step">Aplicar</m3e-step>
+          <m3e-step for="s-info" slot="step">Info</m3e-step>
+        </m3e-stepper>
+      </div>
+      <main>
+        <div id="panels">
+          <section class="pane" id="s-clients">
+            <div id="client-list" style="display: contents"></div>
+            <m3e-callout variant="info" id="no-clients" hidden>
+              Nenhum cliente Discord encontrado nos caminhos padrão. Instale o
+              Discord (stable, PTB, canary ou Vencord) e tente de novo.
+            </m3e-callout>
+            <div class="wizard-nav">
+              <m3e-button variant="filled" id="btn-to-goal" disabled>Continuar</m3e-button>
+            </div>
+          </section>
+
+          <section class="pane" id="s-goal" hidden>
+            <div class="grid" id="goal-grid"></div>
+            <m3e-callout variant="info">
+              O botão "se ouvir" do Discord continua mono por design do
+              cliente. O estéreo é ouvido por quem recebe a chamada, não por
+              quem fala.
+            </m3e-callout>
+            <div class="wizard-nav">
+              <m3e-button variant="text" data-step="s-clients">Voltar</m3e-button>
+              <m3e-button variant="filled" data-step="s-apply">Continuar</m3e-button>
+            </div>
+          </section>
+
+          <section class="pane" id="s-apply" hidden>
+            <div id="apply-summary"></div>
+            <div class="actions-row">
+              <m3e-button variant="text" id="btn-revert">Reverter</m3e-button>
+              <m3e-button variant="tonal" id="btn-analyze">Analisar</m3e-button>
+              <m3e-button variant="filled" id="btn-apply" disabled>Aplicar</m3e-button>
+            </div>
+            <m3e-list id="site-list"></m3e-list>
+            <m3e-callout variant="warning" id="discord-running" hidden>
+              O Discord está aberto. Feche-o por completo antes de aplicar ou
+              reverter.
+            </m3e-callout>
+            <div class="wizard-nav">
+              <m3e-button variant="text" data-step="s-goal">Voltar</m3e-button>
+              <m3e-button variant="filled" data-step="s-info">Continuar</m3e-button>
+            </div>
+          </section>
+
+          <section class="pane" id="s-info" hidden>
+            <m3e-heading variant="title" size="large">Info e problemas</m3e-heading>
+            <div id="sysinfo"></div>
+            <m3e-accordion>
+              <m3e-expansion-panel>
+                <span slot="header">Não encontro meu cliente</span>
+                <div>
+                  O scan cobre stable, PTB, canary e Vencord nos caminhos padrão
+                  de cada sistema. Flatpak e Snap não têm suporte nesta versão.
+                </div>
+              </m3e-expansion-panel>
+              <m3e-expansion-panel>
+                <span slot="header">Validação falhou, nada foi escrito</span>
+                <div>
+                  O binário mudou de versão e a tabela de offsets não bate mais.
+                  O wizard nunca grava em binário desconhecido.
+                </div>
+              </m3e-expansion-panel>
+              <m3e-expansion-panel>
+                <span slot="header">Estéreo não chega no meu fone</span>
+                <div>
+                  O loopback local é mono por design. Quem recebe precisa de
+                  decoder estéreo, e o conteúdo precisa ter diferença entre
+                  canais.
+                </div>
+              </m3e-expansion-panel>
+            </m3e-accordion>
+            <m3e-heading variant="title" size="medium">Preferências</m3e-heading>
+            <m3e-card variant="outlined">
+              <div class="pref-body">
+                <div class="row-between">
+                  <div class="pref-text">
+                    <span>Tema</span>
+                    <span class="muted">Claro, escuro ou seguindo o sistema.</span>
+                  </div>
+                  <m3e-segmented-button id="pref-theme" aria-label="Tema">
+                    <m3e-button-segment value="auto" checked>Sistema</m3e-button-segment>
+                    <m3e-button-segment value="light">Claro</m3e-button-segment>
+                    <m3e-button-segment value="dark">Escuro</m3e-button-segment>
+                  </m3e-segmented-button>
+                </div>
+                <div class="row-between">
+                  <div class="pref-text">
+                    <span>Animações</span>
+                    <span class="muted">Transições de etapa e confete do sucesso.</span>
+                  </div>
+                  <m3e-switch id="pref-anim" aria-label="Animações"></m3e-switch>
+                </div>
+              </div>
+            </m3e-card>
+            <m3e-heading variant="title" size="medium">Sobre o Stereo Wizard</m3e-heading>
+            <m3e-callout variant="info">
+              Wizard de aplicação de patches no discord_voice.node para máxima
+              qualidade de áudio e estéreo no Discord. Motor verify-then-write:
+              nenhum byte é gravado em binário não validado.
+            </m3e-callout>
+            <div class="grid" id="about-cards"></div>
+            <div class="wizard-nav">
+              <m3e-button variant="text" data-step="s-apply">Voltar</m3e-button>
+            </div>
+          </section>
+        </div>
+      </main>
+      <footer id="app-footer">
+        <m3e-icon-button
+          id="btn-theme"
+          aria-label="Tema: sistema — clique para claro"
+        >
+          <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+            <path
+              fill="currentColor"
+              d="M10.85 12.65h2.3L12 9l-1.15 3.65zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69zM14.3 16l-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9h-1.9z"
+            />
+          </svg>
+        </m3e-icon-button>
+        <m3e-button variant="text" data-url="https://github.com/sittiev/discord_stereo">GitHub</m3e-button>
+        <m3e-button variant="text" data-url="https://discord.gg/jb72VayAzN">Discord</m3e-button>
+        <m3e-button variant="text" data-url="https://ko-fi.com/SEU-PERFIL">Doar</m3e-button>
+      </footer>
+      <m3e-dialog id="done-dialog" dismissible>
+        <span slot="header">Patch aplicado</span>
+        <div>
+          Reabra o Discord para ativar o estéreo. Se o wizard ajudou, apoie o
+          projeto: deixe uma estrela no repositório ou faça uma doação.
+        </div>
+        <div slot="actions">
+          <m3e-button variant="text"><m3e-dialog-action return-value="close">Fechar</m3e-dialog-action></m3e-button>
+          <m3e-button variant="outlined" data-url="https://github.com/sittiev/discord_stereo">Dar estrela</m3e-button>
+          <m3e-button variant="filled" data-url="https://ko-fi.com/SEU-PERFIL" autofocus>Doar</m3e-button>
+        </div>
+      </m3e-dialog>
+      <m3e-snackbar id="snackbar" aria-live="polite"></m3e-snackbar>
+    </m3e-theme>
+    <script>
+      // Antes do bundle montar: aplica o tema salvo para não piscar na abertura.
+      try {
+        const t = localStorage.getItem("sw.theme");
+        if (t === "light" || t === "dark") {
+          document.querySelector("m3e-theme").setAttribute("scheme", t);
+          document.documentElement.style.colorScheme = t;
+        }
+      } catch {}
+    </script>
+  </body>
+</html>

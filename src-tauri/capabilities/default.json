@@ -1,0 +1,17 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Minimal capability for the main window. External links are limited to the exact URLs the app opens.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        { "url": "https://github.com/sittiev/discord_stereo" },
+        { "url": "https://discord.gg/jb72VayAzN" },
+        { "url": "https://ko-fi.com/howitgoesonline" }
+      ]
+    }
+  ]
+}
