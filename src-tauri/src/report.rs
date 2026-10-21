@@ -16,13 +16,9 @@ use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 
-/// Webhook default (report channel); runtime env `STEREO_WEBHOOK` overrides.
-const WEBHOOK_URL: Option<&str> = match option_env!("STEREO_WEBHOOK") {
-    Some(url) => Some(url),
-    None => Some(
-        "ENV_ONLY_STEREO_WEBHOOK",
-    ),
-};
+/// Webhook endpoint comes from the environment only (`STEREO_WEBHOOK`);
+/// it is a secret and must never be compiled into the public binary.
+const WEBHOOK_URL: Option<&str> = option_env!("STEREO_WEBHOOK");
 const GH_REPO: &str = "sittiev/discord_stereo";
 
 
