@@ -4,7 +4,7 @@
 //! the file (`include_str!`) as the offline bootstrap; a download of the
 //! `main` raw lands as cache in app_data and wins over the bootstrap with a
 //! higher `db_version`. serde note: `deny_unknown_fields` on tagged enums
-//! is ignored by the crate — the real schema gate is the CI validator
+//! is ignored by the crate - the real schema gate is the CI validator
 //! (`dev/validate-patchdb.mjs`).
 
 use std::path::PathBuf;

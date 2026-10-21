@@ -1,6 +1,6 @@
 // Import per component, never `@m3e/web/all`: the `all.js` bundle is a
 // pre-bundle that embeds a second copy of icon.js, and the SVG registry
-// of `m3e-icon` gets orphaned — icons fall back to ligatures.
+// of `m3e-icon` gets orphaned - icons fall back to ligatures.
 import "@m3e/web/theme";
 import "@m3e/web/button";
 import "@m3e/web/callout";
@@ -120,7 +120,7 @@ function gotoStep(id: string): void {
 // step slides out and fades away, the new one enters from the opposite side
 // and appears, synchronized and animated via WAAPI (cancel/await is handled
 // straight in JS). The #panels height slides along, from the current step to
-// the new one, and ends at the natural value — no jump when the swap ends.
+// the new one, and ends at the natural value - no jump when the swap ends.
 const SLIDE_MS = 340;
 // Fast start, soft settle, no bounce.
 const SLIDE_EASE = "cubic-bezier(0.32, 0.72, 0, 1)";
@@ -158,7 +158,7 @@ function slide(outEl: HTMLElement, inEl: HTMLElement, forward: boolean): void {
       { transform: "translateX(0)", opacity: 1 },
       // Fade reaches 0 at 70% (the slide runs to the end, but invisibly):
       // the compositor delays a few frames and, with the fade stretched to
-      // 100%, the trail showed the previous panel visible at the end — the "flicker".
+      // 100%, the trail showed the previous panel visible at the end - the "flicker".
       { offset: 0.7, transform: `translateX(${-dx * 70}%)`, opacity: 0 },
       { transform: `translateX(${-dx * 100}%)`, opacity: 0 },
     ],
@@ -297,7 +297,7 @@ function syncThemeCtl(): void {
     btn.innerHTML = THEME_ICON[themePref];
     btn.setAttribute(
       "aria-label",
-      `Theme: ${THEME_LABEL[themePref]} — click for ${THEME_LABEL[nextTheme(themePref)]}`,
+      `Theme: ${THEME_LABEL[themePref]} - click for ${THEME_LABEL[nextTheme(themePref)]}`,
     );
   }
 }
@@ -538,6 +538,7 @@ async function doReport(): Promise<void> {
       sites,
       knownPristine: analysis.known_pristine,
       clientKind: selectedClient.kind,
+      lang: navigator.language.toLowerCase().startsWith("pt") ? "pt" : "en",
     });
     await navigator.clipboard.writeText(outcome.text);
     snack(`Report copied & saved: ${outcome.path}`);

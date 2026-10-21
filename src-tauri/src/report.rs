@@ -6,7 +6,7 @@
 //! 2. Discord webhook (when `STEREO_WEBHOOK` is set at build time or runtime).
 //! 3. GitHub issue via token (when `STEREO_GH_TOKEN` is set).
 //!
-//! Trace format: one JSON object per report — what, where, which goal,
+//! Trace format: one JSON object per report - what, where, which goal,
 //! per-site evidence (expected vs found bytes), binary identity and a small
 //! fixed-size digest of surrounding bytes so new offsets can be located by
 //! signature. No user identifiers are collected.
@@ -49,6 +49,10 @@ pub struct Report {
     pub os: String,
     pub arch: String,
     pub goal: String,
+    /// Full localized goal name ("Deep Stereo" / "Stereo Profundo").
+    pub goal_title: String,
+    /// UI language when the report was sent ("pt" / "en").
+    pub lang: String,
     pub node_path: String,
     pub node_md5: String,
     pub node_size: u64,
@@ -79,7 +83,7 @@ impl Report {
     }
 
     /// Compact human-readable rendering for webhook embeds and the
-    /// clipboard copy. Redacts the home directory — anything that leaves
+    /// clipboard copy. Redacts the home directory - anything that leaves
     /// the machine must not carry the username.
     pub fn to_text(&self) -> String {
         let mut s = String::new();
@@ -186,8 +190,8 @@ fn os_name(os: &str) -> &'static str {
     }
 }
 
-/// Icon of the reported client flavor — Discord, Canary, PTB or Vencord —
-/// resolved through Google's favicon proxy (stable, hotlink-friendly).
+/// Icon of the reported client flavor - Discord, Canary, PTB or Vencord -
+/// via icon.horse (serves real PNGs, no proxy 301 games).
 fn client_icon(kind: &str) -> String {
     let domain = match kind {
         "canary" => "canary.discord.com",
@@ -195,7 +199,7 @@ fn client_icon(kind: &str) -> String {
         "vencord" => "vencord.dev",
         _ => "discord.com",
     };
-    format!("https://www.google.com/s2/favicons?domain={domain}&sz=64")
+    format!("https://icon.horse/icon/{domain}")
 }
 
 /// Discord brand color (Blurple).
@@ -208,13 +212,11 @@ fn field(name: &str, value: String, inline: bool) -> serde_json::Value {
 /// Bot identity of the reporting webhook, from the user's template.
 const BOT_AVATAR: &str = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ1El38iW3yk3YIvYakO7ZJMcPc_4l_OTLyQBDflIpzJg&s=10";
 
-/// Pure payload builder — everything testable without touching the
-/// network. Layout per the user's template, evolved: `content` one-liner
-/// (OS, md5, goal, client flavor); single embed whose author carries the
-/// icon of the reported client (Discord/Canary/PTB/Vencord) with the OS in
-/// the name; and one field per diverged site **named after the site's
-/// function** (e.g. "MCOpusImpl ctor num_channels") — a reverser or an LLM
-/// reads what must be changed without opening anything else.
+/// Pure payload builder - everything testable without touching the
+/// network. `content` one-liner (OS, md5, full goal name, client flavor);
+/// single embed whose author carries the icon of the reported client and
+/// one field per diverged site named after the site's own function, so a
+/// reverser or an LLM reads what to change directly from the field list.
 #[must_use]
 fn embed_payload(report: &Report) -> serde_json::Value {
     let diverged: Vec<&SiteTrace> = report.sites.iter().filter(|s| !s.found.is_empty()).collect();
@@ -231,7 +233,13 @@ fn embed_payload(report: &Report) -> serde_json::Value {
         field("MD5", format!("`{}`", report.node_md5), false),
         field(
             "Binary",
-            format!("{} · {} · `{}` · table: {}", flavor, report.discord_dir, report.arch, report.table_kind),
+            format!("{} · {} · `{}` · {}", flavor, report.discord_dir, report.arch,
+                    if report.table_kind == "none" { "no patch table for this build" } else { "patch table matched" }),
+            false,
+        ),
+        field(
+            "Patch",
+            format!("{} (id: {})", report.goal_title, report.goal),
             false,
         ),
     ];
@@ -239,7 +247,7 @@ fn embed_payload(report: &Report) -> serde_json::Value {
         if i == 8 {
             fields.push(field(
                 "… more sites",
-                format!("… +{} more diverged sites — full evidence in the JSON report", diverged.len() - 8),
+                format!("… +{} more diverged sites - full evidence in the JSON report", diverged.len() - 8),
                 false,
             ));
             break;
@@ -269,15 +277,18 @@ fn embed_payload(report: &Report) -> serde_json::Value {
         "username": "Stereo Wizard Report",
         "avatar_url": BOT_AVATAR,
         "content": format!(
-            "OS: {os} ({}) — MD5: `{}` — {} — {}",
-            report.arch, report.node_md5, report.goal, flavor
+            "OS: {os} ({}) - MD5: `{}` - patch: {} - {}",
+            report.arch, report.node_md5, report.goal_title, flavor
         ),
         "embeds": [{
             "title": title,
             "color": EMBED_COLOR,
             "author": {"name": format!("{flavor} · site evidence"), "icon_url": icon},
             "fields": fields,
-            "footer": {"text": format!("`{}` · db v{} · app {}", report.report_id, report.db_version, report.app_version)},
+            "footer": {"text": format!(
+                "`{}` · patchdb v{} (offset tables) · app v{}",
+                report.report_id, report.db_version, report.app_version
+            )},
             "timestamp": report.ts_iso,
         }],
         "allowed_mentions": {"parse": []}
@@ -319,7 +330,7 @@ fn send_github_issue(token: &str, report: &Report) {
         .send_string(&payload.to_string());
 }
 
-/// Clamp to `max` **including** the truncation marker, on a char boundary —
+/// Clamp to `max` **including** the truncation marker, on a char boundary -
 /// `max` is the hard budget of the returned string, not just the cut point
 /// (Discord counts code points, and the suffix used to overflow it).
 fn truncate(s: &str, max: usize) -> String {
@@ -352,6 +363,8 @@ mod tests {
             os: "linux".into(),
             arch: "x86_64".into(),
             goal: "v4".into(),
+            goal_title: "Stereo Full".into(),
+            lang: "en".into(),
             node_path: "/x/discord_voice.node".into(),
             node_md5: "ab".repeat(16),
             node_size: 123,
@@ -376,23 +389,25 @@ mod tests {
         assert_eq!(p["username"], "Stereo Wizard Report");
         assert!(p["avatar_url"].as_str().unwrap().starts_with("https://"));
         let content = p["content"].as_str().unwrap();
-        assert!(content.starts_with("OS: Linux (x86_64) — MD5: `"), "got {content}");
-        assert!(content.ends_with("— v4 — Discord Stable"), "goal/flavor missing: {content}");
+        assert!(content.starts_with("OS: Linux (x86_64) - MD5: `"), "got {content}");
+        assert!(content.ends_with("- patch: Stereo Full - Discord Stable"), "goal/flavor missing: {content}");
         let e = &p["embeds"][0];
         assert_eq!(e["color"], 0x5865F2);
         assert_eq!(e["author"]["name"], "Discord Stable · site evidence");
-        assert_eq!(
-            e["author"]["icon_url"],
-            "https://www.google.com/s2/favicons?domain=discord.com&sz=64"
-        );
+        assert_eq!(e["author"]["icon_url"], "https://icon.horse/icon/discord.com");
         assert_eq!(e["title"], "🛠 Discord Stable on Linux · 1 of 1 sites diverged");
         let fields = e["fields"].as_array().unwrap();
         assert_eq!(fields[0]["name"], "MD5");
         assert_eq!(fields[1]["name"], "Binary");
-        assert_eq!(fields[2]["name"], "MCOpusImpl ctor num_channels",
+        assert!(fields[1]["value"].as_str().unwrap().contains("no patch table for this build"));
+        assert_eq!(fields[2]["name"], "Patch");
+        assert_eq!(fields[2]["value"], "Stereo Full (id: v4)");
+        assert_eq!(fields[3]["name"], "MCOpusImpl ctor num_channels",
             "field must be the site function, not a generic PATCH label");
-        assert!(!fields[2]["inline"].as_bool().unwrap(), "site fields stack full-width");
-        assert!(fields[2]["value"].as_str().unwrap().contains("✗ expected"));
+        assert!(!fields[3]["inline"].as_bool().unwrap(), "site fields stack full-width");
+        assert!(fields[3]["value"].as_str().unwrap().contains("✗ expected"));
+        let footer = e["footer"]["text"].as_str().unwrap();
+        assert!(footer.contains("patchdb v2 (offset tables)"), "db version must be self-explaining: {footer}");
         assert_eq!(p["allowed_mentions"]["parse"].as_array().unwrap().len(), 0);
     }
 
@@ -410,10 +425,10 @@ mod tests {
             })
             .collect();
         let fields = embed_payload(&rep)["embeds"][0]["fields"].as_array().unwrap().clone();
-        assert_eq!(fields[2]["name"], "fn_0");
-        assert_eq!(fields[9]["name"], "fn_7", "cap at 8 site fields");
-        assert_eq!(fields[10]["name"], "… more sites", "overflow field expected");
-        assert!(fields[10]["value"].as_str().unwrap().contains("+4 more"));
+        assert_eq!(fields[3]["name"], "fn_0");
+        assert_eq!(fields[10]["name"], "fn_7", "cap at 8 site fields");
+        assert_eq!(fields[11]["name"], "… more sites", "overflow field expected");
+        assert!(fields[11]["value"].as_str().unwrap().contains("+4 more"));
     }
 
     #[test]
@@ -430,8 +445,8 @@ mod tests {
         let e = &embed_payload(&rep)["embeds"][0];
         assert_eq!(e["title"], "✓ Discord Stable on Linux · all 1 sites matched");
         let fields = e["fields"].as_array().unwrap();
-        assert_eq!(fields[2]["name"], "Result");
-        assert!(fields[2]["value"].as_str().unwrap().contains("✓ all 1 sites matched"));
+        assert_eq!(fields[3]["name"], "Result");
+        assert!(fields[3]["value"].as_str().unwrap().contains("✓ all 1 sites matched"));
     }
 
     #[test]
@@ -441,7 +456,7 @@ mod tests {
         let p = embed_payload(&rep);
         assert_eq!(p["embeds"][0]["title"], "📦 Binary not in the patch db");
         let fields = p["embeds"][0]["fields"].as_array().unwrap();
-        assert_eq!(fields.len(), 2, "MD5 + Binary only, no site fields");
+        assert_eq!(fields.len(), 3, "MD5 + Binary + Patch only, no site fields");
     }
 
     #[test]
@@ -449,7 +464,7 @@ mod tests {
         let mut rep = sample();
         rep.client_kind = "canary".into();
         let e = &embed_payload(&rep)["embeds"][0];
-        assert_eq!(e["author"]["icon_url"], "https://www.google.com/s2/favicons?domain=canary.discord.com&sz=64");
+        assert_eq!(e["author"]["icon_url"], "https://icon.horse/icon/canary.discord.com");
         assert!(e["title"].as_str().unwrap().contains("Discord Canary"));
         rep.client_kind = "ptb".into();
         let e = &embed_payload(&rep)["embeds"][0];
@@ -459,6 +474,19 @@ mod tests {
         assert!(e["author"]["icon_url"].as_str().unwrap().contains("vencord.dev"));
         assert!(e["title"].as_str().unwrap().contains("Vencord Desktop"));
     }
+
+    #[test]
+    fn goal_title_localizes_in_content() {
+        let mut rep = sample();
+        rep.goal_title = "Stereo Profundo".into();
+        rep.lang = "pt".into();
+        let p = embed_payload(&rep);
+        assert!(p["content"].as_str().unwrap().contains("- patch: Stereo Profundo -"),
+            "full localized goal name must appear");
+        let fields = p["embeds"][0]["fields"].as_array().unwrap();
+        assert_eq!(fields[2]["value"], "Stereo Profundo (id: v4)");
+    }
+
 
     #[test]
     fn os_name_in_title_and_content() {

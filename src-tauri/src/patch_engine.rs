@@ -29,11 +29,11 @@ pub struct Resolved {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "snake_case", tag = "state")]
 pub enum SiteState {
-    /// Bytes match `orig` — patchable.
+    /// Bytes match `orig` - patchable.
     Ok,
-    /// Bytes match `patch` — already applied.
+    /// Bytes match `patch` - already applied.
     Patched,
-    /// Bytes differ from both — binary mismatch at this site.
+    /// Bytes differ from both - binary mismatch at this site.
     Mismatch { found: String },
 }
 
@@ -162,7 +162,7 @@ fn pattern_reason(bytes: &[u8], pattern: &str) -> String {
 /// Table applicable to (goal, md5): the exact-md5 table first, then the
 /// same-goal table whose md5 matches the binary with every site's patch
 /// already applied (recognizes a patched binary, keeping apply idempotent
-/// and analyze truthful). A pattern-only fallback comes last — an offset
+/// and analyze truthful). A pattern-only fallback comes last - an offset
 /// table carries a fixed file offset that is meaningless in a different
 /// binary, so it must never be tried against a foreign md5 (that produced
 /// wall-of-"diverged" analyses).

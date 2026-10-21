@@ -69,6 +69,7 @@ fn report_divergence(
     sites: Vec<(String, String, String)>,
     known_pristine: bool,
     client_kind: String,
+    lang: String,
 ) -> Result<ReportOutcome, String> {
     let path = PathBuf::from(&node);
     let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
@@ -107,6 +108,12 @@ fn report_divergence(
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs())
         .unwrap_or(0);
+    let goal_title = db
+        .goals
+        .iter()
+        .find(|g| g.id == goal)
+        .map(|g| if lang == "pt" { g.title.pt.clone() } else { g.title.en.clone() })
+        .unwrap_or(goal.clone());
     let rep = report::Report {
         app_version: env!("CARGO_PKG_VERSION").to_owned(),
         schema: 1,
@@ -116,6 +123,8 @@ fn report_divergence(
         os: std::env::consts::OS.to_owned(),
         arch: std::env::consts::ARCH.to_owned(),
         goal: goal.clone(),
+        goal_title,
+        lang,
         node_path: node.clone(),
         node_md5,
         node_size: bytes.len() as u64,
@@ -148,7 +157,7 @@ struct ReportOutcome {
 fn apply_goal(node: String, goal: String) -> Result<Analysis, String> {
     let path = PathBuf::from(&node);
     if discord_running() {
-        return Err("Discord is running — close it before applying the patch".into());
+        return Err("Discord is running - close it before applying the patch".into());
     }
     apply(&path, &goal, &tables::snapshot()).map_err(|e| e.to_string())
 }
@@ -158,7 +167,7 @@ fn apply_goal(node: String, goal: String) -> Result<Analysis, String> {
 fn revert_node(node: String) -> Result<String, String> {
     let path = PathBuf::from(&node);
     if discord_running() {
-        return Err("Discord is running — close it before reverting".into());
+        return Err("Discord is running - close it before reverting".into());
     }
     revert(&path)
         .map(|p| p.to_string_lossy().into_owned())
