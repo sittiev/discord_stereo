@@ -43,12 +43,21 @@ pub struct PatchDb {
     pub tables: Vec<Table>,
 }
 
+/// Goal id plus bilingual user-visible strings (db_version 2 schema).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct GoalMeta {
     pub id: String,
-    pub title: String,
-    pub description: String,
+    pub title: Localized,
+    pub description: Localized,
+}
+
+/// Localized pair for user-visible DB strings; UI picks by language.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Localized {
+    pub pt: String,
+    pub en: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -84,6 +93,14 @@ pub enum TableSite {
         #[serde(default)]
         expect: Option<String>,
     },
+}
+
+impl TableSite {
+    pub fn name(&self) -> &str {
+        match self {
+            TableSite::Offset { name, .. } | TableSite::Pattern { name, .. } => name,
+        }
+    }
 }
 
 /// Validates structure beyond serde: unique ids, known goals, and offset
@@ -189,13 +206,13 @@ mod tests {
 
     #[test]
     fn offset_without_md5_rejected() {
-        let bad = r#"{"schema":1,"db_version":2,"updated":"2026-01-01","goals":[{"id":"v3","title":"a","description":"b"}],"tables":[{"goal":"v3","sites":[{"kind":"offset","offset":"0x0","orig":"02","patch":"00","name":"x"}]}]}"#;
+        let bad = r#"{"schema":1,"db_version":2,"updated":"2026-01-01","goals":[{"id":"v3","title":{"pt":"a","en":"a"},"description":{"pt":"b","en":"b"}}],"tables":[{"goal":"v3","sites":[{"kind":"offset","offset":"0x0","orig":"02","patch":"00","name":"x"}]}]}"#;
         assert!(parse_db(bad).is_err());
     }
 
     #[test]
     fn pattern_without_md5_accepted() {
-        let ok = r#"{"schema":1,"db_version":2,"updated":"2026-01-01","goals":[{"id":"v3","title":"a","description":"b"}],"tables":[{"goal":"v3","sites":[{"kind":"pattern","name":"x","pattern":"55 ??","patch":"c3 c3","expect":"55 48"}]}]}"#;
+        let ok = r#"{"schema":1,"db_version":2,"updated":"2026-01-01","goals":[{"id":"v3","title":{"pt":"a","en":"a"},"description":{"pt":"b","en":"b"}}],"tables":[{"goal":"v3","sites":[{"kind":"pattern","name":"x","pattern":"55 ??","patch":"c3 c3","expect":"55 48"}]}]}"#;
         assert!(parse_db(ok).is_ok());
     }
 }

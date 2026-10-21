@@ -14,6 +14,15 @@ const HEX = (s) => /^[0-9a-fA-F]+$/.test(s) && s.length % 2 === 0;
 const HEX_OR_WILD = (s) =>
   /^([0-9a-fA-F]{2}|\?\?)(\s*([0-9a-fA-F]{2}|\?\?))*$/.test(s);
 const spanBytes = (p) => p.replace(/\s/g, "").length / 2;
+const locOk = (o) =>
+  o !== null &&
+  typeof o === "object" &&
+  !Array.isArray(o) &&
+  Object.keys(o).length === 2 &&
+  typeof o.pt === "string" &&
+  !!o.pt.trim() &&
+  typeof o.en === "string" &&
+  !!o.en.trim();
 
 let db;
 try {
@@ -32,11 +41,9 @@ const goalIds = new Set((db.goals ?? []).map((g) => g.id));
 if (goalIds.size !== db.goals.length) fail("duplicate goal id in goals");
 for (const g of db.goals) {
   if (typeof g.id !== "string" || !g.id) fail("goal.id is required");
-  if (typeof g.title !== "string" || !g.title) {
-    fail(`goal ${g.id}: title is required`);
-  }
-  if (typeof g.description !== "string" || !g.description) {
-    fail(`goal ${g.id}: description is required`);
+  if (!locOk(g.title)) fail(`goal ${g.id}: title must contain pt and en strings`);
+  if (!locOk(g.description)) {
+    fail(`goal ${g.id}: description must contain pt and en strings`);
   }
 }
 

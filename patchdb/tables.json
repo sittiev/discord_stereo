@@ -1,22 +1,22 @@
 {
   "schema": 1,
-  "db_version": 1,
+  "db_version": 2,
   "updated": "2026-10-20",
   "goals": [
     {
       "id": "v3",
-      "title": "Filters Out",
-      "description": "Stereo core without krisp/highpass/downmix; server bitrate (~64k+boost)."
+      "title": { "pt": "Filtros Removido", "en": "Filters Out" },
+      "description": { "pt": "Núcleo estéreo sem krisp/highpass/downmix; bitrate do servidor (~64k + boost).", "en": "Stereo core without krisp/highpass/downmix; server bitrate (~64k+boost)." }
     },
     {
       "id": "v4",
-      "title": "Stereo Full",
-      "description": "Recommended: v3 + locked 510 kbps CBR + force-stereo + RemixAndResample fix. Best CENTROID on the bench."
+      "title": { "pt": "Stereo Full", "en": "Stereo Full" },
+      "description": { "pt": "Recomendado: v3 + CBR 510 kbps travado + force-stereo + fix do RemixAndResample. Melhor centroide no bench.", "en": "Recommended: v3 + locked 510 kbps CBR + force-stereo + RemixAndResample fix. Best CENTROID on the bench." }
     },
     {
       "id": "v5",
-      "title": "Deep Stereo",
-      "description": "v4 + Opus kAudio: more depth and separation; lower spectral centroid (music-mode trade-off)."
+      "title": { "pt": "Stereo Profundo", "en": "Deep Stereo" },
+      "description": { "pt": "v4 + Opus kAudio: mais profundidade e separação; centroide espectral mais baixo (trade-off do modo música).", "en": "v4 + Opus kAudio: more depth and separation; lower spectral centroid (music-mode trade-off)." }
     }
   ],
   "tables": [
