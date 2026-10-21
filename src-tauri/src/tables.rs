@@ -148,13 +148,11 @@ fn cell() -> &'static RwLock<PatchDb> {
 pub fn init(cache_dir: PathBuf) {
     cell();
     let cache = cache_dir.join("patchdb.json");
-    if let Ok(json) = std::fs::read_to_string(&cache) {
-        if let Ok(cached) = parse_db(&json) {
-            let mut db = cell().write().expect("db lock");
-            if cached.db_version > db.db_version {
-                *db = cached;
-            }
-        }
+    if let Ok(json) = std::fs::read_to_string(&cache)
+        && let Ok(cached) = parse_db(&json)
+        && cached.db_version > cell().read().expect("db lock").db_version
+    {
+        *cell().write().expect("db lock") = cached;
     }
     let _ = CACHE_FILE.set(cache);
 }

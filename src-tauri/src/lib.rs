@@ -294,7 +294,7 @@ pub fn run() {
     };
     builder
         .setup(|app| {
-            if let Some(dir) = app.path().app_data_dir().ok() {
+            if let Ok(dir) = app.path().app_data_dir() {
                 tables::init(dir);
             }
             Ok(())

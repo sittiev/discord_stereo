@@ -13,7 +13,6 @@
 
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
 
@@ -188,21 +187,22 @@ fn heat_bar(sites: &[SiteTrace]) -> String {
     bar
 }
 
-/// Discord webhook embed: fire-and-forget with a hard timeout; failure is
-/// invisible to the user (the local file always exists). Layout mirrors a
-/// triage board — context header, verdict title, heat bar, then sites
-/// sorted worst-first so the eye lands on breakage before detail.
-fn send_webhook(url: &str, report: &Report) {
+/// Embed description in scannable sections, separated by `_ _` (the
+/// invisible-underscore trick Discord renders as a blank line — the
+/// same organizer the Discohook boilerplate uses). Lead block first,
+/// detail below, matched tail last.
+fn embed_description(report: &Report) -> String {
     let diverged: Vec<&SiteTrace> = report.sites.iter().filter(|s| !s.found.is_empty()).collect();
     let clean = report.sites.len() - diverged.len();
-    let mut lines = String::new();
-    lines.push_str(&format!("`{}`\n", heat_bar(&report.sites)));
+
+    let mut lead = format!("`{}`", heat_bar(&report.sites));
+    let mut detail = String::new();
     for (i, s) in diverged.iter().enumerate() {
         if i == 8 {
-            lines.push_str(&format!("… +{} more in the JSON file\n", diverged.len() - 8));
+            detail.push_str(&format!("… +{} more in the JSON file\n", diverged.len() - 8));
             break;
         }
-        lines.push_str(&format!(
+        detail.push_str(&format!(
             "▲ **{}** at {}\n   expected `{}`  found `{}`{}\n",
             s.name,
             s.offset.map(|o| format!("`0x{o:X}`")).unwrap_or_else(|| "—".into()),
@@ -215,18 +215,24 @@ fn send_webhook(url: &str, report: &Report) {
         ));
     }
     if clean > 0 {
-        lines.push_str(&format!("● {clean} sites matched — not shown\n"));
+        detail.push_str(&format!("● {clean} sites matched — not shown\n"));
     }
-    let payload = serde_json::json!({
+    lead.push_str("\n_ _\n");
+    lead.push_str(&detail);
+    lead
+}
+
+/// Pure payload builder — everything testable without touching the
+/// network. `send_webhook` is the thin I/O shell around it.
+#[must_use]
+fn embed_payload(report: &Report) -> serde_json::Value {
+    let diverged = report.sites.iter().filter(|s| !s.found.is_empty()).count();
+    serde_json::json!({
         "username": "Stereo Wizard Reports",
         "embeds": [{
             "author": {"name": format!("{} · discord {}", report.goal, report.discord_dir)},
-            "title": format!(
-                "{} diverged of {} sites",
-                diverged.len(),
-                report.sites.len()
-            ),
-            "description": truncate(&lines, 3900),
+            "title": format!("{} diverged of {} sites", diverged, report.sites.len()),
+            "description": truncate(&embed_description(report), 3900),
             "color": 0x4A4E54,
             "fields": [
                 {"name": "md5", "value": format!("`{}`", &report.node_md5[..16.min(report.node_md5.len())]), "inline": true},
@@ -236,7 +242,13 @@ fn send_webhook(url: &str, report: &Report) {
             "footer": {"text": format!("`{}` · db v{} · app {}", report.report_id, report.db_version, report.app_version)}
         }],
         "allowed_mentions": {"parse": []}
-    });
+    })
+}
+
+/// Discord webhook embed: fire-and-forget with a hard timeout; failure is
+/// invisible to the user (the local file always exists).
+fn send_webhook(url: &str, report: &Report) {
+    let payload = embed_payload(report);
     let agent = ureq::AgentBuilder::new()
         .timeout(std::time::Duration::from_secs(8))
         .build();
@@ -268,16 +280,22 @@ fn send_github_issue(token: &str, report: &Report) {
         .send_string(&payload.to_string());
 }
 
+/// Clamp to `max` **including** the truncation marker, on a char boundary —
+/// `max` is the hard budget of the returned string, not just the cut point
+/// (Discord counts code points, and the suffix used to overflow it).
 fn truncate(s: &str, max: usize) -> String {
-    if s.len() <= max {
-        s.to_owned()
-    } else {
-        let mut cut = max;
-        while !s.is_char_boundary(cut) {
-            cut -= 1;
-        }
-        format!("{}\n…(truncated)", &s[..cut])
+    const MARK: &str = "\n…(truncated)";
+    if s.chars().count() <= max {
+        return s.to_owned();
     }
+    let room = max.saturating_sub(MARK.chars().count());
+    let cut = s
+        .char_indices()
+        .map(|(i, c)| i + c.len_utf8())
+        .take_while(|end| *end <= room)
+        .last()
+        .unwrap_or(0);
+    format!("{}{MARK}", &s[..cut])
 }
 
 
@@ -365,5 +383,90 @@ mod tests {
         let s = "ààà".repeat(40);
         let cut = truncate(&s, 10);
         assert!(cut.ends_with("(truncated)"));
+    }
+
+    #[test]
+    fn truncate_passes_short_strings_through() {
+        assert_eq!(truncate("abc", 10), "abc");
+    }
+
+    #[test]
+    fn embed_description_sections_and_cap() {
+        let mut rep = sample();
+        rep.sites = (0..12)
+            .map(|i| SiteTrace {
+                name: format!("s{i}"),
+                expected_orig: "02".into(),
+                expected_patch: "00".into(),
+                found: "81".into(),
+                neighborhood: None,
+                offset: Some(i),
+            })
+            .collect();
+        let d = embed_description(&rep);
+        assert!(d.contains("_ _"), "blank-line separator missing");
+        assert!(d.contains("▲ **s0**"), "first diverged site missing");
+        assert!(!d.contains("▲ **s8**"), "9th site should be capped");
+        assert!(d.contains("… +4 more in the JSON file"), "overflow line missing");
+    }
+
+    #[test]
+    fn embed_description_all_clean_collapses() {
+        let mut rep = sample();
+        rep.sites = vec![SiteTrace {
+            name: "only".into(),
+            expected_orig: "02".into(),
+            expected_patch: "00".into(),
+            found: String::new(),
+            neighborhood: None,
+            offset: None,
+        }];
+        let d = embed_description(&rep);
+        assert!(d.contains("● 1 sites matched — not shown"));
+        assert!(!d.contains("▲"), "no diverged marker expected");
+    }
+
+    #[test]
+    fn embed_payload_shape_matches_discord_contract() {
+        let p = embed_payload(&sample());
+        assert_eq!(p["username"], "Stereo Wizard Reports");
+        let e = &p["embeds"][0];
+        assert_eq!(e["title"], "1 diverged of 1 sites");
+        assert_eq!(e["author"]["name"], "v4 · discord app-1.0.162");
+        assert_eq!(e["color"], 0x4A4E54, "neutral slate color");
+        assert!(e["description"].as_str().unwrap().len() <= 3900);
+        assert_eq!(e["fields"].as_array().unwrap().len(), 3);
+        assert!(e["footer"]["text"].as_str().unwrap().contains("db v2"));
+        assert_eq!(p["allowed_mentions"]["parse"].as_array().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn embed_payload_truncates_huge_descriptions() {
+        let mut rep = sample();
+        rep.sites = (0..40)
+            .map(|i| SiteTrace {
+                name: format!("very-long-site-name-{i}-pad-pad-pad"),
+                expected_orig: "aa".repeat(64),
+                expected_patch: "bb".repeat(64),
+                found: "cc".repeat(64),
+                neighborhood: Some("dd".repeat(128)),
+                offset: Some(i),
+            })
+            .collect();
+        let p = embed_payload(&rep);
+        let d = p["embeds"][0]["description"].as_str().unwrap();
+        assert!(d.chars().count() <= 3900, "description over Discord limit: {}", d.chars().count());
+        assert!(d.contains("(truncated)"));
+    }
+
+    #[test]
+    fn submit_names_file_after_report_id() {
+        let dir = std::env::temp_dir().join("stereo-wizard-test-reports");
+        let mut rep = sample();
+        rep.report_id = "1730000000-abababababab".into();
+        let path = submit(&rep, &dir).unwrap();
+        assert!(path.ends_with("div-1730000000-abababababab.json"), "got {path:?}");
+        assert!(path.exists());
+        std::fs::remove_file(&path).unwrap();
     }
 }
