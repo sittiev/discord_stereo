@@ -18,7 +18,6 @@ import "@m3e/web/stepper";
 import "@m3e/web/switch";
 
 import { invoke } from "@tauri-apps/api/core";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
 import confetti from "canvas-confetti";
@@ -33,10 +32,20 @@ interface FoundClient {
   process_running: boolean;
 }
 
+interface Localized {
+  pt: string;
+  en: string;
+}
+
+// UI copy is English (see index.html); pt stays as fallback.
+function loc(l: Localized): string {
+  return l.en || l.pt;
+}
+
 interface GoalInfo {
   id: string;
-  title: string;
-  description: string;
+  title: Localized;
+  description: Localized;
   sites: number;
 }
 
@@ -407,8 +416,8 @@ async function loadGoals(): Promise<void> {
     card.setAttribute("aria-pressed", String(isSel));
     card.innerHTML = `
       <div class="goal-body">
-        <strong>${esc(g.title)}</strong>
-        <div class="muted">${esc(g.description)}</div>
+        <strong>${esc(loc(g.title))}</strong>
+        <div class="muted">${esc(loc(g.description))}</div>
         <div><m3e-chip variant="assist">${g.sites} ${g.sites === 1 ? "patch" : "patches"}</m3e-chip></div>
       </div>`;
     card.addEventListener("click", () => {
@@ -432,7 +441,7 @@ function renderApply(): void {
     summary.innerHTML = `
       <m3e-callout variant="info">
         <div class="row-between">
-          <span><strong>${esc(goal?.title ?? selectedGoal)}</strong> on ${esc(selectedClient.label)}</span>
+          <span><strong>${esc(goal ? loc(goal.title) : selectedGoal)}</strong> on ${esc(selectedClient.label)}</span>
           <span class="muted path">${esc(selectedClient.version_dir)}</span>
         </div>
       </m3e-callout>`;
@@ -689,17 +698,7 @@ window.addEventListener("DOMContentLoaded", () => {
       gotoStep(id);
     });
   }
-  // Custom titlebar (decorations disabled in tauri.conf.json).
-  const win = getCurrentWindow();
-  document.getElementById("win-min")!.addEventListener("click", () => {
-    void win.minimize();
-  });
-  document.getElementById("win-max")!.addEventListener("click", () => {
-    void win.toggleMaximize();
-  });
-  document.getElementById("win-close")!.addEventListener("click", () => {
-    void win.close();
-  });
+  // Titlebar is drag-only (decorations off, no window controls).
   // Footer and popup open external links; one delegate covers all.
   for (const b of document.querySelectorAll<HTMLElement>("[data-url]")) {
     b.addEventListener("click", () => openExternal(b.dataset.url ?? ""));
