@@ -50,6 +50,9 @@ pub struct Analysis {
     pub known_pristine: bool,
     /// Per-site states for the selected goal.
     pub sites: Vec<(String, SiteState)>,
+    /// Expected bytes per site (hex), for divergence reports.
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub expected: Vec<(String, String)>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -156,15 +159,57 @@ fn pattern_reason(bytes: &[u8], pattern: &str) -> String {
     format!("{hits} matches")
 }
 
-/// Table applicable to (goal, md5): the exact-md5 table first; otherwise the
-/// first table for the goal (pattern-only or another build's md5). The
-/// verify-then-write pass rejects unexpected bytes in either case, so a
-/// foreign binary is never written.
-fn table_for<'a>(db: &'a PatchDb, goal: &str, md5: &str) -> Option<&'a Table> {
-    db.tables
+/// Table applicable to (goal, md5): the exact-md5 table first, then the
+/// same-goal table whose md5 matches the binary with every site's patch
+/// already applied (recognizes a patched binary, keeping apply idempotent
+/// and analyze truthful). A pattern-only fallback comes last — an offset
+/// table carries a fixed file offset that is meaningless in a different
+/// binary, so it must never be tried against a foreign md5 (that produced
+/// wall-of-"diverged" analyses).
+fn table_for<'a>(db: &'a PatchDb, goal: &str, md5: &str, bytes: &[u8]) -> Option<&'a Table> {
+    if let Some(t) = db
+        .tables
         .iter()
         .find(|t| t.goal == goal && t.binary_md5.as_deref() == Some(md5))
-        .or_else(|| db.tables.iter().find(|t| t.goal == goal))
+    {
+        return Some(t);
+    }
+    for t in db.tables.iter().filter(|t| t.goal == goal && t.binary_md5.is_some()) {
+        if patched_md5(t, bytes).as_deref() == Some(md5) {
+            return Some(t);
+        }
+    }
+    db.tables
+        .iter()
+        .find(|t| t.goal == goal && t.binary_md5.is_none())
+}
+
+/// md5 of the binary with every offset site's patch applied in memory;
+/// None when any site falls outside the binary.
+fn patched_md5(table: &Table, bytes: &[u8]) -> Option<String> {
+    let mut copy = bytes.to_vec();
+    for site in &table.sites {
+        let TableSite::Offset { offset, patch, .. } = site else {
+            return None;
+        };
+        let start = u32::from_str_radix(offset.trim_start_matches("0x"), 16).ok()?;
+        let patch = decode_hex(patch, "site").ok()?;
+        let end = start as usize + patch.len();
+        copy.get_mut(start as usize..end)?;
+        copy[start as usize..end].copy_from_slice(&patch);
+    }
+    Some(md5_hex(&copy))
+}
+
+/// Offset of a site when the table entry carries a fixed one. Pattern sites
+/// resolve per-binary, so they have no stable offset to report.
+pub fn site_offset(site: &crate::tables::TableSite) -> Option<u32> {
+    match site {
+        crate::tables::TableSite::Offset { offset, .. } => {
+            parse_offset(offset, "site").ok()
+        }
+        _ => None,
+    }
 }
 
 fn resolve_sites(table: &Table, bytes: &[u8]) -> Result<Vec<Resolved>, EngineError> {
@@ -273,23 +318,27 @@ pub fn analyze_bytes(
     db: &PatchDb,
 ) -> Result<Analysis, EngineError> {
     let md5 = md5_hex(bytes);
-    let table = table_for(db, goal, &md5);
-    let sites = table
-        .map(|t| resolve_sites(t, bytes))
-        .transpose()?
-        .map(|resolved| {
-            resolved
-                .iter()
-                .map(|r| (r.name.clone(), site_state(r, bytes)))
-                .collect()
-        })
-        .unwrap_or_default();
+    let table = table_for(db, goal, &md5, bytes);
+    let resolved = table.map(|t| resolve_sites(t, bytes)).transpose()?;
+    let sites = resolved
+        .as_deref()
+        .unwrap_or_default()
+        .iter()
+        .map(|r| (r.name.clone(), site_state(r, bytes)))
+        .collect();
+    let expected = resolved
+        .as_deref()
+        .unwrap_or_default()
+        .iter()
+        .map(|r| (r.name.clone(), hex::encode(&r.orig)))
+        .collect();
     Ok(Analysis {
         path: node.to_path_buf(),
         size: bytes.len() as u64,
         md5,
         known_pristine: table.is_some(),
         sites,
+        expected,
     })
 }
 
@@ -307,7 +356,7 @@ pub fn analyze_bytes(
 pub fn apply(node: &Path, goal: &str, db: &PatchDb) -> Result<Analysis, EngineError> {
     let mut bytes = fs::read(node)?;
     let md5 = md5_hex(&bytes);
-    let Some(table) = table_for(db, goal, &md5) else {
+    let Some(table) = table_for(db, goal, &md5, &bytes) else {
         return Err(EngineError::NoTable { md5, goal: goal.into() });
     };
     let analysis = analyze_bytes(node, &bytes, goal, db)?;
@@ -344,6 +393,7 @@ pub fn apply(node: &Path, goal: &str, db: &PatchDb) -> Result<Analysis, EngineEr
     fs::write(node, &bytes)?;
     let sites: Vec<(String, SiteState)> = analysis
         .sites
+        .clone()
         .into_iter()
         .map(|(name, state)| match state {
             SiteState::Ok => (name, SiteState::Patched),
@@ -354,7 +404,7 @@ pub fn apply(node: &Path, goal: &str, db: &PatchDb) -> Result<Analysis, EngineEr
         sites
             .iter()
             .filter(|(_, st)| matches!(st, SiteState::Ok))
-            .count(),
+        .count(),
         0,
         "apply left unpatched sites behind; verify-then-write invariant broken"
     );
@@ -364,6 +414,7 @@ pub fn apply(node: &Path, goal: &str, db: &PatchDb) -> Result<Analysis, EngineEr
         md5: md5_hex(&bytes),
         known_pristine: true,
         sites,
+        expected: analysis.expected,
     })
 }
 
@@ -435,7 +486,7 @@ mod tests {
             "schema": 1,
             "db_version": 1,
             "updated": "2026-10-20",
-            "goals": [{ "id": "t", "title": "T", "description": "d" }],
+            "goals": [{ "id": "t", "title": { "pt": "T", "en": "T" }, "description": { "pt": "d", "en": "d" } }],
             "tables": [table_json("t", md5, site)]
         });
         parse_db(&v.to_string()).expect("valid test db")
@@ -642,6 +693,37 @@ mod tests {
         match find_state(&r.sites, "sig") {
             SiteState::Ok => {}
             other => panic!("expected Ok without expect, got {other:?}"),
+        }
+    }
+
+    /// Dev-machine smoke: the real v5-patched node must NOT produce a wall
+    /// of diverged sites (the bug this fix targets). Skips when absent.
+    #[test]
+    fn real_v5_node_analyze_is_not_wall_of_diverged() {
+        let node = Path::new(
+            "/home/rafael/.config/discord/app-1.0.161/modules/discord_voice-1/discord_voice/discord_voice.node",
+        );
+        let Ok(bytes) = fs::read(node) else {
+            eprintln!("skipping: no real node on this machine");
+            return;
+        };
+        let db_json = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .join("patchdb/tables.json");
+        let Ok(db_json) = fs::read_to_string(db_json) else {
+            eprintln!("skipping: no patchdb");
+            return;
+        };
+        let db = crate::tables::parse_db(&db_json).unwrap();
+        for goal in ["v3", "v4", "v5"] {
+            let r = analyze_bytes(node, &bytes, goal, &db).unwrap();
+            let mismatches = r
+                .sites
+                .iter()
+                .filter(|(_, s)| matches!(s, SiteState::Mismatch { .. }))
+                .count();
+            assert_eq!(mismatches, 0, "{goal}: wall of diverged sites came back");
         }
     }
 }
