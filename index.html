@@ -47,18 +47,10 @@
         flex-shrink: 0;
       }
       .titlebar {
-        display: flex;
-        align-items: center;
-        box-sizing: border-box;
         width: 100%;
-        padding: 6px 8px;
+        height: 8px;
         user-select: none;
         flex-shrink: 0;
-      }
-      .titlebar .title {
-        font-size: 12px;
-        color: var(--muted);
-        padding-left: 4px;
       }
       main {
         flex: 1;
@@ -283,9 +275,7 @@
 
   <body>
     <m3e-theme color="#7289da" scheme="auto" strong-focus>
-      <div class="titlebar" data-tauri-drag-region>
-        <span class="title" data-tauri-drag-region>Stereo Wizard</span>
-      </div>
+      <div class="titlebar" data-tauri-drag-region></div>
       <div class="topbar">
         <m3e-stepper
           id="wizard"
