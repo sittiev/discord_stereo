@@ -2,10 +2,9 @@
 //!
 //! All commands are read-only or explicitly requested by the user via
 //! button press; nothing here runs at app startup beyond `detect` and the
-//! cached Patch-DB bootstrap.
-
 mod detect;
 mod patch_engine;
+mod report;
 mod tables;
 
 use std::io::Read;
@@ -43,12 +42,12 @@ fn goals() -> Vec<GoalInfo> {
         .collect()
 }
 
-/// UI-facing goal metadata.
+/// UI-facing goal metadata; title/description are bilingual since db v2.
 #[derive(Serialize)]
 struct GoalInfo {
     id: String,
-    title: String,
-    description: String,
+    title: tables::Localized,
+    description: tables::Localized,
     sites: usize,
 }
 
@@ -56,6 +55,90 @@ struct GoalInfo {
 #[tauri::command]
 fn analyze_node(node: String, goal: String) -> Result<Analysis, String> {
     analyze(Path::new(&node), &goal, &tables::snapshot()).map_err(|e| e.to_string())
+}
+
+/// Collect and submit a divergence report for an analysis that found no
+/// compatible table or mismatching sites. Local file always; webhook and
+/// GitHub issue are best-effort sinks. Called explicitly by the UI from
+/// the Analyze step when a divergence is shown.
+#[tauri::command]
+fn report_divergence(
+    app: tauri::AppHandle,
+    node: String,
+    goal: String,
+    sites: Vec<(String, String, String)>,
+    known_pristine: bool,
+) -> Result<ReportOutcome, String> {
+    let path = PathBuf::from(&node);
+    let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
+    let db = tables::snapshot();
+    let discord_dir = path
+        .ancestors()
+        .nth(4)
+        .and_then(|a| a.file_name())
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let node_md5 = patch_engine::md5_hex(&bytes);
+    let mut traces = Vec::with_capacity(sites.len());
+    for (name, expected, found) in sites {
+        let offset = db
+            .tables
+            .iter()
+            .find(|t| t.goal == goal)
+            .and_then(|t| t.sites.iter().find(|s| s.name() == name))
+            .and_then(patch_engine::site_offset);
+        traces.push(report::SiteTrace {
+            name,
+            expected_orig: expected,
+            expected_patch: String::new(),
+            found,
+            neighborhood: offset.and_then(|off| {
+                let o = off as usize;
+                if o < 16 || o + 16 > bytes.len() {
+                    return None;
+                }
+                Some(hex::encode(&bytes[o - 16..o + 16]))
+            }),
+            offset,
+        });
+    }
+    let ts_unix = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let rep = report::Report {
+        app_version: env!("CARGO_PKG_VERSION").to_owned(),
+        schema: 1,
+        ts_unix,
+        ts_iso: report::iso_utc(ts_unix),
+        report_id: format!("{ts_unix}-{}", &node_md5[..12.min(node_md5.len())]),
+        os: std::env::consts::OS.to_owned(),
+        arch: std::env::consts::ARCH.to_owned(),
+        goal: goal.clone(),
+        node_path: node.clone(),
+        node_md5,
+        node_size: bytes.len() as u64,
+        discord_dir,
+        db_version: db.db_version,
+        table_kind: if known_pristine { "matched" } else { "none" }.into(),
+        sites: traces,
+    };
+    let reports_dir = app
+        .path()
+        .app_data_dir()
+        .map(|d| d.join("reports"))
+        .map_err(|e| e.to_string())?;
+    let saved = report::submit(&rep, &reports_dir)?;
+    Ok(ReportOutcome {
+        path: saved.to_string_lossy().into_owned(),
+        text: rep.to_text(),
+    })
+}
+
+#[derive(Serialize)]
+struct ReportOutcome {
+    path: String,
+    text: String,
 }
 
 /// Apply a goal to a node (verify-then-write, backup, idempotent).
@@ -224,7 +307,8 @@ pub fn run() {
             revert_node,
             system_info,
             patch_db_info,
-            check_db_update
+            check_db_update,
+            report_divergence
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
