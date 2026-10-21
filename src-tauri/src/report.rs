@@ -187,60 +187,103 @@ fn heat_bar(sites: &[SiteTrace]) -> String {
     bar
 }
 
-/// Embed description in scannable sections, separated by `_ _` (the
-/// invisible-underscore trick Discord renders as a blank line — the
-/// same organizer the Discohook boilerplate uses). Lead block first,
-/// detail below, matched tail last.
-fn embed_description(report: &Report) -> String {
-    let diverged: Vec<&SiteTrace> = report.sites.iter().filter(|s| !s.found.is_empty()).collect();
-    let clean = report.sites.len() - diverged.len();
+/// Zero-width space — Discord rejects empty field names, but renders ZWSP
+/// as one; the Discohook trick for invisible full-width section dividers.
+const ZW: &str = "\u{200B}";
 
-    let mut lead = format!("`{}`", heat_bar(&report.sites));
-    let mut detail = String::new();
+/// Discord brand color (Blurple).
+const EMBED_COLOR: u32 = 0x5865F2;
+
+/// Overview embed body: the heat bar only — facts live in the field grid.
+fn overview_description(report: &Report) -> String {
+    if report.sites.is_empty() {
+        return "No compatible table for this binary — offsets unknown. \
+Send the report so the table can be rebuilt."
+            .into();
+    }
+    format!("`{}`", heat_bar(&report.sites))
+}
+
+/// Evidence embed body: one block per diverged site, worst-first, blocks
+/// separated by `_ _` (Discord's blank line). Capped at 8 blocks.
+fn evidence_description(report: &Report) -> String {
+    let diverged: Vec<&SiteTrace> = report.sites.iter().filter(|s| !s.found.is_empty()).collect();
+    let mut out = String::new();
     for (i, s) in diverged.iter().enumerate() {
         if i == 8 {
-            detail.push_str(&format!("… +{} more in the JSON file\n", diverged.len() - 8));
+            out.push_str(&format!("… +{} more in the JSON report", diverged.len() - 8));
             break;
         }
-        detail.push_str(&format!(
-            "▲ **{}** at {}\n   expected `{}`  found `{}`{}\n",
+        if i > 0 {
+            out.push_str("\n_ _\n");
+        }
+        out.push_str(&format!(
+            "▸ **{}** — {}\n  ✗ expected `{}`\n  found `{}`",
             s.name,
             s.offset.map(|o| format!("`0x{o:X}`")).unwrap_or_else(|| "—".into()),
             s.expected_orig,
             s.found,
-            s.neighborhood
-                .as_deref()
-                .map(|n| format!("\n   around `{}`", n))
-                .unwrap_or_default()
         ));
+        if let Some(n) = &s.neighborhood {
+            out.push_str(&format!("\n  around `{n}`"));
+        }
     }
-    if clean > 0 {
-        detail.push_str(&format!("● {clean} sites matched — not shown\n"));
-    }
-    lead.push_str("\n_ _\n");
-    lead.push_str(&detail);
-    lead
+    out
+}
+
+fn field(name: &str, value: String) -> serde_json::Value {
+    serde_json::json!({"name": name, "value": value, "inline": true})
+}
+
+fn divider() -> serde_json::Value {
+    serde_json::json!({"name": ZW, "value": ZW})
 }
 
 /// Pure payload builder — everything testable without touching the
-/// network. `send_webhook` is the thin I/O shell around it.
+/// network. Two embeds, Discohook-style: an overview card (verdict,
+/// heat bar, fact grid with invisible section dividers) plus an evidence
+/// card only when something diverged. `send_webhook` is the thin I/O shell.
 #[must_use]
 fn embed_payload(report: &Report) -> serde_json::Value {
     let diverged = report.sites.iter().filter(|s| !s.found.is_empty()).count();
+    let clean = report.sites.len() - diverged;
+    let title = if report.sites.is_empty() {
+        "📦 Binary not in the patch db".to_owned()
+    } else {
+        format!("🛠 {diverged} of {} sites diverged", report.sites.len())
+    };
+    let overview = serde_json::json!({
+        "author": {"name": "Stereo Wizard — Divergence Report"},
+        "title": title,
+        "description": truncate(&overview_description(report), 3900),
+        "color": EMBED_COLOR,
+        "fields": [
+            divider(),
+            field("Build", report.discord_dir.clone()),
+            field("Goal", report.goal.clone()),
+            field("Table", report.table_kind.clone()),
+            divider(),
+            field("md5", format!("`{}`", &report.node_md5[..16.min(report.node_md5.len())])),
+            field("Platform", format!("{}/{}", report.os, report.arch)),
+            field("Sites", format!("{} · {} ✗ · {} ✓", report.sites.len(), diverged, clean)),
+        ],
+        "footer": {"text": format!("`{}` · db v{} · app {}", report.report_id, report.db_version, report.app_version)},
+        "timestamp": report.ts_iso,
+    });
+    let mut embeds = vec![overview];
+    if diverged > 0 {
+        embeds.push(serde_json::json!({
+            "author": {"name": "Stereo Wizard — Site Evidence"},
+            "title": "🔎 Diverged site bytes",
+            "description": truncate(&evidence_description(report), 3900),
+            "color": EMBED_COLOR,
+            "footer": {"text": "expected vs found · neighborhood ±16 bytes"},
+            "timestamp": report.ts_iso,
+        }));
+    }
     serde_json::json!({
         "username": "Stereo Wizard Reports",
-        "embeds": [{
-            "author": {"name": format!("{} · discord {}", report.goal, report.discord_dir)},
-            "title": format!("{} diverged of {} sites", diverged, report.sites.len()),
-            "description": truncate(&embed_description(report), 3900),
-            "color": 0x4A4E54,
-            "fields": [
-                {"name": "md5", "value": format!("`{}`", &report.node_md5[..16.min(report.node_md5.len())]), "inline": true},
-                {"name": "os/arch", "value": format!("{}/{}", report.os, report.arch), "inline": true},
-                {"name": "table", "value": report.table_kind, "inline": true},
-            ],
-            "footer": {"text": format!("`{}` · db v{} · app {}", report.report_id, report.db_version, report.app_version)}
-        }],
+        "embeds": embeds,
         "allowed_mentions": {"parse": []}
     })
 }
@@ -391,7 +434,7 @@ mod tests {
     }
 
     #[test]
-    fn embed_description_sections_and_cap() {
+    fn evidence_description_blocks_and_cap() {
         let mut rep = sample();
         rep.sites = (0..12)
             .map(|i| SiteTrace {
@@ -399,19 +442,56 @@ mod tests {
                 expected_orig: "02".into(),
                 expected_patch: "00".into(),
                 found: "81".into(),
-                neighborhood: None,
+                neighborhood: Some("ff".repeat(16)),
                 offset: Some(i),
             })
             .collect();
-        let d = embed_description(&rep);
-        assert!(d.contains("_ _"), "blank-line separator missing");
-        assert!(d.contains("▲ **s0**"), "first diverged site missing");
-        assert!(!d.contains("▲ **s8**"), "9th site should be capped");
-        assert!(d.contains("… +4 more in the JSON file"), "overflow line missing");
+        let d = evidence_description(&rep);
+        assert!(d.contains("▸ **s0**"), "first diverged site missing");
+        assert!(d.contains("_ _"), "block separator missing");
+        assert!(d.contains("around"), "neighborhood missing");
+        assert!(!d.contains("▸ **s8**"), "9th site should be capped");
+        assert!(d.contains("… +4 more in the JSON report"), "overflow line missing");
     }
 
     #[test]
-    fn embed_description_all_clean_collapses() {
+    fn overview_description_collapses_when_no_table() {
+        let mut rep = sample();
+        rep.sites.clear();
+        let d = overview_description(&rep);
+        assert!(d.contains("No compatible table"), "guidance missing: {d}");
+    }
+
+    #[test]
+    fn overview_description_is_heat_bar_when_sites_exist() {
+        let d = overview_description(&sample());
+        assert!(d.contains("█"), "heat bar missing: {d}");
+    }
+
+    #[test]
+    fn embed_payload_shape_matches_discord_contract() {
+        let p = embed_payload(&sample());
+        assert_eq!(p["username"], "Stereo Wizard Reports");
+        let embeds = p["embeds"].as_array().unwrap();
+        assert_eq!(embeds.len(), 2, "overview + evidence expected");
+        let over = &embeds[0];
+        assert_eq!(over["title"], "🛠 1 of 1 sites diverged");
+        assert_eq!(over["author"]["name"], "Stereo Wizard — Divergence Report");
+        assert_eq!(over["color"], 0x5865F2, "Discord blurple");
+        let fields = over["fields"].as_array().unwrap();
+        assert_eq!(fields.len(), 8, "divider + 2 rows of 3 + divider");
+        assert_eq!(fields[0]["name"], "\u{200B}", "invisible divider");
+        assert!(!fields[1]["name"].as_str().unwrap().is_empty());
+        assert_eq!(over["timestamp"], "2024-10-27T03:33:20Z");
+        assert!(over["footer"]["text"].as_str().unwrap().contains("db v2"));
+        let ev = &embeds[1];
+        assert_eq!(ev["title"], "🔎 Diverged site bytes");
+        assert!(ev["description"].as_str().unwrap().contains("▸"));
+        assert_eq!(p["allowed_mentions"]["parse"].as_array().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn embed_payload_skips_evidence_when_clean() {
         let mut rep = sample();
         rep.sites = vec![SiteTrace {
             name: "only".into(),
@@ -421,23 +501,18 @@ mod tests {
             neighborhood: None,
             offset: None,
         }];
-        let d = embed_description(&rep);
-        assert!(d.contains("● 1 sites matched — not shown"));
-        assert!(!d.contains("▲"), "no diverged marker expected");
+        let p = embed_payload(&rep);
+        let embeds = p["embeds"].as_array().unwrap();
+        assert_eq!(embeds.len(), 1, "evidence card must not ship when clean");
+        assert_eq!(embeds[0]["title"], "🛠 0 of 1 sites diverged");
     }
 
     #[test]
-    fn embed_payload_shape_matches_discord_contract() {
-        let p = embed_payload(&sample());
-        assert_eq!(p["username"], "Stereo Wizard Reports");
-        let e = &p["embeds"][0];
-        assert_eq!(e["title"], "1 diverged of 1 sites");
-        assert_eq!(e["author"]["name"], "v4 · discord app-1.0.162");
-        assert_eq!(e["color"], 0x4A4E54, "neutral slate color");
-        assert!(e["description"].as_str().unwrap().len() <= 3900);
-        assert_eq!(e["fields"].as_array().unwrap().len(), 3);
-        assert!(e["footer"]["text"].as_str().unwrap().contains("db v2"));
-        assert_eq!(p["allowed_mentions"]["parse"].as_array().unwrap().len(), 0);
+    fn embed_payload_titles_no_table_case() {
+        let mut rep = sample();
+        rep.sites.clear();
+        let p = embed_payload(&rep);
+        assert_eq!(p["embeds"][0]["title"], "📦 Binary not in the patch db");
     }
 
     #[test]
@@ -454,9 +529,14 @@ mod tests {
             })
             .collect();
         let p = embed_payload(&rep);
-        let d = p["embeds"][0]["description"].as_str().unwrap();
-        assert!(d.chars().count() <= 3900, "description over Discord limit: {}", d.chars().count());
-        assert!(d.contains("(truncated)"));
+        for e in p["embeds"].as_array().unwrap() {
+            let d = e["description"].as_str().unwrap();
+            assert!(d.chars().count() <= 3900, "description over Discord limit");
+        }
+        assert!(p["embeds"][1]["description"]
+            .as_str()
+            .unwrap()
+            .contains("(truncated)"));
     }
 
     #[test]
