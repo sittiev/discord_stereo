@@ -175,21 +175,65 @@ fn webhook_url() -> Option<String> {
         .filter(|s| s.starts_with("https://"))
 }
 
+/// Heat bar: one char per site — solid for diverged, dot for clean. Gives
+/// a size-and-density read before any detail line.
+fn heat_bar(sites: &[SiteTrace]) -> String {
+    let mut bar = String::new();
+    for (i, s) in sites.iter().enumerate() {
+        if i % 40 == 0 && i > 0 {
+            bar.push('\n');
+        }
+        bar.push(if s.found.is_empty() { '·' } else { '█' });
+    }
+    bar
+}
+
 /// Discord webhook embed: fire-and-forget with a hard timeout; failure is
-/// invisible to the user (the local file always exists).
+/// invisible to the user (the local file always exists). Layout mirrors a
+/// triage board — context header, verdict title, heat bar, then sites
+/// sorted worst-first so the eye lands on breakage before detail.
 fn send_webhook(url: &str, report: &Report) {
+    let diverged: Vec<&SiteTrace> = report.sites.iter().filter(|s| !s.found.is_empty()).collect();
+    let clean = report.sites.len() - diverged.len();
+    let mut lines = String::new();
+    lines.push_str(&format!("`{}`\n", heat_bar(&report.sites)));
+    for (i, s) in diverged.iter().enumerate() {
+        if i == 8 {
+            lines.push_str(&format!("… +{} more in the JSON file\n", diverged.len() - 8));
+            break;
+        }
+        lines.push_str(&format!(
+            "▲ **{}** at {}\n   expected `{}`  found `{}`{}\n",
+            s.name,
+            s.offset.map(|o| format!("`0x{o:X}`")).unwrap_or_else(|| "—".into()),
+            s.expected_orig,
+            s.found,
+            s.neighborhood
+                .as_deref()
+                .map(|n| format!("\n   around `{}`", n))
+                .unwrap_or_default()
+        ));
+    }
+    if clean > 0 {
+        lines.push_str(&format!("● {clean} sites matched — not shown\n"));
+    }
     let payload = serde_json::json!({
         "username": "Stereo Wizard Reports",
         "embeds": [{
-            "title": truncate(&report.summary(), 250),
-            "description": truncate(&report.to_text(), 3900),
-            "color": 0xE05A00,
+            "author": {"name": format!("{} · discord {}", report.goal, report.discord_dir)},
+            "title": format!(
+                "{} diverged of {} sites",
+                diverged.len(),
+                report.sites.len()
+            ),
+            "description": truncate(&lines, 3900),
+            "color": 0x4A4E54,
             "fields": [
-                {"name": "md5", "value": format!("`{}`", report.node_md5), "inline": true},
+                {"name": "md5", "value": format!("`{}`", &report.node_md5[..16.min(report.node_md5.len())]), "inline": true},
                 {"name": "os/arch", "value": format!("{}/{}", report.os, report.arch), "inline": true},
-                {"name": "sites", "value": report.sites.len().to_string(), "inline": true},
+                {"name": "table", "value": report.table_kind, "inline": true},
             ],
-            "footer": {"text": format!("{} · db v{} · schema {}", report.report_id, report.db_version, report.schema)}
+            "footer": {"text": format!("`{}` · db v{} · app {}", report.report_id, report.db_version, report.app_version)}
         }],
         "allowed_mentions": {"parse": []}
     });
@@ -198,6 +242,7 @@ fn send_webhook(url: &str, report: &Report) {
         .build();
     let _ = agent
         .post(url)
+        .set("User-Agent", "stereo-wizard/0.1")
         .set("Content-Type", "application/json")
         .send_string(&payload.to_string());
 }
@@ -216,6 +261,7 @@ fn send_github_issue(token: &str, report: &Report) {
         .build();
     let _ = agent
         .post(&url)
+        .set("User-Agent", "stereo-wizard/0.1")
         .set("Authorization", &auth)
         .set("Accept", "application/vnd.github+json")
         .set("Content-Type", "application/json")
@@ -264,6 +310,25 @@ mod tests {
                 offset: Some(0x10),
             }],
         }
+    }
+
+    #[test]
+    fn heat_bar_marks_diverged_only() {
+        let mut rep = sample();
+        rep.sites = (0..45)
+            .map(|i| SiteTrace {
+                name: format!("s{i}"),
+                expected_orig: "02".into(),
+                expected_patch: "00".into(),
+                found: if i % 10 == 0 { "81".into() } else { String::new() },
+                neighborhood: None,
+                offset: Some(i),
+            })
+            .collect();
+        let bar = heat_bar(&rep.sites);
+        assert_eq!(bar.matches('█').count(), 5);
+        assert_eq!(bar.matches('·').count(), 40);
+        assert_eq!(bar.lines().count(), 2, "40 sites per heat row");
     }
 
     #[test]
