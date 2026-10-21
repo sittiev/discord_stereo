@@ -537,6 +537,7 @@ async function doReport(): Promise<void> {
       goal: selectedGoal,
       sites,
       knownPristine: analysis.known_pristine,
+      clientKind: selectedClient.kind,
     });
     await navigator.clipboard.writeText(outcome.text);
     snack(`Report copied & saved: ${outcome.path}`);

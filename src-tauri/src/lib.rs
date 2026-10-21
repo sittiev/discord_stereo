@@ -68,6 +68,7 @@ fn report_divergence(
     goal: String,
     sites: Vec<(String, String, String)>,
     known_pristine: bool,
+    client_kind: String,
 ) -> Result<ReportOutcome, String> {
     let path = PathBuf::from(&node);
     let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
@@ -119,6 +120,7 @@ fn report_divergence(
         node_md5,
         node_size: bytes.len() as u64,
         discord_dir,
+        client_kind,
         db_version: db.db_version,
         table_kind: if known_pristine { "matched" } else { "none" }.into(),
         sites: traces,

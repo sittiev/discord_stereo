@@ -53,6 +53,8 @@ pub struct Report {
     pub node_md5: String,
     pub node_size: u64,
     pub discord_dir: String,
+    /// Flavor of the reported client (stable/ptb/canary/vencord).
+    pub client_kind: String,
     pub db_version: u32,
     pub table_kind: String,
     pub sites: Vec<SiteTrace>,
@@ -175,13 +177,25 @@ fn webhook_url() -> Option<String> {
 }
 
 
-/// OS identity for the report: icon, display name and machine badge.
-fn platform(os: &str) -> (&'static str, &'static str) {
+/// OS display name for the content line.
+fn os_name(os: &str) -> &'static str {
     match os {
-        "windows" => ("https://upload.wikimedia.org/wikipedia/commons/e/e6/Windows_11_and_10_logo.png", "Windows"),
-        "macos" => ("https://upload.wikimedia.org/wikipedia/commons/1/1b/Apple_logo_grey.svg", "macOS"),
-        _ => ("https://upload.wikimedia.org/wikipedia/commons/a/af/Tux.png", "Linux"),
+        "windows" => "Windows",
+        "macos" => "macOS",
+        _ => "Linux",
     }
+}
+
+/// Icon of the reported client flavor — Discord, Canary, PTB or Vencord —
+/// resolved through Google's favicon proxy (stable, hotlink-friendly).
+fn client_icon(kind: &str) -> String {
+    let domain = match kind {
+        "canary" => "canary.discord.com",
+        "ptb" => "ptb.discord.com",
+        "vencord" => "vencord.dev",
+        _ => "discord.com",
+    };
+    format!("https://www.google.com/s2/favicons?domain={domain}&sz=64")
 }
 
 /// Discord brand color (Blurple).
@@ -195,29 +209,37 @@ fn field(name: &str, value: String, inline: bool) -> serde_json::Value {
 const BOT_AVATAR: &str = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ1El38iW3yk3YIvYakO7ZJMcPc_4l_OTLyQBDflIpzJg&s=10";
 
 /// Pure payload builder — everything testable without touching the
-/// network. Layout per the user's template: a `content` one-liner the
-/// channel reads before opening the embed (OS, md5, goal), then a single
-/// embed whose author marks the section ("Diverged site bytes", icon =
-/// reporter OS) and whose fields are one `PATCH n` block per diverged
-/// site — dynamic, stacked full-width, scannable by name.
+/// network. Layout per the user's template, evolved: `content` one-liner
+/// (OS, md5, goal, client flavor); single embed whose author carries the
+/// icon of the reported client (Discord/Canary/PTB/Vencord) with the OS in
+/// the name; and one field per diverged site **named after the site's
+/// function** (e.g. "MCOpusImpl ctor num_channels") — a reverser or an LLM
+/// reads what must be changed without opening anything else.
 #[must_use]
 fn embed_payload(report: &Report) -> serde_json::Value {
     let diverged: Vec<&SiteTrace> = report.sites.iter().filter(|s| !s.found.is_empty()).collect();
-    let (icon, os_name) = platform(&report.os);
+    let flavor = match report.client_kind.as_str() {
+        "canary" => "Discord Canary",
+        "ptb" => "Discord PTB",
+        "vencord" => "Vencord Desktop",
+        _ => "Discord Stable",
+    };
+    let icon = client_icon(&report.client_kind);
+    let os = os_name(&report.os);
 
     let mut fields = vec![
         field("MD5", format!("`{}`", report.node_md5), false),
         field(
-            "Build",
-            format!("{} · `{}` · table: {}", report.discord_dir, report.arch, report.table_kind),
+            "Binary",
+            format!("{} · {} · `{}` · table: {}", flavor, report.discord_dir, report.arch, report.table_kind),
             false,
         ),
     ];
     for (i, s) in diverged.iter().enumerate() {
         if i == 8 {
             fields.push(field(
-                "PATCH …",
-                format!("… +{} more diverged sites in the JSON report", diverged.len() - 8),
+                "… more sites",
+                format!("… +{} more diverged sites — full evidence in the JSON report", diverged.len() - 8),
                 false,
             ));
             break;
@@ -229,7 +251,7 @@ fn embed_payload(report: &Report) -> serde_json::Value {
         if let Some(n) = &s.neighborhood {
             body.push_str(&format!("\n±16 `{n}`"));
         }
-        fields.push(field(&format!("PATCH {}", i + 1), body, false));
+        fields.push(field(&truncate(&s.name, 256), body, false));
     }
     if diverged.is_empty() && !report.sites.is_empty() {
         fields.push(field("Result", format!("✓ all {} sites matched", report.sites.len()), false));
@@ -238,19 +260,22 @@ fn embed_payload(report: &Report) -> serde_json::Value {
     let title = if report.sites.is_empty() {
         "📦 Binary not in the patch db".to_owned()
     } else if diverged.is_empty() {
-        format!("✓ {os_name} · all {} sites matched", report.sites.len())
+        format!("✓ {flavor} on {os} · all {} sites matched", report.sites.len())
     } else {
-        format!("🛠 {os_name} · {} of {} sites diverged", diverged.len(), report.sites.len())
+        format!("🛠 {flavor} on {os} · {} of {} sites diverged", diverged.len(), report.sites.len())
     };
 
     serde_json::json!({
         "username": "Stereo Wizard Report",
         "avatar_url": BOT_AVATAR,
-        "content": format!("OS: {os_name} ({}) — MD5: `{}` — {}", report.arch, report.node_md5, report.goal),
+        "content": format!(
+            "OS: {os} ({}) — MD5: `{}` — {} — {}",
+            report.arch, report.node_md5, report.goal, flavor
+        ),
         "embeds": [{
             "title": title,
             "color": EMBED_COLOR,
-            "author": {"name": "Diverged site bytes", "icon_url": icon},
+            "author": {"name": format!("{flavor} · site evidence"), "icon_url": icon},
             "fields": fields,
             "footer": {"text": format!("`{}` · db v{} · app {}", report.report_id, report.db_version, report.app_version)},
             "timestamp": report.ts_iso,
@@ -331,10 +356,11 @@ mod tests {
             node_md5: "ab".repeat(16),
             node_size: 123,
             discord_dir: "app-1.0.162".into(),
+            client_kind: "stable".into(),
             db_version: 2,
             table_kind: "none".into(),
             sites: vec![SiteTrace {
-                name: "site".into(),
+                name: "MCOpusImpl ctor num_channels".into(),
                 expected_orig: "02".into(),
                 expected_patch: "00".into(),
                 found: "81".into(),
@@ -351,27 +377,31 @@ mod tests {
         assert!(p["avatar_url"].as_str().unwrap().starts_with("https://"));
         let content = p["content"].as_str().unwrap();
         assert!(content.starts_with("OS: Linux (x86_64) — MD5: `"), "got {content}");
-        assert!(content.ends_with("— v4"), "goal missing: {content}");
+        assert!(content.ends_with("— v4 — Discord Stable"), "goal/flavor missing: {content}");
         let e = &p["embeds"][0];
         assert_eq!(e["color"], 0x5865F2);
-        assert_eq!(e["author"]["name"], "Diverged site bytes");
-        assert_eq!(e["author"]["icon_url"], "https://upload.wikimedia.org/wikipedia/commons/a/af/Tux.png");
-        assert_eq!(e["title"], "🛠 Linux · 1 of 1 sites diverged");
+        assert_eq!(e["author"]["name"], "Discord Stable · site evidence");
+        assert_eq!(
+            e["author"]["icon_url"],
+            "https://www.google.com/s2/favicons?domain=discord.com&sz=64"
+        );
+        assert_eq!(e["title"], "🛠 Discord Stable on Linux · 1 of 1 sites diverged");
         let fields = e["fields"].as_array().unwrap();
         assert_eq!(fields[0]["name"], "MD5");
-        assert_eq!(fields[1]["name"], "Build");
-        assert_eq!(fields[2]["name"], "PATCH 1");
-        assert!(!fields[2]["inline"].as_bool().unwrap(), "patch fields stack full-width");
+        assert_eq!(fields[1]["name"], "Binary");
+        assert_eq!(fields[2]["name"], "MCOpusImpl ctor num_channels",
+            "field must be the site function, not a generic PATCH label");
+        assert!(!fields[2]["inline"].as_bool().unwrap(), "site fields stack full-width");
         assert!(fields[2]["value"].as_str().unwrap().contains("✗ expected"));
         assert_eq!(p["allowed_mentions"]["parse"].as_array().unwrap().len(), 0);
     }
 
     #[test]
-    fn patch_fields_dynamic_per_diverged_site() {
+    fn site_fields_dynamic_per_diverged_site() {
         let mut rep = sample();
         rep.sites = (0..12)
             .map(|i| SiteTrace {
-                name: format!("s{i}"),
+                name: format!("fn_{i}"),
                 expected_orig: "02".into(),
                 expected_patch: "00".into(),
                 found: "81".into(),
@@ -380,9 +410,9 @@ mod tests {
             })
             .collect();
         let fields = embed_payload(&rep)["embeds"][0]["fields"].as_array().unwrap().clone();
-        assert_eq!(fields[2]["name"], "PATCH 1");
-        assert_eq!(fields[9]["name"], "PATCH 8", "cap at 8 patch fields");
-        assert_eq!(fields[10]["name"], "PATCH …", "overflow field expected");
+        assert_eq!(fields[2]["name"], "fn_0");
+        assert_eq!(fields[9]["name"], "fn_7", "cap at 8 site fields");
+        assert_eq!(fields[10]["name"], "… more sites", "overflow field expected");
         assert!(fields[10]["value"].as_str().unwrap().contains("+4 more"));
     }
 
@@ -398,7 +428,7 @@ mod tests {
             offset: None,
         }];
         let e = &embed_payload(&rep)["embeds"][0];
-        assert_eq!(e["title"], "✓ Linux · all 1 sites matched");
+        assert_eq!(e["title"], "✓ Discord Stable on Linux · all 1 sites matched");
         let fields = e["fields"].as_array().unwrap();
         assert_eq!(fields[2]["name"], "Result");
         assert!(fields[2]["value"].as_str().unwrap().contains("✓ all 1 sites matched"));
@@ -411,20 +441,32 @@ mod tests {
         let p = embed_payload(&rep);
         assert_eq!(p["embeds"][0]["title"], "📦 Binary not in the patch db");
         let fields = p["embeds"][0]["fields"].as_array().unwrap();
-        assert_eq!(fields.len(), 2, "MD5 + Build only, no patch fields");
+        assert_eq!(fields.len(), 2, "MD5 + Binary only, no site fields");
     }
 
     #[test]
-    fn windows_and_macos_platform_icons() {
+    fn client_flavor_icons() {
+        let mut rep = sample();
+        rep.client_kind = "canary".into();
+        let e = &embed_payload(&rep)["embeds"][0];
+        assert_eq!(e["author"]["icon_url"], "https://www.google.com/s2/favicons?domain=canary.discord.com&sz=64");
+        assert!(e["title"].as_str().unwrap().contains("Discord Canary"));
+        rep.client_kind = "ptb".into();
+        let e = &embed_payload(&rep)["embeds"][0];
+        assert!(e["author"]["icon_url"].as_str().unwrap().contains("ptb.discord.com"));
+        rep.client_kind = "vencord".into();
+        let e = &embed_payload(&rep)["embeds"][0];
+        assert!(e["author"]["icon_url"].as_str().unwrap().contains("vencord.dev"));
+        assert!(e["title"].as_str().unwrap().contains("Vencord Desktop"));
+    }
+
+    #[test]
+    fn os_name_in_title_and_content() {
         let mut rep = sample();
         rep.os = "windows".into();
-        let e = &embed_payload(&rep)["embeds"][0];
-        assert!(e["author"]["icon_url"].as_str().unwrap().contains("Windows_11"));
-        assert!(e["title"].as_str().unwrap().contains("Windows"));
-        rep.os = "macos".into();
-        let e = &embed_payload(&rep)["embeds"][0];
-        assert!(e["author"]["icon_url"].as_str().unwrap().contains("Apple_logo"));
-        assert!(e["title"].as_str().unwrap().contains("macOS"));
+        let p = embed_payload(&rep);
+        assert!(p["embeds"][0]["title"].as_str().unwrap().contains("on Windows"));
+        assert!(p["content"].as_str().unwrap().starts_with("OS: Windows"));
     }
 
     #[test]
