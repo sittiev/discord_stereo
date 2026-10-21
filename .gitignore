@@ -34,3 +34,4 @@ src-tauri/gen/schemas/
 AGENTS.md
 dev/
 /todo
+.env
