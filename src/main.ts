@@ -18,6 +18,7 @@ import "@m3e/web/stepper";
 import "@m3e/web/switch";
 
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
 import confetti from "canvas-confetti";
@@ -43,13 +44,13 @@ type SiteState =
   | { state: "ok" }
   | { state: "patched" }
   | { state: "mismatch"; found: string };
-
 interface Analysis {
   path: string;
   size: number;
   md5: string;
   known_pristine: boolean;
   sites: Array<[string, SiteState]>;
+  expected?: Array<[string, string]>;
 }
 
 interface SystemInfo {
@@ -474,12 +475,15 @@ function updateApplyButtons(): void {
   const hasMismatch = sites.some(([, st]) => st.state === "mismatch");
   const allPatched =
     sites.length > 0 && sites.every(([, st]) => st.state === "patched");
+  const reportable =
+    analysis !== null && (hasMismatch || !analysis.known_pristine);
   (document.getElementById("btn-analyze") as HTMLButtonElement).disabled =
     !selectedClient;
   (document.getElementById("btn-revert") as HTMLButtonElement).disabled =
     !selectedClient;
   (document.getElementById("btn-apply") as HTMLButtonElement).disabled =
     !selectedClient || analysis === null || hasMismatch || allPatched;
+  document.getElementById("btn-report")!.hidden = !reportable;
 }
 
 async function doAnalyze(): Promise<void> {
@@ -499,6 +503,38 @@ async function doAnalyze(): Promise<void> {
     snack(`Error: ${String(err)}`);
   }
   renderApply();
+}
+
+interface ReportOutcome {
+  path: string;
+  text: string;
+}
+
+async function doReport(): Promise<void> {
+  if (!selectedClient || !analysis) return;
+  const expected = new Map(analysis.expected ?? []);
+  const sites: Array<[string, string, string]> = analysis.sites.map(
+    ([name, st]) => [
+      name,
+      expected.get(name) ?? "",
+      st.state === "mismatch" ? st.found : "",
+    ],
+  );
+  const btn = document.getElementById("btn-report") as HTMLButtonElement;
+  btn.disabled = true;
+  try {
+    const outcome = await invoke<ReportOutcome>("report_divergence", {
+      node: selectedClient.node_path,
+      goal: selectedGoal,
+      sites,
+      knownPristine: analysis.known_pristine,
+    });
+    await navigator.clipboard.writeText(outcome.text);
+    snack(`Report copied & saved: ${outcome.path}`);
+  } catch (err) {
+    snack(`Report failed: ${String(err)}`);
+  }
+  btn.disabled = false;
 }
 
 async function doApply(): Promise<void> {
@@ -635,6 +671,7 @@ window.addEventListener("DOMContentLoaded", () => {
   document.getElementById("btn-analyze")!.addEventListener("click", doAnalyze);
   document.getElementById("btn-apply")!.addEventListener("click", doApply);
   document.getElementById("btn-revert")!.addEventListener("click", doRevert);
+  document.getElementById("btn-report")!.addEventListener("click", doReport);
   document.getElementById("btn-to-goal")!.addEventListener("click", () => {
     if (!selectedClient) {
       snack("Pick a client first.");
@@ -652,6 +689,17 @@ window.addEventListener("DOMContentLoaded", () => {
       gotoStep(id);
     });
   }
+  // Custom titlebar (decorations disabled in tauri.conf.json).
+  const win = getCurrentWindow();
+  document.getElementById("win-min")!.addEventListener("click", () => {
+    void win.minimize();
+  });
+  document.getElementById("win-max")!.addEventListener("click", () => {
+    void win.toggleMaximize();
+  });
+  document.getElementById("win-close")!.addEventListener("click", () => {
+    void win.close();
+  });
   // Footer and popup open external links; one delegate covers all.
   for (const b of document.querySelectorAll<HTMLElement>("[data-url]")) {
     b.addEventListener("click", () => openExternal(b.dataset.url ?? ""));

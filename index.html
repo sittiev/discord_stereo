@@ -46,9 +46,41 @@
         padding: 8px 16px 0;
         flex-shrink: 0;
       }
-      .topbar m3e-stepper {
-        flex: 1;
-        min-width: 0;
+      .titlebar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        box-sizing: border-box;
+        width: 100%;
+        padding: 6px 8px;
+        user-select: none;
+        flex-shrink: 0;
+      }
+      .titlebar .title {
+        font-size: 12px;
+        color: var(--muted);
+        padding-left: 4px;
+      }
+      .titlebar .win-controls {
+        display: flex;
+        gap: 2px;
+      }
+      .titlebar .win-controls button {
+        width: 32px;
+        height: 28px;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--fg);
+        font-size: 11px;
+        cursor: pointer;
+      }
+      .titlebar .win-controls button:hover {
+        background: var(--surface);
+      }
+      .titlebar .win-controls button.close:hover {
+        background: var(--error);
+        color: var(--on-error, #fff);
       }
       main {
         flex: 1;
@@ -273,6 +305,14 @@
 
   <body>
     <m3e-theme color="#7289da" scheme="auto" strong-focus>
+      <div class="titlebar" data-tauri-drag-region>
+        <span class="title" data-tauri-drag-region>Stereo Wizard</span>
+        <div class="win-controls">
+          <button id="win-min" aria-label="Minimize">&#x2013;</button>
+          <button id="win-max" aria-label="Maximize">&#x25A1;</button>
+          <button id="win-close" aria-label="Close" class="close">&#x2715;</button>
+        </div>
+      </div>
       <div class="topbar">
         <m3e-stepper
           id="wizard"
@@ -316,7 +356,7 @@
             <div class="actions-row">
               <m3e-button variant="text" id="btn-revert">Revert</m3e-button>
               <m3e-button variant="tonal" id="btn-analyze">Analyze</m3e-button>
-              <m3e-button variant="filled" id="btn-apply" disabled>Apply</m3e-button>
+              <m3e-button variant="text" id="btn-report" hidden>Send Report</m3e-button>
             </div>
             <m3e-list id="site-list"></m3e-list>
             <m3e-callout variant="warning" id="discord-running" hidden>
