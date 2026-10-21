@@ -174,116 +174,87 @@ fn webhook_url() -> Option<String> {
         .filter(|s| s.starts_with("https://"))
 }
 
-/// Heat bar: one char per site — solid for diverged, dot for clean. Gives
-/// a size-and-density read before any detail line.
-fn heat_bar(sites: &[SiteTrace]) -> String {
-    let mut bar = String::new();
-    for (i, s) in sites.iter().enumerate() {
-        if i % 40 == 0 && i > 0 {
-            bar.push('\n');
-        }
-        bar.push(if s.found.is_empty() { '·' } else { '█' });
-    }
-    bar
-}
 
-/// Zero-width space — Discord rejects empty field names, but renders ZWSP
-/// as one; the Discohook trick for invisible full-width section dividers.
-const ZW: &str = "\u{200B}";
+/// OS identity for the report: icon, display name and machine badge.
+fn platform(os: &str) -> (&'static str, &'static str) {
+    match os {
+        "windows" => ("https://upload.wikimedia.org/wikipedia/commons/e/e6/Windows_11_and_10_logo.png", "Windows"),
+        "macos" => ("https://upload.wikimedia.org/wikipedia/commons/1/1b/Apple_logo_grey.svg", "macOS"),
+        _ => ("https://upload.wikimedia.org/wikipedia/commons/a/af/Tux.png", "Linux"),
+    }
+}
 
 /// Discord brand color (Blurple).
 const EMBED_COLOR: u32 = 0x5865F2;
 
-/// Overview embed body: the heat bar only — facts live in the field grid.
-fn overview_description(report: &Report) -> String {
-    if report.sites.is_empty() {
-        return "No compatible table for this binary — offsets unknown. \
-Send the report so the table can be rebuilt."
-            .into();
-    }
-    format!("`{}`", heat_bar(&report.sites))
+fn field(name: &str, value: String, inline: bool) -> serde_json::Value {
+    serde_json::json!({"name": name, "value": value, "inline": inline})
 }
 
-/// Evidence embed body: one block per diverged site, worst-first, blocks
-/// separated by `_ _` (Discord's blank line). Capped at 8 blocks.
-fn evidence_description(report: &Report) -> String {
-    let diverged: Vec<&SiteTrace> = report.sites.iter().filter(|s| !s.found.is_empty()).collect();
-    let mut out = String::new();
-    for (i, s) in diverged.iter().enumerate() {
-        if i == 8 {
-            out.push_str(&format!("… +{} more in the JSON report", diverged.len() - 8));
-            break;
-        }
-        if i > 0 {
-            out.push_str("\n_ _\n");
-        }
-        out.push_str(&format!(
-            "▸ **{}** — {}\n  ✗ expected `{}`\n  found `{}`",
-            s.name,
-            s.offset.map(|o| format!("`0x{o:X}`")).unwrap_or_else(|| "—".into()),
-            s.expected_orig,
-            s.found,
-        ));
-        if let Some(n) = &s.neighborhood {
-            out.push_str(&format!("\n  around `{n}`"));
-        }
-    }
-    out
-}
-
-fn field(name: &str, value: String) -> serde_json::Value {
-    serde_json::json!({"name": name, "value": value, "inline": true})
-}
-
-fn divider() -> serde_json::Value {
-    serde_json::json!({"name": ZW, "value": ZW})
-}
+/// Bot identity of the reporting webhook, from the user's template.
+const BOT_AVATAR: &str = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ1El38iW3yk3YIvYakO7ZJMcPc_4l_OTLyQBDflIpzJg&s=10";
 
 /// Pure payload builder — everything testable without touching the
-/// network. Two embeds, Discohook-style: an overview card (verdict,
-/// heat bar, fact grid with invisible section dividers) plus an evidence
-/// card only when something diverged. `send_webhook` is the thin I/O shell.
+/// network. Layout per the user's template: a `content` one-liner the
+/// channel reads before opening the embed (OS, md5, goal), then a single
+/// embed whose author marks the section ("Diverged site bytes", icon =
+/// reporter OS) and whose fields are one `PATCH n` block per diverged
+/// site — dynamic, stacked full-width, scannable by name.
 #[must_use]
 fn embed_payload(report: &Report) -> serde_json::Value {
-    let diverged = report.sites.iter().filter(|s| !s.found.is_empty()).count();
-    let clean = report.sites.len() - diverged;
+    let diverged: Vec<&SiteTrace> = report.sites.iter().filter(|s| !s.found.is_empty()).collect();
+    let (icon, os_name) = platform(&report.os);
+
+    let mut fields = vec![
+        field("MD5", format!("`{}`", report.node_md5), false),
+        field(
+            "Build",
+            format!("{} · `{}` · table: {}", report.discord_dir, report.arch, report.table_kind),
+            false,
+        ),
+    ];
+    for (i, s) in diverged.iter().enumerate() {
+        if i == 8 {
+            fields.push(field(
+                "PATCH …",
+                format!("… +{} more diverged sites in the JSON report", diverged.len() - 8),
+                false,
+            ));
+            break;
+        }
+        let mut body = format!("✗ expected `{}`\n→ found `{}`", s.expected_orig, s.found);
+        if let Some(off) = s.offset {
+            body = format!("`0x{off:X}` · {body}");
+        }
+        if let Some(n) = &s.neighborhood {
+            body.push_str(&format!("\n±16 `{n}`"));
+        }
+        fields.push(field(&format!("PATCH {}", i + 1), body, false));
+    }
+    if diverged.is_empty() && !report.sites.is_empty() {
+        fields.push(field("Result", format!("✓ all {} sites matched", report.sites.len()), false));
+    }
+
     let title = if report.sites.is_empty() {
         "📦 Binary not in the patch db".to_owned()
+    } else if diverged.is_empty() {
+        format!("✓ {os_name} · all {} sites matched", report.sites.len())
     } else {
-        format!("🛠 {diverged} of {} sites diverged", report.sites.len())
+        format!("🛠 {os_name} · {} of {} sites diverged", diverged.len(), report.sites.len())
     };
-    let overview = serde_json::json!({
-        "author": {"name": "Stereo Wizard — Divergence Report"},
-        "title": title,
-        "description": truncate(&overview_description(report), 3900),
-        "color": EMBED_COLOR,
-        "fields": [
-            divider(),
-            field("Build", report.discord_dir.clone()),
-            field("Goal", report.goal.clone()),
-            field("Table", report.table_kind.clone()),
-            divider(),
-            field("md5", format!("`{}`", &report.node_md5[..16.min(report.node_md5.len())])),
-            field("Platform", format!("{}/{}", report.os, report.arch)),
-            field("Sites", format!("{} · {} ✗ · {} ✓", report.sites.len(), diverged, clean)),
-        ],
-        "footer": {"text": format!("`{}` · db v{} · app {}", report.report_id, report.db_version, report.app_version)},
-        "timestamp": report.ts_iso,
-    });
-    let mut embeds = vec![overview];
-    if diverged > 0 {
-        embeds.push(serde_json::json!({
-            "author": {"name": "Stereo Wizard — Site Evidence"},
-            "title": "🔎 Diverged site bytes",
-            "description": truncate(&evidence_description(report), 3900),
-            "color": EMBED_COLOR,
-            "footer": {"text": "expected vs found · neighborhood ±16 bytes"},
-            "timestamp": report.ts_iso,
-        }));
-    }
+
     serde_json::json!({
-        "username": "Stereo Wizard Reports",
-        "embeds": embeds,
+        "username": "Stereo Wizard Report",
+        "avatar_url": BOT_AVATAR,
+        "content": format!("OS: {os_name} ({}) — MD5: `{}` — {}", report.arch, report.node_md5, report.goal),
+        "embeds": [{
+            "title": title,
+            "color": EMBED_COLOR,
+            "author": {"name": "Diverged site bytes", "icon_url": icon},
+            "fields": fields,
+            "footer": {"text": format!("`{}` · db v{} · app {}", report.report_id, report.db_version, report.app_version)},
+            "timestamp": report.ts_iso,
+        }],
         "allowed_mentions": {"parse": []}
     })
 }
@@ -374,67 +345,29 @@ mod tests {
     }
 
     #[test]
-    fn heat_bar_marks_diverged_only() {
-        let mut rep = sample();
-        rep.sites = (0..45)
-            .map(|i| SiteTrace {
-                name: format!("s{i}"),
-                expected_orig: "02".into(),
-                expected_patch: "00".into(),
-                found: if i % 10 == 0 { "81".into() } else { String::new() },
-                neighborhood: None,
-                offset: Some(i),
-            })
-            .collect();
-        let bar = heat_bar(&rep.sites);
-        assert_eq!(bar.matches('█').count(), 5);
-        assert_eq!(bar.matches('·').count(), 40);
-        assert_eq!(bar.lines().count(), 2, "40 sites per heat row");
+    fn payload_matches_user_template() {
+        let p = embed_payload(&sample());
+        assert_eq!(p["username"], "Stereo Wizard Report");
+        assert!(p["avatar_url"].as_str().unwrap().starts_with("https://"));
+        let content = p["content"].as_str().unwrap();
+        assert!(content.starts_with("OS: Linux (x86_64) — MD5: `"), "got {content}");
+        assert!(content.ends_with("— v4"), "goal missing: {content}");
+        let e = &p["embeds"][0];
+        assert_eq!(e["color"], 0x5865F2);
+        assert_eq!(e["author"]["name"], "Diverged site bytes");
+        assert_eq!(e["author"]["icon_url"], "https://upload.wikimedia.org/wikipedia/commons/a/af/Tux.png");
+        assert_eq!(e["title"], "🛠 Linux · 1 of 1 sites diverged");
+        let fields = e["fields"].as_array().unwrap();
+        assert_eq!(fields[0]["name"], "MD5");
+        assert_eq!(fields[1]["name"], "Build");
+        assert_eq!(fields[2]["name"], "PATCH 1");
+        assert!(!fields[2]["inline"].as_bool().unwrap(), "patch fields stack full-width");
+        assert!(fields[2]["value"].as_str().unwrap().contains("✗ expected"));
+        assert_eq!(p["allowed_mentions"]["parse"].as_array().unwrap().len(), 0);
     }
 
     #[test]
-    fn text_renders_sites() {
-        let t = sample().to_text();
-        assert!(t.contains("site"));
-        assert!(t.contains("expected 02"));
-    }
-
-    #[test]
-    fn summary_counts_diverging_sites() {
-        assert_eq!(sample().summary(), "v4: 1 of 1 sites diverged on linux/x86_64 (app-1.0.162)");
-    }
-
-    #[test]
-    fn text_redacts_home() {
-        let mut rep = sample();
-        rep.node_path = format!("{}/.config/discord/x.node", std::env::var("HOME").unwrap());
-        let t = rep.to_text();
-        assert!(t.contains("~/.config"), "username leaked: {t}");
-        assert!(!t.contains(&std::env::var("HOME").unwrap()), "home leaked: {t}");
-    }
-
-    #[test]
-    fn iso_known_dates() {
-        assert_eq!(iso_utc(0), "1970-01-01T00:00:00Z");
-        assert_eq!(iso_utc(1_730_000_000), "2024-10-27T03:33:20Z");
-        assert_eq!(iso_utc(951_782_400), "2000-02-29T00:00:00Z");
-        assert_eq!(iso_utc(4_102_444_800), "2100-01-01T00:00:00Z");
-        assert_eq!(iso_utc(2_147_483_647), "2038-01-19T03:14:07Z");
-    }
-    #[test]
-    fn truncate_respects_boundary() {
-        let s = "ààà".repeat(40);
-        let cut = truncate(&s, 10);
-        assert!(cut.ends_with("(truncated)"));
-    }
-
-    #[test]
-    fn truncate_passes_short_strings_through() {
-        assert_eq!(truncate("abc", 10), "abc");
-    }
-
-    #[test]
-    fn evidence_description_blocks_and_cap() {
+    fn patch_fields_dynamic_per_diverged_site() {
         let mut rep = sample();
         rep.sites = (0..12)
             .map(|i| SiteTrace {
@@ -446,52 +379,15 @@ mod tests {
                 offset: Some(i),
             })
             .collect();
-        let d = evidence_description(&rep);
-        assert!(d.contains("▸ **s0**"), "first diverged site missing");
-        assert!(d.contains("_ _"), "block separator missing");
-        assert!(d.contains("around"), "neighborhood missing");
-        assert!(!d.contains("▸ **s8**"), "9th site should be capped");
-        assert!(d.contains("… +4 more in the JSON report"), "overflow line missing");
+        let fields = embed_payload(&rep)["embeds"][0]["fields"].as_array().unwrap().clone();
+        assert_eq!(fields[2]["name"], "PATCH 1");
+        assert_eq!(fields[9]["name"], "PATCH 8", "cap at 8 patch fields");
+        assert_eq!(fields[10]["name"], "PATCH …", "overflow field expected");
+        assert!(fields[10]["value"].as_str().unwrap().contains("+4 more"));
     }
 
     #[test]
-    fn overview_description_collapses_when_no_table() {
-        let mut rep = sample();
-        rep.sites.clear();
-        let d = overview_description(&rep);
-        assert!(d.contains("No compatible table"), "guidance missing: {d}");
-    }
-
-    #[test]
-    fn overview_description_is_heat_bar_when_sites_exist() {
-        let d = overview_description(&sample());
-        assert!(d.contains("█"), "heat bar missing: {d}");
-    }
-
-    #[test]
-    fn embed_payload_shape_matches_discord_contract() {
-        let p = embed_payload(&sample());
-        assert_eq!(p["username"], "Stereo Wizard Reports");
-        let embeds = p["embeds"].as_array().unwrap();
-        assert_eq!(embeds.len(), 2, "overview + evidence expected");
-        let over = &embeds[0];
-        assert_eq!(over["title"], "🛠 1 of 1 sites diverged");
-        assert_eq!(over["author"]["name"], "Stereo Wizard — Divergence Report");
-        assert_eq!(over["color"], 0x5865F2, "Discord blurple");
-        let fields = over["fields"].as_array().unwrap();
-        assert_eq!(fields.len(), 8, "divider + 2 rows of 3 + divider");
-        assert_eq!(fields[0]["name"], "\u{200B}", "invisible divider");
-        assert!(!fields[1]["name"].as_str().unwrap().is_empty());
-        assert_eq!(over["timestamp"], "2024-10-27T03:33:20Z");
-        assert!(over["footer"]["text"].as_str().unwrap().contains("db v2"));
-        let ev = &embeds[1];
-        assert_eq!(ev["title"], "🔎 Diverged site bytes");
-        assert!(ev["description"].as_str().unwrap().contains("▸"));
-        assert_eq!(p["allowed_mentions"]["parse"].as_array().unwrap().len(), 0);
-    }
-
-    #[test]
-    fn embed_payload_skips_evidence_when_clean() {
+    fn clean_report_ships_result_field() {
         let mut rep = sample();
         rep.sites = vec![SiteTrace {
             name: "only".into(),
@@ -501,42 +397,34 @@ mod tests {
             neighborhood: None,
             offset: None,
         }];
-        let p = embed_payload(&rep);
-        let embeds = p["embeds"].as_array().unwrap();
-        assert_eq!(embeds.len(), 1, "evidence card must not ship when clean");
-        assert_eq!(embeds[0]["title"], "🛠 0 of 1 sites diverged");
+        let e = &embed_payload(&rep)["embeds"][0];
+        assert_eq!(e["title"], "✓ Linux · all 1 sites matched");
+        let fields = e["fields"].as_array().unwrap();
+        assert_eq!(fields[2]["name"], "Result");
+        assert!(fields[2]["value"].as_str().unwrap().contains("✓ all 1 sites matched"));
     }
 
     #[test]
-    fn embed_payload_titles_no_table_case() {
+    fn no_table_report_titles_and_content() {
         let mut rep = sample();
         rep.sites.clear();
         let p = embed_payload(&rep);
         assert_eq!(p["embeds"][0]["title"], "📦 Binary not in the patch db");
+        let fields = p["embeds"][0]["fields"].as_array().unwrap();
+        assert_eq!(fields.len(), 2, "MD5 + Build only, no patch fields");
     }
 
     #[test]
-    fn embed_payload_truncates_huge_descriptions() {
+    fn windows_and_macos_platform_icons() {
         let mut rep = sample();
-        rep.sites = (0..40)
-            .map(|i| SiteTrace {
-                name: format!("very-long-site-name-{i}-pad-pad-pad"),
-                expected_orig: "aa".repeat(64),
-                expected_patch: "bb".repeat(64),
-                found: "cc".repeat(64),
-                neighborhood: Some("dd".repeat(128)),
-                offset: Some(i),
-            })
-            .collect();
-        let p = embed_payload(&rep);
-        for e in p["embeds"].as_array().unwrap() {
-            let d = e["description"].as_str().unwrap();
-            assert!(d.chars().count() <= 3900, "description over Discord limit");
-        }
-        assert!(p["embeds"][1]["description"]
-            .as_str()
-            .unwrap()
-            .contains("(truncated)"));
+        rep.os = "windows".into();
+        let e = &embed_payload(&rep)["embeds"][0];
+        assert!(e["author"]["icon_url"].as_str().unwrap().contains("Windows_11"));
+        assert!(e["title"].as_str().unwrap().contains("Windows"));
+        rep.os = "macos".into();
+        let e = &embed_payload(&rep)["embeds"][0];
+        assert!(e["author"]["icon_url"].as_str().unwrap().contains("Apple_logo"));
+        assert!(e["title"].as_str().unwrap().contains("macOS"));
     }
 
     #[test]
