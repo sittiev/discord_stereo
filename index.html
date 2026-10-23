@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -283,9 +283,9 @@
           header-position="above"
           label-position="below"
         >
-          <m3e-step for="s-clients" slot="step" selected>Client</m3e-step>
+          <m3e-step for="s-clients" slot="step" selected>Clientes</m3e-step>
           <m3e-step for="s-goal" slot="step">Patches</m3e-step>
-          <m3e-step for="s-apply" slot="step">Apply</m3e-step>
+          <m3e-step for="s-apply" slot="step">Aplicar</m3e-step>
           <m3e-step for="s-info" slot="step">Info</m3e-step>
         </m3e-stepper>
       </div>
@@ -294,103 +294,104 @@
           <section class="pane" id="s-clients">
             <div id="client-list" style="display: contents"></div>
             <m3e-callout variant="info" id="no-clients" hidden>
-              No Discord client found in the standard paths. Install Discord
-              (stable, PTB, canary or Vencord) and retry.
+              Nenhum cliente do Discord encontrado nos caminhos padrão. Instale
+              o Discord (stable, PTB, canary ou Vencord) e tente de novo.
             </m3e-callout>
             <div class="wizard-nav">
-              <m3e-button variant="filled" id="btn-to-goal" disabled>Continue</m3e-button>
+              <m3e-button variant="filled" id="btn-to-goal" disabled>Continuar</m3e-button>
             </div>
           </section>
 
           <section class="pane" id="s-goal" hidden>
             <div class="grid" id="goal-grid"></div>
             <m3e-callout variant="info">
-              The &quot;hear myself&quot; button stays mono by client design.
-              Stereo is heard by everyone on the call, not by the speaker.
+              O botão &quot;ouvir a mim mesmo&quot; continua mono por design do
+              cliente. O estéreo é ouvido por todos na chamada, não por quem fala.
             </m3e-callout>
             <div class="wizard-nav">
-              <m3e-button variant="text" data-step="s-clients">Back</m3e-button>
-              <m3e-button variant="filled" data-step="s-apply">Continue</m3e-button>
+              <m3e-button variant="text" data-step="s-clients">Voltar</m3e-button>
+              <m3e-button variant="filled" data-step="s-apply">Continuar</m3e-button>
             </div>
           </section>
 
           <section class="pane" id="s-apply" hidden>
             <div id="apply-summary"></div>
             <div class="actions-row">
-              <m3e-button variant="text" id="btn-revert">Revert</m3e-button>
-              <m3e-button variant="tonal" id="btn-analyze">Analyze</m3e-button>
-              <m3e-button variant="filled" id="btn-apply" disabled>Apply</m3e-button>
-              <m3e-button variant="text" id="btn-report" hidden>Send Report</m3e-button>
+              <m3e-button variant="text" id="btn-revert">Reverter</m3e-button>
+              <m3e-button variant="tonal" id="btn-analyze">Analisar</m3e-button>
+              <m3e-button variant="filled" id="btn-apply" disabled>Aplicar</m3e-button>
+              <m3e-button variant="text" id="btn-report" hidden>Enviar relatório</m3e-button>
             </div>
             <m3e-list id="site-list"></m3e-list>
             <m3e-callout variant="warning" id="discord-running" hidden>
-              Discord is open. Close it fully before applying or reverting.
+              O Discord está aberto. Feche-o completamente antes de aplicar ou reverter.
             </m3e-callout>
             <div class="wizard-nav">
-              <m3e-button variant="text" data-step="s-goal">Back</m3e-button>
-              <m3e-button variant="filled" data-step="s-info">Continue</m3e-button>
+              <m3e-button variant="text" data-step="s-goal">Voltar</m3e-button>
+              <m3e-button variant="filled" data-step="s-info">Continuar</m3e-button>
             </div>
           </section>
 
           <section class="pane" id="s-info" hidden>
-            <m3e-heading variant="title" size="large">Info and troubleshooting</m3e-heading>
+            <m3e-heading variant="title" size="large">Informações e solução de problemas</m3e-heading>
             <div id="sysinfo"></div>
             <m3e-accordion>
               <m3e-expansion-panel>
-                <span slot="header">Can't find my client</span>
+                <span slot="header">Não encontro meu cliente</span>
                 <div>
-                  The scan covers stable, PTB, canary and Vencord in each OS's
-                  standard paths. Flatpak and Snap are not supported in this
-                  version.
+                  A varredura cobre stable, PTB, canary e Vencord nos caminhos
+                  padrão de cada sistema. Flatpak e Snap não são suportados
+                  nesta versão.
                 </div>
               </m3e-expansion-panel>
               <m3e-expansion-panel>
-                <span slot="header">Validation failed, nothing was written</span>
+                <span slot="header">Validação falhou, nada foi escrito</span>
                 <div>
-                  The binary changed version and the offset table no longer
-                  matches. The wizard never writes to an unknown binary.
+                  O binário mudou de versão e a tabela de offsets não confere
+                  mais. O wizard nunca escreve em um binário desconhecido.
                 </div>
               </m3e-expansion-panel>
               <m3e-expansion-panel>
-                <span slot="header">No stereo on my headphones</span>
+                <span slot="header">Sem estéreo nos meus fones</span>
                 <div>
-                  Local loopback is mono by design. The receiver needs a stereo
-                  decoder, and the content needs real per-channel differences.
+                  O loopback local é mono por design. Quem recebe precisa de um
+                  decoder estéreo, e o conteúdo precisa de diferença real entre
+                  canais.
                 </div>
               </m3e-expansion-panel>
             </m3e-accordion>
-            <m3e-heading variant="title" size="medium">Preferences</m3e-heading>
+            <m3e-heading variant="title" size="medium">Preferências</m3e-heading>
             <m3e-card variant="outlined">
               <div class="pref-body">
                 <div class="row-between">
                   <div class="pref-text">
-                    <span>Theme</span>
-                    <span class="muted">Light, dark or follow the system.</span>
+                    <span>Tema</span>
+                    <span class="muted">Claro, escuro ou seguir o sistema.</span>
                   </div>
-                  <m3e-segmented-button id="pref-theme" aria-label="Theme">
-                    <m3e-button-segment value="auto" checked>System</m3e-button-segment>
-                    <m3e-button-segment value="light">Light</m3e-button-segment>
-                    <m3e-button-segment value="dark">Dark</m3e-button-segment>
+                  <m3e-segmented-button id="pref-theme" aria-label="Tema">
+                    <m3e-button-segment value="auto" checked>Sistema</m3e-button-segment>
+                    <m3e-button-segment value="light">Claro</m3e-button-segment>
+                    <m3e-button-segment value="dark">Escuro</m3e-button-segment>
                   </m3e-segmented-button>
                 </div>
                 <div class="row-between">
                   <div class="pref-text">
-                    <span>Animations</span>
-                    <span class="muted">Step transitions and the success confetti.</span>
+                    <span>Animações</span>
+                    <span class="muted">Transições de passos e o confete de sucesso.</span>
                   </div>
-                  <m3e-switch id="pref-anim" aria-label="Animations"></m3e-switch>
+                  <m3e-switch id="pref-anim" aria-label="Animações"></m3e-switch>
                 </div>
               </div>
             </m3e-card>
-            <m3e-heading variant="title" size="medium">About Stereo Wizard</m3e-heading>
+            <m3e-heading variant="title" size="medium">Sobre o Stereo Wizard</m3e-heading>
             <m3e-callout variant="info">
-              Wizard that patches discord_voice.node for top microphone audio
-              quality and stereo in Discord. Verify-then-write engine: no byte
-              is written to an unvalidated binary.
+              Wizard que aplica patch no discord_voice.node para qualidade
+              máxima de áudio do microfone e estéreo no Discord. Engine
+              verify-then-write: nenhum byte é escrito em um binário não validado.
             </m3e-callout>
             <div class="grid" id="about-cards"></div>
             <div class="wizard-nav">
-              <m3e-button variant="text" data-step="s-apply">Back</m3e-button>
+              <m3e-button variant="text" data-step="s-apply">Voltar</m3e-button>
             </div>
           </section>
         </div>
@@ -398,7 +399,7 @@
       <footer id="app-footer">
         <m3e-icon-button
           id="btn-theme"
-          aria-label="Theme: system - click for light"
+          aria-label="Tema: sistema - clique para claro"
         >
           <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
             <path
@@ -409,18 +410,18 @@
         </m3e-icon-button>
         <m3e-button variant="text" data-url="https://github.com/sittiev/discord_stereo">GitHub</m3e-button>
         <m3e-button variant="text" data-url="https://discord.gg/jb72VayAzN">Discord</m3e-button>
-        <m3e-button variant="text" data-url="https://ko-fi.com/SEU-PERFIL">Donate</m3e-button>
+        <m3e-button variant="text" data-url="https://ko-fi.com/howitgoesonline">Doar</m3e-button>
       </footer>
       <m3e-dialog id="done-dialog" dismissible>
-        <span slot="header">Patch applied</span>
+        <span slot="header">Patch aplicado</span>
         <div>
-          Reopen Discord to activate stereo. If the wizard helped, support the
-          project: leave a star on the repository or donate.
+          Reabra o Discord para ativar o estéreo. Se o wizard ajudou, apoie o
+          projeto: deixe uma estrela no repositório ou doe.
         </div>
         <div slot="actions">
-          <m3e-button variant="text"><m3e-dialog-action return-value="close">Close</m3e-dialog-action></m3e-button>
-          <m3e-button variant="outlined" data-url="https://github.com/sittiev/discord_stereo">Star</m3e-button>
-          <m3e-button variant="filled" data-url="https://ko-fi.com/SEU-PERFIL" autofocus>Donate</m3e-button>
+          <m3e-button variant="text"><m3e-dialog-action return-value="close">Fechar</m3e-dialog-action></m3e-button>
+          <m3e-button variant="outlined" data-url="https://github.com/sittiev/discord_stereo">Estrela</m3e-button>
+          <m3e-button variant="filled" data-url="https://ko-fi.com/howitgoesonline" autofocus>Doar</m3e-button>
         </div>
       </m3e-dialog>
       <m3e-snackbar id="snackbar" aria-live="polite"></m3e-snackbar>

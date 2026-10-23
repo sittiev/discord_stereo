@@ -37,9 +37,9 @@ interface Localized {
   en: string;
 }
 
-// UI copy is English (see index.html); pt stays as fallback.
+// Backend goal copy is Localized {pt, en}; the UI is pt-BR.
 function loc(l: Localized): string {
-  return l.en || l.pt;
+  return l.pt || l.en;
 }
 
 interface GoalInfo {
@@ -216,9 +216,9 @@ type ThemePref = "auto" | "light" | "dark";
 // directly.
 const THEME_ORDER: ThemePref[] = ["auto", "light", "dark"];
 const THEME_LABEL: Record<ThemePref, string> = {
-  auto: "system",
-  light: "light",
-  dark: "dark",
+  auto: "sistema",
+  light: "claro",
+  dark: "escuro",
 };
 // Embedded Material Symbols (offline, like the client icons).
 const THEME_ICON: Record<ThemePref, string> = {
@@ -297,7 +297,7 @@ function syncThemeCtl(): void {
     btn.innerHTML = THEME_ICON[themePref];
     btn.setAttribute(
       "aria-label",
-      `Theme: ${THEME_LABEL[themePref]} - click for ${THEME_LABEL[nextTheme(themePref)]}`,
+      `Tema: ${THEME_LABEL[themePref]} - clique para ${THEME_LABEL[nextTheme(themePref)]}`,
     );
   }
 }
@@ -361,7 +361,7 @@ async function refreshClients(): Promise<void> {
   try {
     clients = await invoke<FoundClient[]>("detect_clients");
   } catch (err) {
-    const msg = `invoke detect_clients failed: ${String(err)}`;
+    const msg = `Falha ao detectar clientes: ${String(err)}`;
     snack(msg);
     list.innerHTML = `<m3e-callout variant="warning">${esc(msg)}</m3e-callout>`;
     return;
@@ -401,7 +401,7 @@ async function loadGoals(): Promise<void> {
   try {
     goals = await invoke<GoalInfo[]>("goals");
   } catch (err) {
-    snack(`Error loading goals: ${String(err)}`);
+    snack(`Erro ao carregar patches: ${String(err)}`);
     return;
   }
   const grid = document.getElementById("goal-grid")!;
@@ -435,13 +435,13 @@ function renderApply(): void {
   const summary = document.getElementById("apply-summary")!;
   if (!selectedClient) {
     summary.innerHTML =
-      '<m3e-callout variant="warning">Pick a client on the Clients tab first.</m3e-callout>';
+      '<m3e-callout variant="warning">Escolha um cliente na aba Clientes primeiro.</m3e-callout>';
   } else {
     const goal = goals.find((g) => g.id === selectedGoal);
     summary.innerHTML = `
       <m3e-callout variant="info">
         <div class="row-between">
-          <span><strong>${esc(goal ? loc(goal.title) : selectedGoal)}</strong> on ${esc(selectedClient.label)}</span>
+          <span><strong>${esc(goal ? loc(goal.title) : selectedGoal)}</strong> em ${esc(selectedClient.label)}</span>
           <span class="muted path">${esc(selectedClient.version_dir)}</span>
         </div>
       </m3e-callout>`;
@@ -460,8 +460,8 @@ function renderApply(): void {
   } else {
     const li = document.createElement("m3e-list-item");
     li.innerHTML = selectedClient
-      ? `<span class="muted">Run Analyze to see each site's state before applying.</span>`
-      : `<span class="muted">No client selected. Go back to the Clients tab and pick one.</span>`;
+      ? `<span class="muted">Execute Analisar para ver o estado de cada site antes de aplicar.</span>`
+      : `<span class="muted">Nenhum cliente selecionado. Volte à aba Clientes e escolha um.</span>`;
     sites.append(li);
   }
   updateApplyButtons();
@@ -474,9 +474,9 @@ function stateIcon(st: SiteState): string {
 }
 
 function stateText(st: SiteState): string {
-  if (st.state === "ok") return "ready to patch";
-  if (st.state === "patched") return "already applied";
-  return `diverged from expected (${st.found}); the patch aborts before writing`;
+  if (st.state === "ok") return "pronto para aplicar";
+  if (st.state === "patched") return "já aplicado";
+  return `divergente do esperado (${st.found}); o patch aborta antes de escrever`;
 }
 
 function updateApplyButtons(): void {
@@ -495,6 +495,24 @@ function updateApplyButtons(): void {
   document.getElementById("btn-report")!.hidden = !reportable;
 }
 
+// Backend errors cross IPC as English thiserror strings; the known
+// user-facing ones are re-localized to pt-BR, technical ones stay verbatim.
+function localizeBackendError(msg: string): string {
+  const m = msg.trim();
+  if (m === "Discord is running - close it before applying the patch")
+    return "O Discord está rodando - feche-o antes de aplicar o patch";
+  if (m === "Discord is running - close it before reverting")
+    return "O Discord está rodando - feche-o antes de reverter";
+  const val = m.match(/^validation failed on (\d+) site\(s\); nothing was written$/);
+  if (val) return `validação falhou em ${val[1]} site(s); nada foi escrito`;
+  if (m === "no backup found to revert") return "nenhum backup encontrado para reverter";
+  if (m.startsWith("no table for goal ")) {
+    const goal = m.slice("no table for goal ".length, m.indexOf(";"));
+    return `sem tabela para o objetivo ${goal}; nada foi escrito`;
+  }
+  return msg;
+}
+
 async function doAnalyze(): Promise<void> {
   if (!selectedClient) return;
   try {
@@ -507,9 +525,9 @@ async function doAnalyze(): Promise<void> {
     const patched = analysis.sites.filter(
       ([, s]) => s.state === "patched",
     ).length;
-    snack(`Analysis: ${patched}/${analysis.sites.length} patches already applied`);
+    snack(`Análise: ${patched}/${analysis.sites.length} patches já aplicados`);
   } catch (err) {
-    snack(`Error: ${String(err)}`);
+    snack(`Erro: ${localizeBackendError(String(err))}`);
   }
   renderApply();
 }
@@ -538,12 +556,12 @@ async function doReport(): Promise<void> {
       sites,
       knownPristine: analysis.known_pristine,
       clientKind: selectedClient.kind,
-      lang: navigator.language.toLowerCase().startsWith("pt") ? "pt" : "en",
+      lang: "pt",
     });
     await navigator.clipboard.writeText(outcome.text);
-    snack(`Report copied & saved: ${outcome.path}`);
+    snack(`Relatório copiado e salvo: ${outcome.path}`);
   } catch (err) {
-    snack(`Report failed: ${String(err)}`);
+    snack(`Falha ao gerar relatório: ${localizeBackendError(String(err))}`);
   }
   btn.disabled = false;
 }
@@ -551,7 +569,7 @@ async function doReport(): Promise<void> {
 async function doApply(): Promise<void> {
   if (!selectedClient) return;
   if (selectedClient.process_running) {
-    snack("Close Discord before applying.");
+    snack("Feche o Discord antes de aplicar.");
     return;
   }
   try {
@@ -560,7 +578,7 @@ async function doApply(): Promise<void> {
       goal: selectedGoal,
     });
     analysis = result;
-    snack(`Applied: ${result.sites.length} patches. Reopen Discord.`);
+    snack(`Aplicado: ${result.sites.length} patches. Reabra o Discord.`);
     // Subtle confetti on success; only when animations are on.
     if (animPref) {
       void confetti({ particleCount: 70, spread: 75, origin: { y: 0.6 } });
@@ -574,7 +592,7 @@ async function doApply(): Promise<void> {
     }
     (document.getElementById("done-dialog") as HTMLElement & { open: boolean }).open = true;
   } catch (err) {
-    snack(`Error applying: ${String(err)}`);
+    snack(`Erro ao aplicar: ${localizeBackendError(String(err))}`);
   }
   renderApply();
 }
@@ -586,9 +604,9 @@ async function doRevert(): Promise<void> {
       node: selectedClient.node_path,
     });
     analysis = null;
-    snack(`Restored from ${bak}`);
+    snack(`Restaurado de ${bak}`);
   } catch (err) {
-    snack(`Error reverting: ${String(err)}`);
+    snack(`Erro ao reverter: ${localizeBackendError(String(err))}`);
   }
   renderApply();
 }
@@ -599,23 +617,23 @@ async function doRevert(): Promise<void> {
 const LINKS: Array<{ title: string; desc: string; url: string; aria: string; svg: string }> = [
   {
     title: "GitHub",
-    desc: "Kit source code, issues and releases.",
+    desc: "Código-fonte, issues e releases.",
     url: "https://github.com/sittiev/discord_stereo",
-    aria: "Open the project's GitHub",
+    aria: "Abrir o GitHub do projeto",
     svg: `<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.55 0-.27-.01-1.17-.02-2.12-3.2.7-3.88-1.36-3.88-1.36-.52-1.33-1.28-1.68-1.28-1.68-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.19 1.76 1.19 1.03 1.75 2.69 1.25 3.34.95.1-.74.4-1.25.72-1.53-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.27 5.68.41.36.78 1.05.78 2.12 0 1.53-.01 2.77-.01 3.15 0 .3.2.66.8.55A11.52 11.52 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"/></svg>`,
   },
   {
-    title: "Discord server",
-    desc: "Support, discussion and offsets for new versions.",
+    title: "Servidor do Discord",
+    desc: "Suporte, discussão e offsets para novas versões.",
     url: "https://discord.gg/jb72VayAzN",
-    aria: "Open the Discord server",
-    svg: `<svg viewBox="0 0 24 24" width="24" height="24" fill="#5865F2" aria-hidden="true"><path d="M20.32 4.37a19.8 19.8 0 0 0-4.89-1.52.07.07 0 0 0-.08.04c-.21.38-.44.87-.61 1.25a18.27 18.27 0 0 0-5.48 0 12.6 12.6 0 0 0-.62-1.25.08.08 0 0 0-.08-.04 19.74 19.74 0 0 0-4.88 1.52.07.07 0 0 0-.04.03C.53 9.05-.32 13.58.1 18.06c0 .03.02.05.04.07a19.9 19.9 0 0 0 5.99 3.03.08.08 0 0 0 .08-.03c.46-.63.87-1.29 1.22-1.99.02-.04 0-.08-.04-.09a13.1 13.1 0 0 1-1.87-.89.08.08 0 0 1 .01-.13c.13-.09.25-.19.37-.29a.07.07 0 0 1 .08 0 14.2 14.2 0 0 0 12.06 0 .07.07 0 0 1 .08 0c.12.1.24.2.37.29a.08.08 0 0 1 .01.13c-.6.35-1.22.65-1.87.89a.08.08 0 0 0-.04.09c.36.7.77 1.36 1.22 1.99a.08.08 0 0 0 .08.03 19.84 19.84 0 0 0 6-3.03.07.07 0 0 0 .04-.07c.5-5.18-.84-9.68-3.55-13.66a.06.06 0 0 0-.03-.03ZM8.02 15.33c-1.18 0-2.16-1.08-2.16-2.42 0-1.33.96-2.42 2.16-2.42 1.21 0 2.18 1.1 2.16 2.42 0 1.34-.96 2.42-2.16 2.42Zm7.98 0c-1.18 0-2.15-1.08-2.15-2.42 0-1.33.95-2.42 2.15-2.42 1.21 0 2.18 1.1 2.16 2.42 0 1.34-.95 2.42-2.16 2.42Z"/></svg>`,
+    aria: "Abrir o servidor do Discord",
+    svg: `<svg viewBox="0 0 24 24" width="24" height="24" fill="#5865F2" aria-hidden="true"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></svg>`,
   },
   {
-    title: "Donate",
-    desc: "Support development: Ko-fi, Pix or Sponsor.",
-    url: "https://ko-fi.com/SEU-PERFIL",
-    aria: "Open the donation page",
+    title: "Doar",
+    desc: "Apoie o desenvolvimento: Ko-fi, Pix ou Sponsor.",
+    url: "https://ko-fi.com/howitgoesonline",
+    aria: "Abrir a página de doação",
     svg: `<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35Z"/></svg>`,
   },
 ];
@@ -651,7 +669,7 @@ function snack(msg: string): void {
 
 function openExternal(url: string): void {
   if (!url) return;
-  void openUrl(url).catch((err: unknown) => snack(`Couldn't open: ${String(err)}`));
+  void openUrl(url).catch((err: unknown) => snack(`Não foi possível abrir: ${String(err)}`));
 }
 
 async function loadSysInfo(): Promise<void> {
@@ -665,9 +683,9 @@ async function loadSysInfo(): Promise<void> {
   const box = document.getElementById("sysinfo")!;
   box.innerHTML = "";
   const rows: Array<[string, string]> = [
-    ["OS", info.os],
-    ["Architecture", info.arch],
-    ["Original binary MD5", info.known_pristine_md5],
+    ["SO", info.os],
+    ["Arquitetura", info.arch],
+    ["MD5 do binário original", info.known_pristine_md5],
   ];
   for (const [label, value] of rows) {
     const chip = document.createElement("m3e-chip");
@@ -685,7 +703,7 @@ window.addEventListener("DOMContentLoaded", () => {
   document.getElementById("btn-report")!.addEventListener("click", doReport);
   document.getElementById("btn-to-goal")!.addEventListener("click", () => {
     if (!selectedClient) {
-      snack("Pick a client first.");
+      snack("Escolha um cliente primeiro.");
       return;
     }
     gotoStep("s-goal");
@@ -694,7 +712,7 @@ window.addEventListener("DOMContentLoaded", () => {
     b.addEventListener("click", () => {
       const id = b.dataset.step!;
       if (id === "s-goal" && !selectedClient) {
-        snack("Pick a client first.");
+        snack("Escolha um cliente primeiro.");
         return;
       }
       gotoStep(id);
