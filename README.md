@@ -170,4 +170,4 @@ cd src-tauri && cargo check --locked && cargo test
   Patch-DB.
 - The CI has no word on how patched audio behaves in closed Discord builds. The bench that
   picked the flags is a local measurement setup, not a Discord endorsement.
-- The app interface is in English.
+- The app interface is in Portuguese (pt-BR).
