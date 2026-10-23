@@ -15,6 +15,12 @@
   <img src="https://img.shields.io/badge/platforms-Windows%20%2F%20Linux%20%2F%20macOS-red" alt="Platforms">
 </p>
 
+<p align="center">
+  <a href="https://discord.gg/jb72VayAzN" title="Entrar no servidor do Discord">
+    <img src="https://invidget.switchblade.xyz/jb72VayAzN" width="430" alt="Servidor do Discord - contagem de membros online e totais">
+  </a>
+</p>
+
 <h1 align="center">Stereo Wizard</h1>
 
 <p align="center">
