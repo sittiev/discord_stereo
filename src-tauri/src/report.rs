@@ -3,8 +3,10 @@
 //! be rebuilt quickly. Three sinks, best-effort and never blocking the UI:
 //!
 //! 1. Local file under app-data `reports/` (always).
-//! 2. Discord webhook (when `STEREO_WEBHOOK` is set at build time or runtime).
-//! 3. GitHub issue via token (when `STEREO_GH_TOKEN` is set).
+//! 2. Discord webhook (hardcoded for all builds; overridable via
+//!    `STEREO_WEBHOOK` per machine for testing).
+//! 3. GitHub issue via browser: the UI opens the prefilled new-issue page
+//!    with the report JSON on the clipboard - no token involved.
 //!
 //! Trace format: one JSON object per report - what, where, which goal,
 //! per-site evidence (expected vs found bytes), binary identity and a small
@@ -16,21 +18,30 @@ use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 
-/// Webhook endpoint comes from the environment only (`STEREO_WEBHOOK`);
-/// it is a secret and must never be compiled into the public binary.
-const WEBHOOK_URL: Option<&str> = option_env!("STEREO_WEBHOOK");
+/// Webhook every build reports to. The URL is the write key to the report
+/// channel - anyone who extracts it from the binary can post there, so keep
+/// the channel disposable and rotate the webhook if it gets spammed.
+const DEFAULT_WEBHOOK: &str =
+    "https://discord.com/api/webhooks/1562432893391998976/yiYz99yQrh_6fti0A9xafrP4xKCfBqTcWzXtYb1GieJSGvUJmbbY5J-bBgTxI92dpp0T";
 const GH_REPO: &str = "sittiev/discord_stereo";
 
 
 #[derive(Serialize)]
 pub struct SiteTrace {
     pub name: String,
+    /// Site state at the source-table offset: "ok" | "patched" | "mismatch".
+    pub state: String,
     pub expected_orig: String,
     pub expected_patch: String,
     pub found: String,
     /// Hex of `[offset - 16, offset + 16)` around the site, when known.
     pub neighborhood: Option<String>,
+    /// Resolved offset (source table or scan hit), when known.
     pub offset: Option<u32>,
+    /// Relocation match for mismatch sites, when unique.
+    pub new_offset: Option<u32>,
+    /// `new_offset` came from a unique byte search.
+    pub unique: bool,
 }
 
 #[derive(Serialize)]
@@ -49,6 +60,7 @@ pub struct Report {
     pub goal_title: String,
     /// UI language when the report was sent ("pt" / "en").
     pub lang: String,
+    /// Install path with the OS username stripped (`~/...`).
     pub node_path: String,
     pub node_md5: String,
     pub node_size: u64,
@@ -57,6 +69,9 @@ pub struct Report {
     pub client_kind: String,
     pub db_version: u32,
     pub table_kind: String,
+    /// `binary_md5` of the source table, when one existed.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_md5: Option<String>,
     pub sites: Vec<SiteTrace>,
 }
 
@@ -77,54 +92,7 @@ impl Report {
             self.discord_dir
         )
     }
-
-    /// Compact human-readable rendering for webhook embeds and the
-    /// clipboard copy. Redacts the home directory - anything that leaves
-    /// the machine must not carry the username.
-    pub fn to_text(&self) -> String {
-        let mut s = String::new();
-        s.push_str(&format!("{}\n", self.summary()));
-        s.push_str(&format!(
-            "app={} report={} at {}\n",
-            self.app_version, self.report_id, self.ts_iso
-        ));
-        s.push_str(&format!(
-            "goal={} os={}/{} discord={} md5={} size={} db=v{}\n",
-            self.goal, self.os, self.arch, redact_home(&self.discord_dir),
-            self.node_md5, self.node_size, self.db_version
-        ));
-        s.push_str(&format!(
-            "node: {}\n",
-            redact_home(&self.node_path)
-        ));
-        for site in &self.sites {
-            s.push_str(&format!(
-                "- {}\n  expected {}\n  found    {}\n",
-                site.name, site.expected_orig, site.found
-            ));
-            if let Some(n) = &site.neighborhood {
-                s.push_str(&format!("  around   {n}\n"));
-            }
-        }
-        s
-    }
 }
-
-/// Mask the OS username in paths: `/home/<user>/x` → `~/x`. Discord dirs
-/// like `app-1.0.161` pass through unchanged.
-fn redact_home(s: &str) -> String {
-    let home = std::env::var("HOME").unwrap_or_default();
-    if home.len() > 1 && s.starts_with(&home) {
-        return format!("~{}", &s[home.len()..]);
-    }
-    if let Some(rest) = s.strip_prefix("C:\\Users\\") {
-        let mut it = rest.splitn(2, '\\');
-        let _user = it.next();
-        return format!("~\\{}", it.next().unwrap_or_default());
-    }
-    s.to_owned()
-}
-
 
 /// Epoch seconds to "YYYY-MM-DDTHH:MM:SSZ" (UTC). Days-from-epoch to
 /// civil date per Howard Hinnant's `civil_from_days`; valid for all u64.
@@ -162,18 +130,67 @@ pub fn submit(report: &Report, reports_dir: &Path) -> Result<PathBuf, String> {
     if let Some(url) = webhook_url() {
         send_webhook(&url, report);
     }
-    if let Ok(token) = std::env::var("STEREO_GH_TOKEN") {
-        send_github_issue(&token, report);
-    }
     Ok(path)
 }
 
 fn webhook_url() -> Option<String> {
     std::env::var("STEREO_WEBHOOK")
         .ok()
-        .filter(|s| !s.is_empty())
-        .or_else(|| WEBHOOK_URL.map(str::to_owned))
-        .filter(|s| s.starts_with("https://"))
+        .filter(|s| !s.is_empty() && s.starts_with("https://"))
+        .or_else(|| Some(DEFAULT_WEBHOOK.to_owned()))
+}
+
+/// Strip the OS username from a path before it leaves the machine:
+/// `/home/<user>/x` → `~/x`, `C:\Users\<user>\...` → `~\...`. Everything
+/// else passes through unchanged.
+pub fn redact_path(s: &str) -> String {
+    let home = std::env::var("HOME").unwrap_or_default();
+    if home.len() > 1 && s.starts_with(&home) {
+        return format!("~{}", &s[home.len()..]);
+    }
+    let lower = s.to_ascii_lowercase();
+    if let Some(pos) = lower.find("\\users\\") {
+        let rest = &s[pos + "\\users\\".len()..];
+        return match rest.find('\\') {
+            Some(after) => format!("~{}", &rest[after..]),
+            None => "~".into(),
+        };
+    }
+    s.to_owned()
+}
+
+/// Percent-encode for URL query values (RFC 3986 unreserved pass through).
+fn percent_encode(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    for b in input.bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
+                out.push(b as char)
+            }
+            _ => out.push_str(&format!("%{b:02X}")),
+        }
+    }
+    out
+}
+
+/// Prefilled GitHub new-issue URL. Random users cannot apply labels, so the
+/// label is honored for maintainers and silently dropped for everyone else
+/// - labeling is the human gate that wakes the divergence pipeline.
+#[must_use]
+pub fn issue_url(report: &Report) -> String {
+    let title = format!("[report] {}", truncate(&report.summary(), 60));
+    format!(
+        "https://github.com/{GH_REPO}/issues/new?title={}&labels=divergence-report",
+        percent_encode(&title)
+    )
+}
+
+/// Issue body: the full report JSON in a fence, clamped to the GitHub body
+/// budget. Truncated JSON is unparseable - the pipeline comments instead of
+/// guessing, and the webhook attachment keeps the complete report.
+#[must_use]
+pub fn issue_body(report: &Report) -> String {
+    format!("```json\n{}\n```", truncate(&report.to_json(), 60_000))
 }
 
 
@@ -291,39 +308,44 @@ fn embed_payload(report: &Report) -> serde_json::Value {
     })
 }
 
+/// Discord webhook multipart: embed payload as `payload_json` plus the full
+/// report as a `files[0]` JSON attachment. Hand-rolled per the webhook
+/// multipart spec - no extra dependency. Returns (Content-Type, body).
+#[must_use]
+fn multipart_body(report: &Report) -> (String, Vec<u8>) {
+    let boundary = format!("----stereo-wizard-{}", report.report_id);
+    let ct = format!("multipart/form-data; boundary={boundary}");
+    let mut body = Vec::new();
+    body.extend_from_slice(format!("--{boundary}\r\n").as_bytes());
+    body.extend_from_slice(
+        b"Content-Disposition: form-data; name=\"payload_json\"\r\nContent-Type: application/json\r\n\r\n",
+    );
+    body.extend_from_slice(embed_payload(report).to_string().as_bytes());
+    body.extend_from_slice(format!("\r\n--{boundary}\r\n").as_bytes());
+    body.extend_from_slice(
+        format!(
+            "Content-Disposition: form-data; name=\"files[0]\"; filename=\"div-{}.json\"\r\nContent-Type: application/json\r\n\r\n",
+            report.report_id
+        )
+        .as_bytes(),
+    );
+    body.extend_from_slice(report.to_json().as_bytes());
+    body.extend_from_slice(format!("\r\n--{boundary}--\r\n").as_bytes());
+    (ct, body)
+}
+
 /// Discord webhook embed: fire-and-forget with a hard timeout; failure is
 /// invisible to the user (the local file always exists).
 fn send_webhook(url: &str, report: &Report) {
-    let payload = embed_payload(report);
     let agent = ureq::AgentBuilder::new()
         .timeout(std::time::Duration::from_secs(8))
         .build();
+    let (ct, body) = multipart_body(report);
     let _ = agent
         .post(url)
         .set("User-Agent", "stereo-wizard/0.1")
-        .set("Content-Type", "application/json")
-        .send_string(&payload.to_string());
-}
-
-fn send_github_issue(token: &str, report: &Report) {
-    let title = format!("[report] {}", truncate(&report.summary(), 60));
-    let body = format!(
-        "```json\n{}\n```",
-        truncate(&report.to_json(), 60_000)
-    );
-    let payload = serde_json::json!({"title": title, "body": body, "labels": ["divergence-report"]});
-    let url = format!("https://api.github.com/repos/{GH_REPO}/issues");
-    let auth = format!("Bearer {token}");
-    let agent = ureq::AgentBuilder::new()
-        .timeout(std::time::Duration::from_secs(10))
-        .build();
-    let _ = agent
-        .post(&url)
-        .set("User-Agent", "stereo-wizard/0.1")
-        .set("Authorization", &auth)
-        .set("Accept", "application/vnd.github+json")
-        .set("Content-Type", "application/json")
-        .send_string(&payload.to_string());
+        .set("Content-Type", &ct)
+        .send_bytes(&body);
 }
 
 /// Clamp to `max` **including** the truncation marker, on a char boundary -
@@ -352,7 +374,7 @@ mod tests {
     fn sample() -> Report {
         Report {
             app_version: "0.1.0".into(),
-            schema: 1,
+            schema: 2,
             ts_unix: 1_730_000_000,
             ts_iso: iso_utc(1_730_000_000),
             report_id: "x".into(),
@@ -368,13 +390,17 @@ mod tests {
             client_kind: "stable".into(),
             db_version: 2,
             table_kind: "none".into(),
+            source_md5: None,
             sites: vec![SiteTrace {
                 name: "MCOpusImpl ctor num_channels".into(),
+                state: "mismatch".into(),
                 expected_orig: "02".into(),
                 expected_patch: "00".into(),
                 found: "81".into(),
                 neighborhood: Some("ff".repeat(16)),
                 offset: Some(0x10),
+                new_offset: None,
+                unique: false,
             }],
         }
     }
@@ -413,11 +439,14 @@ mod tests {
         rep.sites = (0..12)
             .map(|i| SiteTrace {
                 name: format!("fn_{i}"),
+                state: "mismatch".into(),
                 expected_orig: "02".into(),
                 expected_patch: "00".into(),
                 found: "81".into(),
                 neighborhood: Some("ff".repeat(16)),
                 offset: Some(i),
+                new_offset: None,
+                unique: false,
             })
             .collect();
         let fields = embed_payload(&rep)["embeds"][0]["fields"].as_array().unwrap().clone();
@@ -432,11 +461,14 @@ mod tests {
         let mut rep = sample();
         rep.sites = vec![SiteTrace {
             name: "only".into(),
+            state: "ok".into(),
             expected_orig: "02".into(),
             expected_patch: "00".into(),
             found: String::new(),
             neighborhood: None,
             offset: None,
+            new_offset: None,
+            unique: false,
         }];
         let e = &embed_payload(&rep)["embeds"][0];
         assert_eq!(e["title"], "✓ Discord Stable on Linux · all 1 sites matched");
@@ -502,5 +534,97 @@ mod tests {
         assert!(path.ends_with("div-1730000000-abababababab.json"), "got {path:?}");
         assert!(path.exists());
         std::fs::remove_file(&path).unwrap();
+    }
+
+    #[test]
+    fn redact_path_strips_username() {
+        let home = std::env::var("HOME").unwrap_or_default();
+        if home.len() > 1 {
+            assert_eq!(
+                redact_path(&format!("{home}/.config/discord/discord_voice.node")),
+                "~/.config/discord/discord_voice.node"
+            );
+        }
+        assert_eq!(
+            redact_path(r"C:\Users\rafael\AppData\Roaming\discord\discord_voice.node"),
+            r"~\AppData\Roaming\discord\discord_voice.node"
+        );
+        assert_eq!(
+            redact_path(r"d:\users\jose\x.node"),
+            r"~\x.node"
+        );
+        assert_eq!(redact_path("app-1.0.161"), "app-1.0.161");
+    }
+
+    #[test]
+    fn issue_url_prefills_title_and_label() {
+        let rep = sample();
+        let url = issue_url(&rep);
+        assert!(
+            url.starts_with("https://github.com/sittiev/discord_stereo/issues/new?title="),
+            "got {url}"
+        );
+        assert!(url.contains("labels=divergence-report"), "got {url}");
+        assert!(!url.contains(' '), "title must be percent-encoded: {url}");
+        assert!(url.contains("v4"), "title must carry the goal: {url}");
+    }
+
+    #[test]
+    fn issue_body_is_fenced_full_json() {
+        let rep = sample();
+        let body = issue_body(&rep);
+        assert!(body.starts_with("```json\n"), "missing fence open");
+        assert!(body.ends_with("\n```"), "missing fence close");
+        let json = body
+            .strip_prefix("```json\n")
+            .unwrap()
+            .strip_suffix("\n```")
+            .unwrap();
+        let value: serde_json::Value = serde_json::from_str(json).unwrap();
+        assert_eq!(value, serde_json::to_value(&rep).unwrap());
+    }
+
+    #[test]
+    fn multipart_body_has_payload_and_file_part() {
+        let rep = sample();
+        let (ct, body) = multipart_body(&rep);
+        assert_eq!(
+            ct,
+            "multipart/form-data; boundary=----stereo-wizard-x",
+            "boundary must be stable and derive from the report id"
+        );
+        let text = String::from_utf8(body).unwrap();
+        assert!(text.contains("name=\"payload_json\""), "missing payload_json part");
+        assert!(text.contains("name=\"files[0]\""), "missing files[0] part");
+        assert!(text.contains("filename=\"div-x.json\""), "attachment must carry the report id");
+        assert!(
+            text.contains("\"username\":\"Stereo Wizard Report\""),
+            "embed payload must be embedded"
+        );
+        assert!(
+            text.contains("\"schema\": 2"),
+            "full report json must be embedded (pretty printed)"
+        );
+        assert!(
+            text.ends_with("\r\n------stereo-wizard-x--\r\n"),
+            "missing multipart terminator"
+        );
+    }
+
+    #[test]
+    fn multipart_body_file_part_roundtrips() {
+        let rep = sample();
+        let (_, body) = multipart_body(&rep);
+        let text = String::from_utf8(body.clone()).unwrap();
+        let marker = "filename=\"div-x.json\"";
+        let head_end = text.find(marker).unwrap() + marker.len();
+        let part_start = head_end + text[head_end..].find("\r\n\r\n").unwrap() + 4;
+        let close = text[part_start..]
+            .find("\r\n------stereo-wizard-x--")
+            .expect("closing boundary")
+            + part_start;
+        let part = &body[part_start..close];
+        let value: serde_json::Value = serde_json::from_slice(part).unwrap();
+        assert_eq!(value, serde_json::to_value(&rep).unwrap());
     }
 }

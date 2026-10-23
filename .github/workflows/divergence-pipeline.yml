@@ -1,0 +1,76 @@
+name: Divergence pipeline
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  autopatch:
+    if: github.event.label.name == 'divergence-report'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Extract report from issue body
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh issue view "$ISSUE" --repo "$REPO" --json body --jq .body > /tmp/report.md
+          python3 -c '
+          import re, sys
+          body = open("/tmp/report.md", encoding="utf-8").read()
+          m = re.search(r"```json\n(.*?)\n```", body, re.S)
+          if not m:
+              sys.exit("report json fence not found (truncated or malformed issue body)")
+          open("/tmp/report.json", "w", encoding="utf-8").write(m.group(1))
+          '
+      - name: Generate candidate table
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          node patchdb/autopatch.mjs /tmp/report.json > /tmp/out.txt 2>/tmp/err.txt
+          code=$?
+          if [ "$code" = "0" ]; then
+            exit 0
+          fi
+          if [ "$code" = "3" ]; then
+            gh issue comment "$ISSUE" --repo "$REPO" --body-file /tmp/out.txt
+          else
+            gh issue comment "$ISSUE" --repo "$REPO" --body "autopatch failed (code $code): $(head -c 2000 /tmp/err.txt)"
+          fi
+          exit 0
+      - name: Open PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          REPORT_ID=$(node -p "JSON.parse(require('fs').readFileSync('/tmp/out.txt','utf8')).report_id")
+          GOAL=$(node -p "JSON.parse(require('fs').readFileSync('/tmp/out.txt','utf8')).goal")
+          MD5=$(node -p "JSON.parse(require('fs').readFileSync('/tmp/out.txt','utf8')).md5")
+          BRANCH="autopatch/${REPORT_ID}"
+          git config user.name "stereo-wizard-bot"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add patchdb/tables.json
+          git commit -m "patchdb: auto table ${GOAL} ${MD5:0:12} (report ${REPORT_ID})"
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
+          git push origin HEAD
+          cat > /tmp/pr.md <<EOF
+          Candidate table generated from report #${ISSUE} (${GOAL}, ${MD5}).
+
+          Human gate: review the diff before merging - byte relocation is automatic, semantic verification is not. Sites that failed relocation are never included.
+          EOF
+          gh pr create --repo "$REPO" --base main --head "$BRANCH" \
+            --title "patchdb: auto table ${GOAL} ${MD5:0:12}" --body-file /tmp/pr.md \
+            || gh issue comment "$ISSUE" --repo "$REPO" --body "PR for this report already exists."

@@ -534,32 +534,24 @@ async function doAnalyze(): Promise<void> {
 
 interface ReportOutcome {
   path: string;
-  text: string;
+  issue_url: string;
+  issue_body: string;
 }
 
 async function doReport(): Promise<void> {
   if (!selectedClient || !analysis) return;
-  const expected = new Map(analysis.expected ?? []);
-  const sites: Array<[string, string, string]> = analysis.sites.map(
-    ([name, st]) => [
-      name,
-      expected.get(name) ?? "",
-      st.state === "mismatch" ? st.found : "",
-    ],
-  );
   const btn = document.getElementById("btn-report") as HTMLButtonElement;
   btn.disabled = true;
   try {
     const outcome = await invoke<ReportOutcome>("report_divergence", {
       node: selectedClient.node_path,
       goal: selectedGoal,
-      sites,
-      knownPristine: analysis.known_pristine,
       clientKind: selectedClient.kind,
       lang: "pt",
     });
-    await navigator.clipboard.writeText(outcome.text);
-    snack(`Relatório copiado e salvo: ${outcome.path}`);
+    await navigator.clipboard.writeText(outcome.issue_body);
+    openExternal(outcome.issue_url);
+    snack(`Relatório salvo e enviado: ${outcome.path}. A issue abriu no navegador - cole o JSON (já copiado) e envie.`);
   } catch (err) {
     snack(`Falha ao gerar relatório: ${localizeBackendError(String(err))}`);
   }
@@ -612,8 +604,6 @@ async function doRevert(): Promise<void> {
 }
 
 // ---------------------------------------------------------------- about
-// Cards of the Info page; same block saved at
-// dev/backup/2026-10-16-stepper-sem-info/sobre-cards.md.
 const LINKS: Array<{ title: string; desc: string; url: string; aria: string; svg: string }> = [
   {
     title: "GitHub",

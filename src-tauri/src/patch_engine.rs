@@ -5,6 +5,7 @@
 //! with a unique match and `expect`. A binary without a resolvable table is
 //! never written.
 
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -201,17 +202,6 @@ fn patched_md5(table: &Table, bytes: &[u8]) -> Option<String> {
     Some(md5_hex(&copy))
 }
 
-/// Offset of a site when the table entry carries a fixed one. Pattern sites
-/// resolve per-binary, so they have no stable offset to report.
-pub fn site_offset(site: &crate::tables::TableSite) -> Option<u32> {
-    match site {
-        crate::tables::TableSite::Offset { offset, .. } => {
-            parse_offset(offset, "site").ok()
-        }
-        _ => None,
-    }
-}
-
 fn resolve_sites(table: &Table, bytes: &[u8]) -> Result<Vec<Resolved>, EngineError> {
     let mut out = Vec::with_capacity(table.sites.len());
     for site in &table.sites {
@@ -339,6 +329,146 @@ pub fn analyze_bytes(
         known_pristine: table.is_some(),
         sites,
         expected,
+    })
+}
+
+/// Per-site relocation evidence for divergence reports.
+#[derive(Debug, Clone)]
+pub struct TracedSite {
+    pub name: String,
+    pub state: SiteState,
+    pub orig: Vec<u8>,
+    pub patch: Vec<u8>,
+    /// Resolved offset (source table or scan hit).
+    pub offset: Option<u32>,
+    /// Relocation match, mismatch sites only.
+    pub new_offset: Option<u32>,
+    pub unique: bool,
+}
+
+/// Server-side recomputed divergence evidence: per-site states with
+/// relocation data, independent of what the UI observed.
+#[derive(Debug)]
+pub struct DivergenceTrace {
+    /// A source table existed (drives `table_kind`).
+    pub table_matched: bool,
+    /// `binary_md5` of the source table, if any.
+    pub source_md5: Option<String>,
+    pub sites: Vec<TracedSite>,
+}
+
+/// Recompute a goal's site evidence for a divergence report.
+///
+/// With a source table, every resolved site carries its state and, for a
+/// byte-level mismatch, a relocation search of the expected bytes - so the
+/// report pinpoints where the site moved. Without a source table (new
+/// client builds), the goal's tables are scanned directly: every site is
+/// an exact-byte or AOB search over the unknown binary.
+///
+/// # Errors
+/// [`EngineError::Hex`] if a table entry is malformed (bug in the DB).
+pub fn divergence_trace(
+    node: &Path,
+    bytes: &[u8],
+    goal: &str,
+    db: &PatchDb,
+) -> Result<DivergenceTrace, EngineError> {
+    let md5 = md5_hex(bytes);
+    let table = table_for(db, goal, &md5, bytes);
+    let _ = analyze_bytes(node, bytes, goal, db)?;
+
+    let sites = if let Some(t) = table {
+        resolve_sites(t, bytes)?
+            .into_iter()
+            .map(|r| {
+                let state = site_state(&r, bytes);
+                let offset = if r.reason.is_none() { Some(r.offset) } else { None };
+                let (new_offset, unique) = if r.reason.is_none()
+                    && matches!(state, SiteState::Mismatch { .. })
+                    && !r.orig.is_empty()
+                {
+                    let aob = Aob {
+                        pat: r.orig.clone(),
+                        mask: vec![true; r.orig.len()],
+                    };
+                    match scan_pattern(bytes, &aob) {
+                        Some(pos) => (Some(pos as u32), true),
+                        None => (None, false),
+                    }
+                } else {
+                    (None, false)
+                };
+                TracedSite {
+                    name: r.name,
+                    state,
+                    orig: r.orig,
+                    patch: r.patch,
+                    offset,
+                    new_offset,
+                    unique,
+                }
+            })
+            .collect()
+    } else {
+        let mut seen = HashSet::new();
+        let mut out = Vec::new();
+        for t in db.tables.iter().filter(|t| t.goal == goal) {
+            for site in &t.sites {
+                if !seen.insert(site.name().to_owned()) {
+                    continue;
+                }
+                match site {
+                    TableSite::Offset { orig, patch, name, .. } => {
+                        let orig_bytes = decode_hex(orig, name)?;
+                        let patch_bytes = decode_hex(patch, name)?;
+                        let aob = Aob {
+                            pat: orig_bytes.clone(),
+                            mask: vec![true; orig_bytes.len()],
+                        };
+                        let hit = scan_pattern(bytes, &aob).map(|pos| pos as u32);
+                        out.push(TracedSite {
+                            name: name.clone(),
+                            state: SiteState::Mismatch { found: String::new() },
+                            orig: orig_bytes,
+                            patch: patch_bytes,
+                            offset: hit,
+                            new_offset: hit,
+                            unique: hit.is_some(),
+                        });
+                    }
+                    TableSite::Pattern { name, pattern, patch, expect } => {
+                        let patch_bytes = decode_hex(patch, name)?;
+                        let hit = parse_aob(pattern)
+                            .and_then(|aob| scan_pattern(bytes, &aob))
+                            .map(|pos| pos as u32);
+                        let orig = match (hit, expect) {
+                            (Some(_), Some(e)) => decode_hex(e, name)?,
+                            (Some(pos), None) => {
+                                let end = pos as usize + patch_bytes.len();
+                                bytes.get(pos as usize..end).map(<[u8]>::to_vec).unwrap_or_default()
+                            }
+                            (None, _) => Vec::new(),
+                        };
+                        out.push(TracedSite {
+                            name: name.clone(),
+                            state: SiteState::Mismatch { found: String::new() },
+                            orig,
+                            patch: patch_bytes,
+                            offset: hit,
+                            new_offset: hit,
+                            unique: hit.is_some(),
+                        });
+                    }
+                }
+            }
+        }
+        out
+    };
+
+    Ok(DivergenceTrace {
+        table_matched: table.is_some(),
+        source_md5: table.and_then(|t| t.binary_md5.clone()),
+        sites,
     })
 }
 
@@ -694,6 +824,71 @@ mod tests {
             SiteState::Ok => {}
             other => panic!("expected Ok without expect, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn divergence_trace_relocates_shifted_site() {
+        let mut bytes = vec![0u8; 64];
+        let a = 10usize;
+        bytes[a..a + 9].copy_from_slice(&[0x90, 0x90, 0xde, 0xad, 0xbe, 0xef, 0xca, 0xfe, 0x00]);
+        // Orig must appear exactly once, relocated to B.
+        let b = 40usize;
+        bytes[b..b + 7].copy_from_slice(&[0x49, 0x39, 0xd4, 0x4c, 0x0f, 0x43, 0xe2]);
+        let db = db_of(
+            None,
+            pattern_site("90 90 ?? ?? ?? ?? ?? ?? ??", "49 39 d4 4c 0f 43 e2", "49 c7 c4 02 00 00"),
+        );
+        let trace = divergence_trace(Path::new("mem"), &bytes, "t", &db).unwrap();
+        assert!(trace.table_matched);
+        let site = &trace.sites[0];
+        assert!(matches!(site.state, SiteState::Mismatch { .. }), "got {:?}", site.state);
+        assert_eq!(site.new_offset, Some(b as u32));
+        assert!(site.unique);
+    }
+
+    #[test]
+    fn divergence_trace_ambiguous_orig_stays_manual() {
+        let mut bytes = vec![0u8; 64];
+        let a = 10usize;
+        bytes[a..a + 9].copy_from_slice(&[0x90, 0x90, 0xde, 0xad, 0xbe, 0xef, 0xca, 0xfe, 0x00]);
+        // Orig appears twice: relocation is ambiguous.
+        let b = 40usize;
+        let c = 52usize;
+        for off in [b, c] {
+            bytes[off..off + 7].copy_from_slice(&[0x49, 0x39, 0xd4, 0x4c, 0x0f, 0x43, 0xe2]);
+        }
+        let db = db_of(
+            None,
+            pattern_site("90 90 ?? ?? ?? ?? ?? ?? ??", "49 39 d4 4c 0f 43 e2", "49 c7 c4 02 00 00"),
+        );
+        let trace = divergence_trace(Path::new("mem"), &bytes, "t", &db).unwrap();
+        let site = &trace.sites[0];
+        assert!(matches!(site.state, SiteState::Mismatch { .. }), "got {:?}", site.state);
+        assert_eq!(site.new_offset, None);
+        assert!(!site.unique);
+    }
+
+    #[test]
+    fn divergence_trace_scans_unknown_binary() {
+        let bytes = vec![0x03u8, 0x00, 0x02, 0x00];
+        let db = db_of(
+            Some(&"0".repeat(32)),
+            serde_json::json!({
+                "kind": "offset", "offset": "0x00", "orig": "02", "patch": "01", "name": "slot0"
+            }),
+        );
+        let trace = divergence_trace(Path::new("mem"), &bytes, "t", &db).unwrap();
+        assert!(!trace.table_matched);
+        assert_eq!(trace.source_md5, None);
+        assert!(analyze_bytes(Path::new("mem"), &bytes, "t", &db).unwrap().sites.is_empty(),
+            "wire sites stay empty in scan mode");
+        let site = &trace.sites[0];
+        assert_eq!(site.name, "slot0");
+        assert_eq!(site.offset, Some(2));
+        assert_eq!(site.new_offset, Some(2));
+        assert!(site.unique);
+        assert_eq!(site.orig, vec![0x02]);
+        assert_eq!(site.patch, vec![0x01]);
     }
 
     /// Dev-machine smoke: the real v5-patched node must NOT produce a wall

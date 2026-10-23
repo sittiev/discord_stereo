@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use detect::{FoundClient, scan_all};
-use patch_engine::{Analysis, analyze, apply, revert};
+use patch_engine::{Analysis, SiteState, analyze, apply, divergence_trace, revert};
 use serde::Serialize;
 use tauri::Manager;
 
@@ -59,15 +59,14 @@ fn analyze_node(node: String, goal: String) -> Result<Analysis, String> {
 
 /// Collect and submit a divergence report for an analysis that found no
 /// compatible table or mismatching sites. Local file always; webhook and
-/// GitHub issue are best-effort sinks. Called explicitly by the UI from
-/// the Analyze step when a divergence is shown.
+/// the prefilled GitHub issue (opened in the browser by the UI) are
+/// best-effort sinks. Called explicitly by the UI from the Analyze step
+/// when a divergence is shown.
 #[tauri::command]
 fn report_divergence(
     app: tauri::AppHandle,
     node: String,
     goal: String,
-    sites: Vec<(String, String, String)>,
-    known_pristine: bool,
     client_kind: String,
     lang: String,
 ) -> Result<ReportOutcome, String> {
@@ -81,29 +80,35 @@ fn report_divergence(
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_default();
     let node_md5 = patch_engine::md5_hex(&bytes);
-    let mut traces = Vec::with_capacity(sites.len());
-    for (name, expected, found) in sites {
-        let offset = db
-            .tables
-            .iter()
-            .find(|t| t.goal == goal)
-            .and_then(|t| t.sites.iter().find(|s| s.name() == name))
-            .and_then(patch_engine::site_offset);
-        traces.push(report::SiteTrace {
-            name,
-            expected_orig: expected,
-            expected_patch: String::new(),
-            found,
-            neighborhood: offset.and_then(|off| {
-                let o = off as usize;
-                if o < 16 || o + 16 > bytes.len() {
-                    return None;
-                }
-                Some(hex::encode(&bytes[o - 16..o + 16]))
-            }),
-            offset,
-        });
-    }
+    let trace = divergence_trace(Path::new(&node), &bytes, &goal, &db).map_err(|e| e.to_string())?;
+    let traces = trace
+        .sites
+        .into_iter()
+        .map(|t| {
+            let (state, found) = match &t.state {
+                SiteState::Ok => ("ok", String::new()),
+                SiteState::Patched => ("patched", String::new()),
+                SiteState::Mismatch { found } => ("mismatch", found.clone()),
+            };
+            report::SiteTrace {
+                name: t.name,
+                state: state.to_owned(),
+                expected_orig: hex::encode(&t.orig),
+                expected_patch: hex::encode(&t.patch),
+                found,
+                neighborhood: t.offset.and_then(|off| {
+                    let o = off as usize;
+                    if o < 16 || o + 16 > bytes.len() {
+                        return None;
+                    }
+                    Some(hex::encode(&bytes[o - 16..o + 16]))
+                }),
+                offset: t.offset,
+                new_offset: t.new_offset,
+                unique: t.unique,
+            }
+        })
+        .collect();
     let ts_unix = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs())
@@ -116,7 +121,7 @@ fn report_divergence(
         .unwrap_or(goal.clone());
     let rep = report::Report {
         app_version: env!("CARGO_PKG_VERSION").to_owned(),
-        schema: 1,
+        schema: 2,
         ts_unix,
         ts_iso: report::iso_utc(ts_unix),
         report_id: format!("{ts_unix}-{}", &node_md5[..12.min(node_md5.len())]),
@@ -125,13 +130,14 @@ fn report_divergence(
         goal: goal.clone(),
         goal_title,
         lang,
-        node_path: node.clone(),
+        node_path: report::redact_path(&node),
         node_md5,
         node_size: bytes.len() as u64,
         discord_dir,
         client_kind,
         db_version: db.db_version,
-        table_kind: if known_pristine { "matched" } else { "none" }.into(),
+        table_kind: if trace.table_matched { "matched" } else { "none" }.into(),
+        source_md5: trace.source_md5,
         sites: traces,
     };
     let reports_dir = app
@@ -142,14 +148,16 @@ fn report_divergence(
     let saved = report::submit(&rep, &reports_dir)?;
     Ok(ReportOutcome {
         path: saved.to_string_lossy().into_owned(),
-        text: rep.to_text(),
+        issue_url: report::issue_url(&rep),
+        issue_body: report::issue_body(&rep),
     })
 }
 
 #[derive(Serialize)]
 struct ReportOutcome {
     path: String,
-    text: String,
+    issue_url: String,
+    issue_body: String,
 }
 
 /// Apply a goal to a node (verify-then-write, backup, idempotent).
