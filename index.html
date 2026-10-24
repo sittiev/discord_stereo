@@ -142,6 +142,9 @@
       [data-url] {
         cursor: pointer;
       }
+      .link {
+        text-decoration: underline;
+      }
       .row-between {
         display: flex;
         align-items: center;
@@ -333,9 +336,9 @@
               <m3e-button variant="text" id="btn-revert">Reverter</m3e-button>
               <m3e-button variant="tonal" id="btn-analyze">Analisar</m3e-button>
               <m3e-button variant="filled" id="btn-apply" disabled>Aplicar</m3e-button>
-              <m3e-button variant="text" id="btn-report" hidden>Enviar relatório</m3e-button>
             </div>
             <m3e-list id="site-list"></m3e-list>
+            <m3e-callout variant="warning" id="no-fix" hidden></m3e-callout>
             <m3e-callout variant="warning" id="discord-running" hidden>
               O Discord está aberto. Feche-o completamente antes de aplicar ou reverter.
             </m3e-callout>

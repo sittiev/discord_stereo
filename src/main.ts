@@ -16,6 +16,7 @@ import "@m3e/web/segmented-button";
 import "@m3e/web/snackbar";
 import "@m3e/web/stepper";
 import "@m3e/web/switch";
+import "@m3e/web/tooltip";
 
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -443,6 +444,44 @@ async function loadGoals(): Promise<void> {
 }
 
 // ---------------------------------------------------------------- apply
+// Short pt-BR description per patch site, shown as a tooltip on the row.
+// Names are the exact site keys in patchdb/tables.json; unknown keys fall
+// back to a generic description.
+const SITE_INFO: Record<string, string> = {
+  "StereoCheck1 CommitAudioCodec": "Força o caminho estéreo na negociação do codec.",
+  "StereoCheck2 CreateAudioStream": "Força o caminho estéreo ao abrir o stream de áudio.",
+  "CreateAudioFrame clamp1->2": "Trava o frame de áudio em 2 canais.",
+  "CreateAudioFrame clamp2->2": "Trava o frame de áudio em 2 canais.",
+  "MonoDownmix bypass (NOP+JMP)": "Pula o downmix mono na captura do microfone.",
+  "MCOpusImpl ctor num_channels": "Encoder criado com 2 canais desde o início.",
+  "SdpToConfig num_channels": "Negociação SDP fixada em 2 canais.",
+  "SdpToConfig num_channels 48k": "Negociação fixada em 2 canais nesta taxa de amostragem.",
+  "SdpToConfig num_channels 48k (2)": "Negociação fixada em 2 canais nesta taxa de amostragem.",
+  "SdpToConfig num_channels dynamic": "Negociação fixada em 2 canais nesta taxa de amostragem.",
+  "SdpToConfig num_channels 44.1k": "Negociação fixada em 2 canais nesta taxa de amostragem.",
+  "SdpToConfig num_channels 96k": "Negociação fixada em 2 canais nesta taxa de amostragem.",
+  "SdpToConfig num_channels 32k": "Negociação fixada em 2 canais nesta taxa de amostragem.",
+  "SdpToConfig num_channels 24k": "Negociação fixada em 2 canais nesta taxa de amostragem.",
+  "SdpToConfig num_channels 16k": "Negociação fixada em 2 canais nesta taxa de amostragem.",
+  "SdpToConfig num_channels 8k": "Negociação fixada em 2 canais nesta taxa de amostragem.",
+  "downmix_and_resample ret": "Desliga o downmix do resampler.",
+  "HighPassFilter::Process ret": "Desliga o filtro passa-alta (preserva graves).",
+  "OpusConfig IsOk true": "Aceita a configuração estéreo/alta taxa na validação.",
+  "NoiseCanceller::Process ret": "Desliga o supressor de ruído (Krisp).",
+  "ShouldRunNoiseCancellation false": "Impede o supressor de ruído de ligar.",
+  "MCOpusImpl ctor bitrate 510k": "Trava o bitrate em 510 kbps.",
+  "SdpToConfig bitrate 510k": "Trava o bitrate em 510 kbps.",
+  "CommitAudioCodec bitrate 510k": "Trava o bitrate em 510 kbps.",
+  "OpusEngineConfig bitrate 510k": "Trava o bitrate em 510 kbps.",
+  "OpusConfig ctor bitrate 510k": "Trava o bitrate em 510 kbps.",
+  "WebRtcOpus_SetBitRate lock 510k": "Trava o bitrate em 510 kbps contra rebaixamento.",
+  "SetForceChannels->2": "Força 2 canais no adaptador de rede.",
+  "DisableCbr->ret": "Mantém o bitrate constante (CBR) ligado.",
+  "GetMultipliedBitrate identity": "Remove o multiplicador de bitrate.",
+  "RemixAndResample skip downmix": "Pula o downmix dentro do resampler (correção L=R).",
+  "OpusConfig application kAudio": "Modo música do Opus (fullband).",
+};
+
 function renderApply(): void {
   const summary = document.getElementById("apply-summary")!;
   if (!selectedClient) {
@@ -461,13 +500,17 @@ function renderApply(): void {
   const sites = document.getElementById("site-list")!;
   sites.innerHTML = "";
   if (analysis) {
+    let i = 0;
     for (const [name, st] of analysis.sites) {
       const li = document.createElement("m3e-list-item");
+      li.id = `site-tip-${i}`;
       li.innerHTML = `
         <span slot="leading" class="state-${st.state}">${stateIcon(st)}</span>
-        <span class="cell" title="${esc(name)}">${esc(name)}</span>
-        <span slot="supporting-text">${esc(stateText(st))}</span>`;
+        <span class="cell">${esc(name)}</span>
+        <span slot="supporting-text">${esc(stateText(st))}</span>
+        <m3e-tooltip for="site-tip-${i}">${esc(SITE_INFO[name] ?? "Patch binário deste site.")}</m3e-tooltip>`;
       sites.append(li);
+      i += 1;
     }
   } else {
     const li = document.createElement("m3e-list-item");
@@ -475,6 +518,18 @@ function renderApply(): void {
       ? `<span class="muted">Execute Analisar para ver o estado de cada site antes de aplicar.</span>`
       : `<span class="muted">Nenhum cliente selecionado. Volte à aba Clientes e escolha um.</span>`;
     sites.append(li);
+  }
+  const noFix = document.getElementById("no-fix")!;
+  if (analysis && analysis.sites.length === 0) {
+    noFix.innerHTML = `
+      Esta versão ainda não tem correção pronta - entre no Discord para acompanhar:
+      <span class="link" data-url="https://discord.gg/jb72VayAzN">https://discord.gg/jb72VayAzN</span>`;
+    noFix.hidden = false;
+    noFix.querySelectorAll<HTMLElement>("[data-url]").forEach((b) =>
+      b.addEventListener("click", () => openExternal(b.dataset.url ?? "")),
+    );
+  } else {
+    noFix.hidden = true;
   }
   updateApplyButtons();
 }
@@ -496,15 +551,16 @@ function updateApplyButtons(): void {
   const hasMismatch = sites.some(([, st]) => st.state === "mismatch");
   const allPatched =
     sites.length > 0 && sites.every(([, st]) => st.state === "patched");
-  const reportable =
-    analysis !== null && (hasMismatch || !analysis.known_pristine);
   (document.getElementById("btn-analyze") as HTMLButtonElement).disabled =
     !selectedClient;
   (document.getElementById("btn-revert") as HTMLButtonElement).disabled =
     !selectedClient;
   (document.getElementById("btn-apply") as HTMLButtonElement).disabled =
-    !selectedClient || analysis === null || hasMismatch || allPatched;
-  document.getElementById("btn-report")!.hidden = !reportable;
+    !selectedClient ||
+    analysis === null ||
+    hasMismatch ||
+    allPatched ||
+    sites.length === 0;
 }
 
 // Backend errors cross IPC as English thiserror strings; the known
@@ -537,7 +593,11 @@ async function doAnalyze(): Promise<void> {
     const patched = analysis.sites.filter(
       ([, s]) => s.state === "patched",
     ).length;
-    snack(`Análise: ${patched}/${analysis.sites.length} patches já aplicados`);
+    if (analysis.sites.length === 0) {
+      snack("Build sem patch conhecido - relatório enviado automaticamente.");
+    } else {
+      snack(`Análise: ${patched}/${analysis.sites.length} patches já aplicados`);
+    }
   } catch (err) {
     snack(`Erro: ${localizeBackendError(String(err))}`);
   }
@@ -546,8 +606,7 @@ async function doAnalyze(): Promise<void> {
 }
 
 // Auto-report: when a binary has no known table or diverged sites, the
-// report is sent once per (md5, goal) without requiring the button - the
-// button stays for manual re-sends.
+// report is sent once per (md5, goal) - there is no manual path anymore.
 let autoReportKey: string | null = null;
 
 async function maybeAutoReport(): Promise<void> {
@@ -557,7 +616,7 @@ async function maybeAutoReport(): Promise<void> {
   const key = `${analysis.md5}:${selectedGoal}`;
   if (autoReportKey === key) return;
   autoReportKey = key;
-  await doReport(true);
+  await doReport();
 }
 
 interface ReportOutcome {
@@ -566,10 +625,8 @@ interface ReportOutcome {
   issue_body: string;
 }
 
-async function doReport(auto = false): Promise<void> {
+async function doReport(): Promise<void> {
   if (!selectedClient || !analysis) return;
-  const btn = document.getElementById("btn-report") as HTMLButtonElement;
-  btn.disabled = true;
   try {
     const outcome = await invoke<ReportOutcome>("report_divergence", {
       node: selectedClient.node_path,
@@ -577,15 +634,10 @@ async function doReport(auto = false): Promise<void> {
       clientKind: selectedClient.kind,
       lang: "pt",
     });
-    await navigator.clipboard.writeText(outcome.issue_body);
-    openExternal(outcome.issue_url);
-    snack(auto
-      ? `Build sem patch conhecido - relatório enviado automaticamente: ${outcome.path}. A issue abriu no navegador - cole o JSON (já copiado) e envie.`
-      : `Relatório salvo e enviado: ${outcome.path}. A issue abriu no navegador - cole o JSON (já copiado) e envie.`);
+    snack(`Build sem patch conhecido - relatório enviado: ${outcome.path}`);
   } catch (err) {
     snack(`Falha ao gerar relatório: ${localizeBackendError(String(err))}`);
   }
-  btn.disabled = false;
 }
 
 async function doApply(): Promise<void> {
@@ -720,9 +772,6 @@ window.addEventListener("DOMContentLoaded", () => {
   document.getElementById("btn-analyze")!.addEventListener("click", doAnalyze);
   document.getElementById("btn-apply")!.addEventListener("click", doApply);
   document.getElementById("btn-revert")!.addEventListener("click", doRevert);
-  document.getElementById("btn-report")!.addEventListener("click", () => {
-    void doReport();
-  });
   document.getElementById("btn-to-goal")!.addEventListener("click", () => {
     if (!selectedClient) {
       snack("Escolha um cliente primeiro.");
