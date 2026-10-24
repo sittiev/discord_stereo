@@ -281,13 +281,9 @@ fn embed_payload(report: &Report) -> serde_json::Value {
         fields.push(field(
             "Result",
             if located.len() == report.sites.len() {
-                format!("✓ all {} sites located by scan", report.sites.len())
+                "✓ correção localizada para esta versão".to_owned()
             } else {
-                format!(
-                    "no patch table for this build - {} of {} sites need manual RE",
-                    report.sites.len() - located.len(),
-                    report.sites.len()
-                )
+                "Esta versão ainda não tem correção pronta - entre no Discord para acompanhar: https://discord.gg/jb72VayAzN".to_owned()
             },
             false,
         ));
@@ -319,9 +315,9 @@ fn embed_payload(report: &Report) -> serde_json::Value {
         "📦 Binary not in the patch db".to_owned()
     } else if scan {
         if located.len() == report.sites.len() {
-            format!("✓ {flavor} on {os} · all {} sites located by scan", report.sites.len())
+            format!("✓ {flavor} on {os} · correção localizada")
         } else {
-            format!("🛠 {flavor} on {os} · {} of {} sites located by scan", located.len(), report.sites.len())
+            format!("🛠 {flavor} on {os} · correção para esta versão em preparação")
         }
     } else if diverged.is_empty() {
         format!("✓ {flavor} on {os} · all {} sites matched", report.sites.len())
@@ -608,16 +604,15 @@ mod tests {
             },
         ];
         let e = &embed_payload(&rep)["embeds"][0];
-        assert_eq!(e["title"], "🛠 Discord Stable on Linux · 1 of 2 sites located by scan");
+        assert_eq!(e["title"], "🛠 Discord Stable on Linux · correção para esta versão em preparação");
         let fields = e["fields"].as_array().unwrap();
         assert!(fields[3]["name"].as_str().unwrap().contains("StereoCheck1"), "located site listed");
         assert!(fields[3]["value"].as_str().unwrap().contains("0x10"), "scan offset shown");
         let result = fields.last().unwrap();
         assert_eq!(result["name"], "Result");
-        assert!(
-            result["value"].as_str().unwrap().contains("1 of 2 sites need manual RE"),
-            "unlocated sites must be called out: {}",
-            result["value"]
+        assert_eq!(
+            result["value"].as_str().unwrap(),
+            "Esta versão ainda não tem correção pronta - entre no Discord para acompanhar: https://discord.gg/jb72VayAzN"
         );
     }
 
