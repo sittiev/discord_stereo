@@ -68,6 +68,18 @@ interface SystemInfo {
   known_pristine_md5: string;
 }
 
+interface DbCheck {
+  adopted: boolean;
+  info: {
+    db_version: number;
+    updated: string;
+    goals: number;
+    tables: number;
+    remote_url: string;
+  } | null;
+  error: string | null;
+}
+
 // ---------------------------------------------------------------- state
 let clients: FoundClient[] = [];
 let selectedClient: FoundClient | null = null;
@@ -758,7 +770,13 @@ window.addEventListener("DOMContentLoaded", () => {
     storeSet(PREF_ANIM, animPref ? "on" : "off");
     applyAnimPref();
   });
-  void loadGoals();
   void loadSysInfo();
+  void (async () => {
+    const check = await invoke<DbCheck>("check_db_update").catch(() => null);
+    if (check?.adopted && check.info) {
+      snack(`Patch-DB atualizada (v${check.info.db_version})`);
+    }
+    await loadGoals();
+  })();
   gotoStep("s-clients");
 });
