@@ -530,6 +530,22 @@ async function doAnalyze(): Promise<void> {
     snack(`Erro: ${localizeBackendError(String(err))}`);
   }
   renderApply();
+  void maybeAutoReport();
+}
+
+// Auto-report: when a binary has no known table or diverged sites, the
+// report is sent once per (md5, goal) without requiring the button - the
+// button stays for manual re-sends.
+let autoReportKey: string | null = null;
+
+async function maybeAutoReport(): Promise<void> {
+  if (!analysis || !selectedClient) return;
+  const hasMismatch = analysis.sites.some(([, st]) => st.state === "mismatch");
+  if (!hasMismatch && analysis.known_pristine) return;
+  const key = `${analysis.md5}:${selectedGoal}`;
+  if (autoReportKey === key) return;
+  autoReportKey = key;
+  await doReport(true);
 }
 
 interface ReportOutcome {
@@ -538,7 +554,7 @@ interface ReportOutcome {
   issue_body: string;
 }
 
-async function doReport(): Promise<void> {
+async function doReport(auto = false): Promise<void> {
   if (!selectedClient || !analysis) return;
   const btn = document.getElementById("btn-report") as HTMLButtonElement;
   btn.disabled = true;
@@ -551,7 +567,9 @@ async function doReport(): Promise<void> {
     });
     await navigator.clipboard.writeText(outcome.issue_body);
     openExternal(outcome.issue_url);
-    snack(`Relatório salvo e enviado: ${outcome.path}. A issue abriu no navegador - cole o JSON (já copiado) e envie.`);
+    snack(auto
+      ? `Build sem patch conhecido - relatório enviado automaticamente: ${outcome.path}. A issue abriu no navegador - cole o JSON (já copiado) e envie.`
+      : `Relatório salvo e enviado: ${outcome.path}. A issue abriu no navegador - cole o JSON (já copiado) e envie.`);
   } catch (err) {
     snack(`Falha ao gerar relatório: ${localizeBackendError(String(err))}`);
   }
@@ -690,7 +708,9 @@ window.addEventListener("DOMContentLoaded", () => {
   document.getElementById("btn-analyze")!.addEventListener("click", doAnalyze);
   document.getElementById("btn-apply")!.addEventListener("click", doApply);
   document.getElementById("btn-revert")!.addEventListener("click", doRevert);
-  document.getElementById("btn-report")!.addEventListener("click", doReport);
+  document.getElementById("btn-report")!.addEventListener("click", () => {
+    void doReport();
+  });
   document.getElementById("btn-to-goal")!.addEventListener("click", () => {
     if (!selectedClient) {
       snack("Escolha um cliente primeiro.");

@@ -10,7 +10,7 @@
       "identifier": "opener:allow-open-url",
       "allow": [
         { "url": "https://github.com/sittiev/discord_stereo" },
-        { "url": "https://github.com/sittiev/discord_stereo/issues/new" },
+        { "url": "https://github.com/sittiev/discord_stereo/issues/new*" },
         { "url": "https://discord.gg/jb72VayAzN" },
         { "url": "https://ko-fi.com/howitgoesonline" }
       ]
