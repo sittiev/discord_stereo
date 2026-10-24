@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "db_version": 3,
+  "db_version": 4,
   "updated": "2026-10-24",
   "goals": [
     {
@@ -424,6 +424,20 @@
         },
         {
           "kind": "offset",
+          "name": "CreateAudioFrame clamp1->2",
+          "offset": "0x00135D13",
+          "orig": "4939cd4c0f43e9",
+          "patch": "49c7c502000000"
+        },
+        {
+          "kind": "offset",
+          "name": "CreateAudioFrame clamp2->2",
+          "offset": "0x00135D1D",
+          "orig": "4939cd4c0f43e9",
+          "patch": "49c7c502000000"
+        },
+        {
+          "kind": "offset",
           "name": "MonoDownmix bypass (NOP+JMP)",
           "offset": "0x000EC000",
           "orig": "84c0740d83be80020000090f8f",
@@ -514,6 +528,20 @@
           "offset": "0x0066A852",
           "orig": "0175",
           "patch": "02eb"
+        },
+        {
+          "kind": "offset",
+          "name": "CreateAudioFrame clamp1->2",
+          "offset": "0x00135D13",
+          "orig": "4939cd4c0f43e9",
+          "patch": "49c7c502000000"
+        },
+        {
+          "kind": "offset",
+          "name": "CreateAudioFrame clamp2->2",
+          "offset": "0x00135D1D",
+          "orig": "4939cd4c0f43e9",
+          "patch": "49c7c502000000"
         },
         {
           "kind": "offset",
