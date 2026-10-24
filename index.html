@@ -46,10 +46,18 @@
         padding: 8px 16px 0;
         flex-shrink: 0;
       }
+      /* The stepper host must shrink to the topbar column: `min-width: auto`
+         keeps it at the labels' intrinsic width, overflowing right and
+         pushing the last step past the pane edge. */
+      m3e-stepper {
+        min-width: 0;
+        flex: 1 1 0;
+      }
       /* Equal step cells: the native `flex: 1 1 auto` sizes cells by label
          text, squeezing short labels like "Info" against the right edge. */
       m3e-step {
         flex: 1 1 0;
+        min-width: 0;
       }
       .titlebar {
         width: 100%;
