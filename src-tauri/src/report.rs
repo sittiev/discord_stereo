@@ -233,6 +233,11 @@ const BOT_AVATAR: &str = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9Gc
 #[must_use]
 fn embed_payload(report: &Report) -> serde_json::Value {
     let diverged: Vec<&SiteTrace> = report.sites.iter().filter(|s| !s.found.is_empty()).collect();
+    let located: Vec<&SiteTrace> = report
+        .sites
+        .iter()
+        .filter(|s| s.new_offset.is_some())
+        .collect();
     let flavor = match report.client_kind.as_str() {
         "canary" => "Discord Canary",
         "ptb" => "Discord PTB",
@@ -241,13 +246,14 @@ fn embed_payload(report: &Report) -> serde_json::Value {
     };
     let icon = client_icon(&report.client_kind);
     let os = os_name(&report.os);
+    let scan = report.table_kind == "none";
 
     let mut fields = vec![
         field("MD5", format!("`{}`", report.node_md5), false),
         field(
             "Binary",
             format!("{} · {} · `{}` · {}", flavor, report.discord_dir, report.arch,
-                    if report.table_kind == "none" { "no patch table for this build" } else { "patch table matched" }),
+                    if scan { "no patch table for this build" } else { "patch table matched" }),
             false,
         ),
         field(
@@ -256,30 +262,67 @@ fn embed_payload(report: &Report) -> serde_json::Value {
             false,
         ),
     ];
-    for (i, s) in diverged.iter().enumerate() {
-        if i == 8 {
+    if scan && !report.sites.is_empty() {
+        for (i, s) in located.iter().enumerate() {
+            if i == 8 {
+                fields.push(field(
+                    "… more sites",
+                    format!("… +{} more located sites - full evidence in the JSON report", located.len() - 8),
+                    false,
+                ));
+                break;
+            }
             fields.push(field(
-                "… more sites",
-                format!("… +{} more diverged sites - full evidence in the JSON report", diverged.len() - 8),
+                &truncate(&s.name, 256),
+                format!("→ located at `0x{:X}` (scan)", s.new_offset.unwrap_or_default()),
                 false,
             ));
-            break;
         }
-        let mut body = format!("✗ expected `{}`\n→ found `{}`", s.expected_orig, s.found);
-        if let Some(off) = s.offset {
-            body = format!("`0x{off:X}` · {body}");
+        fields.push(field(
+            "Result",
+            if located.len() == report.sites.len() {
+                format!("✓ all {} sites located by scan", report.sites.len())
+            } else {
+                format!(
+                    "no patch table for this build - {} of {} sites need manual RE",
+                    report.sites.len() - located.len(),
+                    report.sites.len()
+                )
+            },
+            false,
+        ));
+    } else {
+        for (i, s) in diverged.iter().enumerate() {
+            if i == 8 {
+                fields.push(field(
+                    "… more sites",
+                    format!("… +{} more diverged sites - full evidence in the JSON report", diverged.len() - 8),
+                    false,
+                ));
+                break;
+            }
+            let mut body = format!("✗ expected `{}`\n→ found `{}`", s.expected_orig, s.found);
+            if let Some(off) = s.offset {
+                body = format!("`0x{off:X}` · {body}");
+            }
+            if let Some(n) = &s.neighborhood {
+                body.push_str(&format!("\n±16 `{n}`"));
+            }
+            fields.push(field(&truncate(&s.name, 256), body, false));
         }
-        if let Some(n) = &s.neighborhood {
-            body.push_str(&format!("\n±16 `{n}`"));
+        if diverged.is_empty() && !report.sites.is_empty() {
+            fields.push(field("Result", format!("✓ all {} sites matched", report.sites.len()), false));
         }
-        fields.push(field(&truncate(&s.name, 256), body, false));
-    }
-    if diverged.is_empty() && !report.sites.is_empty() {
-        fields.push(field("Result", format!("✓ all {} sites matched", report.sites.len()), false));
     }
 
     let title = if report.sites.is_empty() {
         "📦 Binary not in the patch db".to_owned()
+    } else if scan {
+        if located.len() == report.sites.len() {
+            format!("✓ {flavor} on {os} · all {} sites located by scan", report.sites.len())
+        } else {
+            format!("🛠 {flavor} on {os} · {} of {} sites located by scan", located.len(), report.sites.len())
+        }
     } else if diverged.is_empty() {
         format!("✓ {flavor} on {os} · all {} sites matched", report.sites.len())
     } else {
@@ -389,7 +432,7 @@ mod tests {
             discord_dir: "app-1.0.162".into(),
             client_kind: "stable".into(),
             db_version: 2,
-            table_kind: "none".into(),
+            table_kind: "matched".into(),
             source_md5: None,
             sites: vec![SiteTrace {
                 name: "MCOpusImpl ctor num_channels".into(),
@@ -421,7 +464,7 @@ mod tests {
         let fields = e["fields"].as_array().unwrap();
         assert_eq!(fields[0]["name"], "MD5");
         assert_eq!(fields[1]["name"], "Binary");
-        assert!(fields[1]["value"].as_str().unwrap().contains("no patch table for this build"));
+        assert!(fields[1]["value"].as_str().unwrap().contains("patch table matched"));
         assert_eq!(fields[2]["name"], "Patch");
         assert_eq!(fields[2]["value"], "Stereo Full (id: v4)");
         assert_eq!(fields[3]["name"], "MCOpusImpl ctor num_channels",
@@ -534,6 +577,48 @@ mod tests {
         assert!(path.ends_with("div-1730000000-abababababab.json"), "got {path:?}");
         assert!(path.exists());
         std::fs::remove_file(&path).unwrap();
+    }
+
+    #[test]
+    fn scan_report_is_truthful_about_located_sites() {
+        let mut rep = sample();
+        rep.table_kind = "none".into();
+        rep.sites = vec![
+            SiteTrace {
+                name: "StereoCheck1".into(),
+                state: "mismatch".into(),
+                expected_orig: "02".into(),
+                expected_patch: "00".into(),
+                found: String::new(),
+                neighborhood: None,
+                offset: Some(0x10),
+                new_offset: Some(0x10),
+                unique: true,
+            },
+            SiteTrace {
+                name: "MonoDownmix".into(),
+                state: "mismatch".into(),
+                expected_orig: "84c0".into(),
+                expected_patch: "9090".into(),
+                found: String::new(),
+                neighborhood: None,
+                offset: None,
+                new_offset: None,
+                unique: false,
+            },
+        ];
+        let e = &embed_payload(&rep)["embeds"][0];
+        assert_eq!(e["title"], "🛠 Discord Stable on Linux · 1 of 2 sites located by scan");
+        let fields = e["fields"].as_array().unwrap();
+        assert!(fields[3]["name"].as_str().unwrap().contains("StereoCheck1"), "located site listed");
+        assert!(fields[3]["value"].as_str().unwrap().contains("0x10"), "scan offset shown");
+        let result = fields.last().unwrap();
+        assert_eq!(result["name"], "Result");
+        assert!(
+            result["value"].as_str().unwrap().contains("1 of 2 sites need manual RE"),
+            "unlocated sites must be called out: {}",
+            result["value"]
+        );
     }
 
     #[test]
