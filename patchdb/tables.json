@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "db_version": 4,
+  "db_version": 6,
   "updated": "2026-10-24",
   "goals": [
     {
@@ -10,7 +10,7 @@
         "en": "Filters Out"
       },
       "description": {
-        "pt": "Núcleo estéreo sem krisp/highpass/downmix; bitrate do servidor (~64k + boost).",
+        "pt": "N\u00facleo est\u00e9reo sem krisp/highpass/downmix; bitrate do servidor (~64k + boost).",
         "en": "Stereo core without krisp/highpass/downmix; server bitrate (~64k+boost)."
       }
     },
@@ -32,7 +32,7 @@
         "en": "Deep Stereo"
       },
       "description": {
-        "pt": "v4 + Opus kAudio: mais profundidade e separação; centroide espectral mais baixo (trade-off do modo música).",
+        "pt": "v4 + Opus kAudio: mais profundidade e separa\u00e7\u00e3o; centroide espectral mais baixo (trade-off do modo m\u00fasica).",
         "en": "v4 + Opus kAudio: more depth and separation; lower spectral centroid (music-mode trade-off)."
       }
     }
@@ -656,6 +656,251 @@
           "patch": "0000000030c80700"
         }
       ]
+    },
+    {
+      "goal": "v4",
+      "binary_md5": "33e267608c00ac5ff7d69c6a9a0edfbe",
+      "sites": [
+        {
+          "kind": "offset",
+          "name": "StereoCheck1 CommitAudioCodec",
+          "offset": "0x0067C992",
+          "orig": "0175",
+          "patch": "02eb"
+        },
+        {
+          "kind": "offset",
+          "name": "CreateAudioFrame clamp1->2",
+          "offset": "0x0013D9A3",
+          "orig": "4939cd4c0f43e9",
+          "patch": "49c7c502000000"
+        },
+        {
+          "kind": "offset",
+          "name": "CreateAudioFrame clamp2->2",
+          "offset": "0x0013D9AD",
+          "orig": "4939cd4c0f43e9",
+          "patch": "49c7c502000000"
+        },
+        {
+          "kind": "offset",
+          "name": "MonoDownmix bypass (NOP+JMP)",
+          "offset": "0x000F1080",
+          "orig": "84c0740d83be80020000090f8f",
+          "patch": "909090909090909090909090e9"
+        },
+        {
+          "kind": "offset",
+          "name": "OpusConfig IsOk true",
+          "offset": "0x0067FF40",
+          "orig": "8b1131c085d27e5a",
+          "patch": "48c7c001000000c3"
+        },
+        {
+          "kind": "offset",
+          "name": "DisableCbr ret",
+          "offset": "0x0085D2F0",
+          "orig": "4883ec28",
+          "patch": "33c0c390"
+        },
+        {
+          "kind": "offset",
+          "name": "GetMultipliedBitrate identity",
+          "offset": "0x0067FB40",
+          "orig": "89c848",
+          "patch": "8bc1c3"
+        },
+        {
+          "kind": "offset",
+          "name": "SdpToConfig num_channels 48k",
+          "offset": "0x007F74C8",
+          "orig": "01",
+          "patch": "02"
+        },
+        {
+          "kind": "offset",
+          "name": "SdpToConfig num_channels 48k (2)",
+          "offset": "0x007F7544",
+          "orig": "01",
+          "patch": "02"
+        },
+        {
+          "kind": "offset",
+          "name": "SdpToConfig num_channels dynamic",
+          "offset": "0x007F797D",
+          "orig": "01",
+          "patch": "02"
+        },
+        {
+          "kind": "offset",
+          "name": "SdpToConfig num_channels 44.1k",
+          "offset": "0x007F8226",
+          "orig": "01",
+          "patch": "02"
+        },
+        {
+          "kind": "offset",
+          "name": "SdpToConfig num_channels 96k",
+          "offset": "0x007F82A2",
+          "orig": "01",
+          "patch": "02"
+        },
+        {
+          "kind": "offset",
+          "name": "SdpToConfig num_channels 32k",
+          "offset": "0x007F831E",
+          "orig": "01",
+          "patch": "02"
+        },
+        {
+          "kind": "offset",
+          "name": "SdpToConfig num_channels 24k",
+          "offset": "0x007F839A",
+          "orig": "01",
+          "patch": "02"
+        },
+        {
+          "kind": "offset",
+          "name": "SdpToConfig num_channels 16k",
+          "offset": "0x007F8416",
+          "orig": "01",
+          "patch": "02"
+        },
+        {
+          "kind": "offset",
+          "name": "SdpToConfig num_channels 8k",
+          "offset": "0x007F8492",
+          "orig": "01",
+          "patch": "02"
+        },
+        {
+          "kind": "offset",
+          "name": "CommitAudioCodec bitrate 510k",
+          "offset": "0x0067C8AF",
+          "orig": "00000000007d0000",
+          "patch": "0000000030c80700"
+        },
+        {
+          "kind": "offset",
+          "name": "OpusEngineConfig bitrate 510k",
+          "offset": "0x006811DD",
+          "orig": "00000000007d0000",
+          "patch": "0000000030c80700"
+        },
+        {
+          "kind": "offset",
+          "name": "OpusConfig ctor bitrate 510k",
+          "offset": "0x00681F55",
+          "orig": "00000000007d0000",
+          "patch": "0000000030c80700"
+        }
+      ],
+      "os": "windows"
+    },
+    {
+      "goal": "v3",
+      "binary_md5": "33e267608c00ac5ff7d69c6a9a0edfbe",
+      "sites": [
+        {
+          "kind": "offset",
+          "name": "StereoCheck1 CommitAudioCodec",
+          "offset": "0x0067C992",
+          "orig": "0175",
+          "patch": "02eb"
+        },
+        {
+          "kind": "offset",
+          "name": "CreateAudioFrame clamp1->2",
+          "offset": "0x0013D9A3",
+          "orig": "4939cd4c0f43e9",
+          "patch": "49c7c502000000"
+        },
+        {
+          "kind": "offset",
+          "name": "CreateAudioFrame clamp2->2",
+          "offset": "0x0013D9AD",
+          "orig": "4939cd4c0f43e9",
+          "patch": "49c7c502000000"
+        },
+        {
+          "kind": "offset",
+          "name": "MonoDownmix bypass (NOP+JMP)",
+          "offset": "0x000F1080",
+          "orig": "84c0740d83be80020000090f8f",
+          "patch": "909090909090909090909090e9"
+        },
+        {
+          "kind": "offset",
+          "name": "OpusConfig IsOk true",
+          "offset": "0x0067FF40",
+          "orig": "8b1131c085d27e5a",
+          "patch": "48c7c001000000c3"
+        },
+        {
+          "kind": "offset",
+          "name": "SdpToConfig num_channels 48k",
+          "offset": "0x007F74C8",
+          "orig": "01",
+          "patch": "02"
+        },
+        {
+          "kind": "offset",
+          "name": "SdpToConfig num_channels 48k (2)",
+          "offset": "0x007F7544",
+          "orig": "01",
+          "patch": "02"
+        },
+        {
+          "kind": "offset",
+          "name": "SdpToConfig num_channels dynamic",
+          "offset": "0x007F797D",
+          "orig": "01",
+          "patch": "02"
+        },
+        {
+          "kind": "offset",
+          "name": "SdpToConfig num_channels 44.1k",
+          "offset": "0x007F8226",
+          "orig": "01",
+          "patch": "02"
+        },
+        {
+          "kind": "offset",
+          "name": "SdpToConfig num_channels 96k",
+          "offset": "0x007F82A2",
+          "orig": "01",
+          "patch": "02"
+        },
+        {
+          "kind": "offset",
+          "name": "SdpToConfig num_channels 32k",
+          "offset": "0x007F831E",
+          "orig": "01",
+          "patch": "02"
+        },
+        {
+          "kind": "offset",
+          "name": "SdpToConfig num_channels 24k",
+          "offset": "0x007F839A",
+          "orig": "01",
+          "patch": "02"
+        },
+        {
+          "kind": "offset",
+          "name": "SdpToConfig num_channels 16k",
+          "offset": "0x007F8416",
+          "orig": "01",
+          "patch": "02"
+        },
+        {
+          "kind": "offset",
+          "name": "SdpToConfig num_channels 8k",
+          "offset": "0x007F8492",
+          "orig": "01",
+          "patch": "02"
+        }
+      ],
+      "os": "windows"
     }
   ]
 }

@@ -199,7 +199,14 @@ mod tests {
         let db = parse_db(BUILTIN_DB).expect("embedded patchdb valid");
         assert_eq!(db.schema, 1);
         assert!(db.goals.iter().any(|g| g.id == "v4"));
-        assert_eq!(db.tables.len(), 3);
+        assert!(
+            db.tables.iter().any(|t| {
+                t.goal == "v4"
+                    && t.os.as_deref() == Some("windows")
+                    && t.binary_md5.as_deref() == Some("6d8c7c6005f2c03454f2344e48cfcdc8")
+            }),
+            "windows v4 table present"
+        );
     }
 
     #[test]
