@@ -281,9 +281,13 @@ fn embed_payload(report: &Report) -> serde_json::Value {
         fields.push(field(
             "Result",
             if located.len() == report.sites.len() {
-                "✓ correção localizada para esta versão".to_owned()
+                format!("✓ all {} sites located by scan", report.sites.len())
             } else {
-                "Esta versão ainda não tem correção pronta - entre no Discord para acompanhar: https://discord.gg/jb72VayAzN".to_owned()
+                format!(
+                    "{} of {} sites need manual RE",
+                    report.sites.len() - located.len(),
+                    report.sites.len()
+                )
             },
             false,
         ));
@@ -315,9 +319,16 @@ fn embed_payload(report: &Report) -> serde_json::Value {
         "📦 Binary not in the patch db".to_owned()
     } else if scan {
         if located.len() == report.sites.len() {
-            format!("✓ {flavor} on {os} · correção localizada")
+            format!(
+                "✓ {flavor} on {os} · all {} sites located by scan",
+                report.sites.len()
+            )
         } else {
-            format!("🛠 {flavor} on {os} · correção para esta versão em preparação")
+            format!(
+                "🛠 {flavor} on {os} · {} of {} sites located by scan",
+                located.len(),
+                report.sites.len()
+            )
         }
     } else if diverged.is_empty() {
         format!("✓ {flavor} on {os} · all {} sites matched", report.sites.len())
@@ -604,16 +615,16 @@ mod tests {
             },
         ];
         let e = &embed_payload(&rep)["embeds"][0];
-        assert_eq!(e["title"], "🛠 Discord Stable on Linux · correção para esta versão em preparação");
+        assert_eq!(
+            e["title"],
+            "🛠 Discord Stable on Linux · 1 of 2 sites located by scan"
+        );
         let fields = e["fields"].as_array().unwrap();
         assert!(fields[3]["name"].as_str().unwrap().contains("StereoCheck1"), "located site listed");
         assert!(fields[3]["value"].as_str().unwrap().contains("0x10"), "scan offset shown");
         let result = fields.last().unwrap();
         assert_eq!(result["name"], "Result");
-        assert_eq!(
-            result["value"].as_str().unwrap(),
-            "Esta versão ainda não tem correção pronta - entre no Discord para acompanhar: https://discord.gg/jb72VayAzN"
-        );
+        assert_eq!(result["value"].as_str().unwrap(), "1 of 2 sites need manual RE");
     }
 
     #[test]
