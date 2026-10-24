@@ -46,6 +46,11 @@
         padding: 8px 16px 0;
         flex-shrink: 0;
       }
+      /* Equal step cells: the native `flex: 1 1 auto` sizes cells by label
+         text, squeezing short labels like "Info" against the right edge. */
+      m3e-step {
+        flex: 1 1 0;
+      }
       .titlebar {
         width: 100%;
         height: 8px;
