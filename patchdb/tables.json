@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "db_version": 6,
-  "updated": "2026-10-24",
+  "db_version": 8,
+  "updated": "2026-10-26",
   "goals": [
     {
       "id": "v3",
@@ -896,6 +896,251 @@
           "kind": "offset",
           "name": "SdpToConfig num_channels 8k",
           "offset": "0x007F8492",
+          "orig": "01",
+          "patch": "02"
+        }
+      ],
+      "os": "windows"
+    },
+    {
+      "goal": "v4",
+      "binary_md5": "e9e8256e1b4ca457d47fbff99818f4d6",
+      "sites": [
+        {
+          "kind": "offset",
+          "name": "StereoCheck1 CommitAudioCodec",
+          "offset": "0x006791D2",
+          "orig": "0175",
+          "patch": "02eb"
+        },
+        {
+          "kind": "offset",
+          "name": "CreateAudioFrame clamp1->2",
+          "offset": "0x0013CA23",
+          "orig": "4939cd4c0f43e9",
+          "patch": "49c7c502000000"
+        },
+        {
+          "kind": "offset",
+          "name": "CreateAudioFrame clamp2->2",
+          "offset": "0x0013CA2D",
+          "orig": "4939cd4c0f43e9",
+          "patch": "49c7c502000000"
+        },
+        {
+          "kind": "offset",
+          "name": "MonoDownmix bypass (NOP+JMP)",
+          "offset": "0x000F0280",
+          "orig": "84c0740d83be80020000090f8f",
+          "patch": "909090909090909090909090e9"
+        },
+        {
+          "kind": "offset",
+          "name": "OpusConfig IsOk true",
+          "offset": "0x0067C780",
+          "orig": "8b1131c085d27e5a",
+          "patch": "48c7c001000000c3"
+        },
+        {
+          "kind": "offset",
+          "name": "DisableCbr ret",
+          "offset": "0x00859B30",
+          "orig": "4883ec28",
+          "patch": "33c0c390"
+        },
+        {
+          "kind": "offset",
+          "name": "GetMultipliedBitrate identity",
+          "offset": "0x0067C380",
+          "orig": "89c848",
+          "patch": "8bc1c3"
+        },
+        {
+          "kind": "offset",
+          "name": "SdpToConfig num_channels 48k",
+          "offset": "0x007F3D08",
+          "orig": "01",
+          "patch": "02"
+        },
+        {
+          "kind": "offset",
+          "name": "SdpToConfig num_channels 48k (2)",
+          "offset": "0x007F3D84",
+          "orig": "01",
+          "patch": "02"
+        },
+        {
+          "kind": "offset",
+          "name": "SdpToConfig num_channels dynamic",
+          "offset": "0x007F41BD",
+          "orig": "01",
+          "patch": "02"
+        },
+        {
+          "kind": "offset",
+          "name": "SdpToConfig num_channels 44.1k",
+          "offset": "0x007F4A66",
+          "orig": "01",
+          "patch": "02"
+        },
+        {
+          "kind": "offset",
+          "name": "SdpToConfig num_channels 96k",
+          "offset": "0x007F4AE2",
+          "orig": "01",
+          "patch": "02"
+        },
+        {
+          "kind": "offset",
+          "name": "SdpToConfig num_channels 32k",
+          "offset": "0x007F4B5E",
+          "orig": "01",
+          "patch": "02"
+        },
+        {
+          "kind": "offset",
+          "name": "SdpToConfig num_channels 24k",
+          "offset": "0x007F4BDA",
+          "orig": "01",
+          "patch": "02"
+        },
+        {
+          "kind": "offset",
+          "name": "SdpToConfig num_channels 16k",
+          "offset": "0x007F4C56",
+          "orig": "01",
+          "patch": "02"
+        },
+        {
+          "kind": "offset",
+          "name": "SdpToConfig num_channels 8k",
+          "offset": "0x007F4CD2",
+          "orig": "01",
+          "patch": "02"
+        },
+        {
+          "kind": "offset",
+          "name": "CommitAudioCodec bitrate 510k",
+          "offset": "0x006790EF",
+          "orig": "00000000007d0000",
+          "patch": "0000000030c80700"
+        },
+        {
+          "kind": "offset",
+          "name": "OpusEngineConfig bitrate 510k",
+          "offset": "0x0067DA1D",
+          "orig": "00000000007d0000",
+          "patch": "0000000030c80700"
+        },
+        {
+          "kind": "offset",
+          "name": "OpusConfig ctor bitrate 510k",
+          "offset": "0x0067E795",
+          "orig": "00000000007d0000",
+          "patch": "0000000030c80700"
+        }
+      ],
+      "os": "windows"
+    },
+    {
+      "goal": "v3",
+      "binary_md5": "e9e8256e1b4ca457d47fbff99818f4d6",
+      "sites": [
+        {
+          "kind": "offset",
+          "name": "StereoCheck1 CommitAudioCodec",
+          "offset": "0x006791D2",
+          "orig": "0175",
+          "patch": "02eb"
+        },
+        {
+          "kind": "offset",
+          "name": "CreateAudioFrame clamp1->2",
+          "offset": "0x0013CA23",
+          "orig": "4939cd4c0f43e9",
+          "patch": "49c7c502000000"
+        },
+        {
+          "kind": "offset",
+          "name": "CreateAudioFrame clamp2->2",
+          "offset": "0x0013CA2D",
+          "orig": "4939cd4c0f43e9",
+          "patch": "49c7c502000000"
+        },
+        {
+          "kind": "offset",
+          "name": "MonoDownmix bypass (NOP+JMP)",
+          "offset": "0x000F0280",
+          "orig": "84c0740d83be80020000090f8f",
+          "patch": "909090909090909090909090e9"
+        },
+        {
+          "kind": "offset",
+          "name": "OpusConfig IsOk true",
+          "offset": "0x0067C780",
+          "orig": "8b1131c085d27e5a",
+          "patch": "48c7c001000000c3"
+        },
+        {
+          "kind": "offset",
+          "name": "SdpToConfig num_channels 48k",
+          "offset": "0x007F3D08",
+          "orig": "01",
+          "patch": "02"
+        },
+        {
+          "kind": "offset",
+          "name": "SdpToConfig num_channels 48k (2)",
+          "offset": "0x007F3D84",
+          "orig": "01",
+          "patch": "02"
+        },
+        {
+          "kind": "offset",
+          "name": "SdpToConfig num_channels dynamic",
+          "offset": "0x007F41BD",
+          "orig": "01",
+          "patch": "02"
+        },
+        {
+          "kind": "offset",
+          "name": "SdpToConfig num_channels 44.1k",
+          "offset": "0x007F4A66",
+          "orig": "01",
+          "patch": "02"
+        },
+        {
+          "kind": "offset",
+          "name": "SdpToConfig num_channels 96k",
+          "offset": "0x007F4AE2",
+          "orig": "01",
+          "patch": "02"
+        },
+        {
+          "kind": "offset",
+          "name": "SdpToConfig num_channels 32k",
+          "offset": "0x007F4B5E",
+          "orig": "01",
+          "patch": "02"
+        },
+        {
+          "kind": "offset",
+          "name": "SdpToConfig num_channels 24k",
+          "offset": "0x007F4BDA",
+          "orig": "01",
+          "patch": "02"
+        },
+        {
+          "kind": "offset",
+          "name": "SdpToConfig num_channels 16k",
+          "offset": "0x007F4C56",
+          "orig": "01",
+          "patch": "02"
+        },
+        {
+          "kind": "offset",
+          "name": "SdpToConfig num_channels 8k",
+          "offset": "0x007F4CD2",
           "orig": "01",
           "patch": "02"
         }
