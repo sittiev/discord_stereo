@@ -17,7 +17,7 @@
 
 <p align="center">
   <a href="https://discord.gg/jb72VayAzN" title="Entrar no servidor do Discord">
-    <img src="https://invidget.switchblade.xyz/jb72VayAzN" width="430" alt="Servidor do Discord">
+    <img src="https://invidget.switchblade.xyz/jb72VayAzN" width="430" alt="Discord Server">
   </a>
 </p>
 
