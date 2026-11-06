@@ -1,7 +1,7 @@
 [package]
 name = "stereo-wizard"
 version = "0.2.3"
-description = "Discord stereo voice patch wizard (v3/v4/v5 goals, multi-client)"
+description = "Discord stereo voice patch wizard multi-client"
 authors = ["rafael"]
 edition = "2024"
 
