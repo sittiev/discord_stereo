@@ -1,0 +1,1100 @@
+{
+  "schema": "stereo-wizard-offset-profiles-v1",
+  "tool": "stereo-wizard-offset-finder",
+  "version": "1.0.0",
+  "generated": "2026-11-04T12:01:31Z",
+  "goal": "v6",
+  "min_context": 16,
+  "aliases": {
+    "CapturedAudioProcessor_APMBypass_NopJmp": [
+      "MonoDownmix bypass (NOP+JMP)"
+    ],
+    "CommitAudioCodec_ChannelCount_Imm02": [
+      "CommitAudioCodec channel count 2"
+    ],
+    "OpusSdp_StereoValueBypass_Jmp2": [
+      "OpusSdp force stereo"
+    ],
+    "CreateAudioFrame_ChannelAssign_Mov": [
+      "CreateAudioFrame channel assign 2"
+    ],
+    "OpusSdp_MaxPlaybackRate_Keep48k_Nop4": [
+      "OpusSdp max playback rate 48k"
+    ],
+    "HighPassFilter_Process_Entry_Ret": [
+      "HighPassFilter::Process ret"
+    ],
+    "CELT_Force": [
+      "CELT force"
+    ],
+    "CELT_DefaultMode": [
+      "CELT default mode"
+    ],
+    "OpusEncodeNative_AnalysisGate_Jmp": [
+      "Opus analysis gate bypass"
+    ],
+    "OpusEncodeFrame_FilterBypass_CopyGain": [
+      "Opus frame copy/gain"
+    ],
+    "OpusEncoder_Init_ForceCBR": [
+      "OpusEncoder init force CBR"
+    ],
+    "OpusEncoder_SetVBR_ForceCBR": [
+      "OpusEncoder setVBR force CBR"
+    ]
+  },
+  "profiles": [
+    {
+      "id": "consensus",
+      "kind": "consensus",
+      "source_md5": null,
+      "discord": "",
+      "sites": [
+        {
+          "name": "CapturedAudioProcessor_APMBypass_NopJmp",
+          "aliases": [
+            "MonoDownmix bypass (NOP+JMP)"
+          ],
+          "pattern": "34 8b 47 34 89 44 24 34 48 89 f9 e8 ?? ?? 22 00 ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? 39 01 00 00 4c 89 6c 24 38 44 0f b6 ac 24 b0 01",
+          "target_offset": 16,
+          "expected": "84c0740d83be80020000090f8f",
+          "patch": "909090909090909090909090e9",
+          "source_md5": null,
+          "context": 16,
+          "kind": "consensus",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8",
+            "0ebc96a7f0dde80d1866d4cf61eb49cd"
+          ],
+          "fixed": 30,
+          "unique": true
+        },
+        {
+          "name": "CommitAudioCodec_ChannelCount_Imm02",
+          "aliases": [
+            "CommitAudioCodec channel count 2"
+          ],
+          "pattern": "28 01 00 00 48 89 d9 48 89 fa e8 ca 1e 1e 00 bd ?? 00 00 00 80 bc 24 80 01 00 00 01 75 6b 48 8b 84",
+          "target_offset": 16,
+          "expected": "01",
+          "patch": "02",
+          "source_md5": null,
+          "context": 16,
+          "kind": "consensus",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8",
+            "0ebc96a7f0dde80d1866d4cf61eb49cd"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "OpusSdp_StereoValueBypass_Jmp2",
+          "aliases": [
+            "OpusSdp force stereo"
+          ],
+          "pattern": "75 19 48 83 f8 10 72 08 48 8b 9c 24 60 01 00 00 ?? ?? 80 3b 31 40 0f 94 c5 ff c5 48 83 f8 10 72 39 48",
+          "target_offset": 16,
+          "expected": "31ed",
+          "patch": "eb09",
+          "source_md5": null,
+          "context": 16,
+          "kind": "consensus",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8",
+            "0ebc96a7f0dde80d1866d4cf61eb49cd"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "CreateAudioFrame_ChannelAssign_Mov",
+          "aliases": [
+            "CreateAudioFrame channel assign 2"
+          ],
+          "pattern": "c9 74 07 49 39 cd ?? ?? ?? ?? 49 8b 0a 49 39 cd ?? ?? ?? ?? 4d 89 6e 28 c1 e8 02 69 c0 7b 14 00 00 c1 e8 11",
+          "target_offset": 16,
+          "expected": "4c0f43e9",
+          "patch": "4989cd90",
+          "source_md5": null,
+          "context": 16,
+          "kind": "consensus",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8",
+            "0ebc96a7f0dde80d1866d4cf61eb49cd"
+          ],
+          "fixed": 28,
+          "unique": true
+        },
+        {
+          "name": "OpusSdp_MaxPlaybackRate_Keep48k_Nop4",
+          "aliases": [
+            "OpusSdp max playback rate 48k"
+          ],
+          "pattern": "28 01 00 00 3d 40 1f 00 00 7c 09 3d 80 bb 00 00 ?? ?? ?? ?? 44 89 b4 24 c8 00 00 00 48 8d 05 ?? ?? 88 00 48",
+          "target_offset": 16,
+          "expected": "440f42f0",
+          "patch": "90909090",
+          "source_md5": null,
+          "context": 16,
+          "kind": "consensus",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8",
+            "0ebc96a7f0dde80d1866d4cf61eb49cd"
+          ],
+          "fixed": 30,
+          "unique": true
+        },
+        {
+          "name": "HighPassFilter_Process_Entry_Ret",
+          "aliases": [
+            "HighPassFilter::Process ret"
+          ],
+          "pattern": "48 83 c1 08 e9 ?? ?? de ff cc cc cc cc cc cc cc ?? 56 56 57 53 48 83 ec 48 48 89 d6 48 89 cf 48 8b",
+          "target_offset": 16,
+          "expected": "41",
+          "patch": "c3",
+          "source_md5": null,
+          "context": 16,
+          "kind": "consensus",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8",
+            "0ebc96a7f0dde80d1866d4cf61eb49cd"
+          ],
+          "fixed": 30,
+          "unique": true
+        },
+        {
+          "name": "CELT_Force",
+          "aliases": [
+            "CELT force"
+          ],
+          "pattern": "05 ?? ?? 3e 00 0f 11 46 7c 48 c7 86 8c 00 00 00 ?? ?? ?? ?? 48 63 86 94 00 00 00 48 69 c8 1f 85 eb 51 48 89",
+          "target_offset": 16,
+          "expected": "18fcffff",
+          "patch": "ea030000",
+          "source_md5": null,
+          "context": 16,
+          "kind": "consensus",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8",
+            "0ebc96a7f0dde80d1866d4cf61eb49cd"
+          ],
+          "fixed": 30,
+          "unique": true
+        },
+        {
+          "name": "CELT_DefaultMode",
+          "aliases": [
+            "CELT default mode"
+          ],
+          "pattern": "c7 86 b4 37 00 00 01 00 00 00 c7 86 98 37 00 00 ?? ?? ?? ?? c7 86 a8 37 00 00 51 04 00 00 8b 96 94 00 00 00",
+          "target_offset": 16,
+          "expected": "e9030000",
+          "patch": "ea030000",
+          "source_md5": null,
+          "context": 16,
+          "kind": "consensus",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8",
+            "0ebc96a7f0dde80d1866d4cf61eb49cd"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "OpusEncodeNative_AnalysisGate_Jmp",
+          "aliases": [
+            "Opus analysis gate bypass"
+          ],
+          "pattern": "00 00 00 00 83 7f 2c 07 48 89 7d b8 44 89 6d 0c ?? 64 8b 87 94 00 00 00 3d 80 3e 00 00 7c 57 48 89",
+          "target_offset": 16,
+          "expected": "7c",
+          "patch": "eb",
+          "source_md5": null,
+          "context": 16,
+          "kind": "consensus",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8",
+            "0ebc96a7f0dde80d1866d4cf61eb49cd"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "OpusEncodeFrame_FilterBypass_CopyGain",
+          "aliases": [
+            "Opus frame copy/gain"
+          ],
+          "pattern": "94 00 00 00 48 63 d1 49 8d 4c 95 00 4c 8b 75 f8 ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? 48 63 d2 48 98 48 0f af c0 48 c1 e0 10 49 ba 00",
+          "target_offset": 16,
+          "expected": "0f85a10100009869c0a70900004963d04c69c2d34d62104c89c248c1ea3f49c1e82041c1f8064101d09941f7f84585f60f8e9a02000069d029feffff81c200000010f30f2ac24469c0ae030000c1fa06",
+          "patch": "4589c8450fafc64585c00f8ec0020000b80000803f660f6ec831d2f3410f100497f30f59c1f30f11049148ffc24c39c272e9e99902000090909090909090909090909090909090909090909090909090",
+          "source_md5": null,
+          "context": 16,
+          "kind": "consensus",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8",
+            "0ebc96a7f0dde80d1866d4cf61eb49cd"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "OpusEncoder_Init_ForceCBR",
+          "aliases": [
+            "OpusEncoder init force CBR"
+          ],
+          "pattern": "8b 46 2c 4c 89 f9 ba aa 0f 00 00 e8 ?? 84 18 00 ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? 48 89 86 98 00 00 00 48 b8 18 fc ff ff 18 00 00",
+          "target_offset": 16,
+          "expected": "48b80100000001000000",
+          "patch": "48b80000000001000000",
+          "source_md5": null,
+          "context": 16,
+          "kind": "consensus",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8",
+            "0ebc96a7f0dde80d1866d4cf61eb49cd"
+          ],
+          "fixed": 31,
+          "unique": true
+        },
+        {
+          "name": "OpusEncoder_SetVBR_ForceCBR",
+          "aliases": [
+            "OpusEncoder setVBR force CBR"
+          ],
+          "pattern": "8b 00 bf ff ff ff ff 83 f8 01 0f 87 be 07 00 00 ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? 89 4e 40 e9 6f 07 00 00 48 8b 84 24 88 00 00 00",
+          "target_offset": 16,
+          "expected": "898698000000b90100000029c1",
+          "patch": "31c0898698000000b901000000",
+          "source_md5": null,
+          "context": 16,
+          "kind": "consensus",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8",
+            "0ebc96a7f0dde80d1866d4cf61eb49cd"
+          ],
+          "fixed": 32,
+          "unique": true
+        }
+      ]
+    },
+    {
+      "id": "build-6d8c7c6005f2c03454f2344e48cfcdc8",
+      "kind": "exact",
+      "source_md5": "6d8c7c6005f2c03454f2344e48cfcdc8",
+      "discord": "app-1.0.9265",
+      "sites": [
+        {
+          "name": "MonoDownmix bypass (NOP+JMP)",
+          "aliases": [],
+          "pattern": "34 8b 47 34 89 44 24 34 48 89 f9 e8 d0 8f 22 00 ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? 39 01 00 00 4c 89 6c 24 38 44 0f b6 ac 24 b0 01",
+          "target_offset": 16,
+          "expected": "84c0740d83be80020000090f8f",
+          "patch": "909090909090909090909090e9",
+          "source_md5": "6d8c7c6005f2c03454f2344e48cfcdc8",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "OpusConfig IsOk true",
+          "aliases": [],
+          "pattern": "74 6c 00 48 89 f0 48 83 c4 28 5f 5e c3 cc cc cc ?? ?? ?? ?? ?? ?? ?? ?? 41 b8 cd cc cc cc 49 89 d1 4d 0f af c8 49 c1 e9",
+          "target_offset": 16,
+          "expected": "8b1131c085d27e5a",
+          "patch": "48c7c001000000c3",
+          "source_md5": "6d8c7c6005f2c03454f2344e48cfcdc8",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "DisableCbr ret",
+          "aliases": [],
+          "pattern": "00 45 31 c0 e8 2f 05 25 00 90 48 83 c4 28 c3 cc cc cc cc cc cc cc cc cc ?? ?? ?? ?? 48 85 c9 74 21 48 8b 01 48 85 c0 74 22 48 89 c1 ba a6 0f 00 00 41 b8 01",
+          "target_offset": 24,
+          "expected": "4883ec28",
+          "patch": "33c0c390",
+          "source_md5": "6d8c7c6005f2c03454f2344e48cfcdc8",
+          "context": 24,
+          "kind": "exact",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8"
+          ],
+          "fixed": 48,
+          "unique": true
+        },
+        {
+          "name": "GetMultipliedBitrate identity",
+          "aliases": [],
+          "pattern": "ba e6 01 00 00 e8 06 ed cb ff cc cc cc cc cc cc ?? ?? ?? 63 c9 48 69 c9 d3 4d 62 10 49 89 c8 49 c1 e8 3f",
+          "target_offset": 16,
+          "expected": "89c848",
+          "patch": "8bc1c3",
+          "source_md5": "6d8c7c6005f2c03454f2344e48cfcdc8",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "SdpToConfig num_channels 48k",
+          "aliases": [],
+          "pattern": "24 50 4c 89 f1 31 d2 41 b8 80 bb 00 00 66 41 b9 ?? 00 e8 31 2c e3 ff c7 44 24 30 00 00 04 88 c7 44",
+          "target_offset": 16,
+          "expected": "01",
+          "patch": "02",
+          "source_md5": "6d8c7c6005f2c03454f2344e48cfcdc8",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "SdpToConfig num_channels 48k (2)",
+          "aliases": [],
+          "pattern": "24 50 4c 89 f1 31 d2 41 b8 80 bb 00 00 66 41 b9 ?? 00 e8 b5 2b e3 ff c7 44 24 30 00 00 04 88 c7 44",
+          "target_offset": 16,
+          "expected": "01",
+          "patch": "02",
+          "source_md5": "6d8c7c6005f2c03454f2344e48cfcdc8",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "SdpToConfig num_channels dynamic",
+          "aliases": [],
+          "pattern": "4c 24 20 48 8d 4c 24 50 31 d2 45 89 f8 66 41 b9 ?? 00 e8 7c 27 e3 ff c7 44 24 30 00 00 04 88 c7 44",
+          "target_offset": 16,
+          "expected": "01",
+          "patch": "02",
+          "source_md5": "6d8c7c6005f2c03454f2344e48cfcdc8",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "SdpToConfig num_channels 44.1k",
+          "aliases": [],
+          "pattern": "24 50 48 89 d9 31 d2 41 b8 44 ac 00 00 66 41 b9 ?? 00 e8 d3 1e e3 ff c7 44 24 30 00 00 04 88 c7 44",
+          "target_offset": 16,
+          "expected": "01",
+          "patch": "02",
+          "source_md5": "6d8c7c6005f2c03454f2344e48cfcdc8",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "SdpToConfig num_channels 96k",
+          "aliases": [],
+          "pattern": "24 50 48 89 d9 31 d2 41 b8 00 77 01 00 66 41 b9 ?? 00 e8 57 1e e3 ff c7 44 24 30 00 00 04 88 c7 44",
+          "target_offset": 16,
+          "expected": "01",
+          "patch": "02",
+          "source_md5": "6d8c7c6005f2c03454f2344e48cfcdc8",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "SdpToConfig num_channels 32k",
+          "aliases": [],
+          "pattern": "24 50 48 89 d9 31 d2 41 b8 00 7d 00 00 66 41 b9 ?? 00 e8 db 1d e3 ff c7 44 24 30 00 00 04 88 c7 44",
+          "target_offset": 16,
+          "expected": "01",
+          "patch": "02",
+          "source_md5": "6d8c7c6005f2c03454f2344e48cfcdc8",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "SdpToConfig num_channels 24k",
+          "aliases": [],
+          "pattern": "24 50 48 89 d9 31 d2 41 b8 c0 5d 00 00 66 41 b9 ?? 00 e8 5f 1d e3 ff c7 44 24 30 00 00 04 88 c7 44",
+          "target_offset": 16,
+          "expected": "01",
+          "patch": "02",
+          "source_md5": "6d8c7c6005f2c03454f2344e48cfcdc8",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "SdpToConfig num_channels 16k",
+          "aliases": [],
+          "pattern": "24 50 48 89 d9 31 d2 41 b8 80 3e 00 00 66 41 b9 ?? 00 e8 e3 1c e3 ff c7 44 24 30 00 00 04 88 c7 44",
+          "target_offset": 16,
+          "expected": "01",
+          "patch": "02",
+          "source_md5": "6d8c7c6005f2c03454f2344e48cfcdc8",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "SdpToConfig num_channels 8k",
+          "aliases": [],
+          "pattern": "24 50 48 89 d9 31 d2 41 b8 40 1f 00 00 66 41 b9 ?? 00 e8 67 1c e3 ff c7 44 24 30 00 00 04 88 c7 44",
+          "target_offset": 16,
+          "expected": "01",
+          "patch": "02",
+          "source_md5": "6d8c7c6005f2c03454f2344e48cfcdc8",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "CommitAudioCodec bitrate 510k",
+          "aliases": [],
+          "pattern": "00 00 48 c7 84 24 b0 00 00 00 01 00 00 00 48 b8 ?? ?? ?? ?? ?? ?? ?? ?? 48 89 84 24 b8 00 00 00 c6 84 24 c0 00 00 00 01",
+          "target_offset": 16,
+          "expected": "00000000007d0000",
+          "patch": "0000000030c80700",
+          "source_md5": "6d8c7c6005f2c03454f2344e48cfcdc8",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "OpusEngineConfig bitrate 510k",
+          "aliases": [],
+          "pattern": "41 08 14 00 00 00 48 c7 41 10 01 00 00 00 48 b8 ?? ?? ?? ?? ?? ?? ?? ?? 48 89 41 18 c6 41 20 00 c6 41 21 00 c6 41 22 00",
+          "target_offset": 16,
+          "expected": "00000000007d0000",
+          "patch": "0000000030c80700",
+          "source_md5": "6d8c7c6005f2c03454f2344e48cfcdc8",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "OpusConfig ctor bitrate 510k",
+          "aliases": [],
+          "pattern": "00 00 00 c7 84 24 b0 00 00 00 14 00 00 00 48 b8 ?? ?? ?? ?? ?? ?? ?? ?? 48 89 84 24 c0 00 00 00 66 c7 84 24 c8 00 00 00",
+          "target_offset": 16,
+          "expected": "00000000007d0000",
+          "patch": "0000000030c80700",
+          "source_md5": "6d8c7c6005f2c03454f2344e48cfcdc8",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "Krisp NC create bypass (mutex-safe)",
+          "aliases": [],
+          "pattern": "ff 7f 0f 84 18 02 00 00 8b 86 b0 00 00 00 83 f8 ?? 0f 85 28 01 00 00 8b 84 24 b8 00 00 00 4c 8b bc",
+          "target_offset": 16,
+          "expected": "02",
+          "patch": "ff",
+          "source_md5": "6d8c7c6005f2c03454f2344e48cfcdc8",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "Krisp NC process bypass (mutex-safe)",
+          "aliases": [],
+          "pattern": "ff 7f 0f 84 ce 05 00 00 8b 86 b0 00 00 00 83 f8 ?? 0f 85 d6 04 00 00 49 8b 46 20 49 8b 4e 48 89 c3",
+          "target_offset": 16,
+          "expected": "02",
+          "patch": "ff",
+          "source_md5": "6d8c7c6005f2c03454f2344e48cfcdc8",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "CommitAudioCodec channel count 2",
+          "aliases": [],
+          "pattern": "28 01 00 00 48 89 d9 48 89 fa e8 ca 1e 1e 00 bd ?? 00 00 00 80 bc 24 80 01 00 00 01 75 6b 48 8b 84",
+          "target_offset": 16,
+          "expected": "01",
+          "patch": "02",
+          "source_md5": "6d8c7c6005f2c03454f2344e48cfcdc8",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "OpusSdp force stereo",
+          "aliases": [],
+          "pattern": "75 19 48 83 f8 10 72 08 48 8b 9c 24 60 01 00 00 ?? ?? 80 3b 31 40 0f 94 c5 ff c5 48 83 f8 10 72 39 48",
+          "target_offset": 16,
+          "expected": "31ed",
+          "patch": "eb09",
+          "source_md5": "6d8c7c6005f2c03454f2344e48cfcdc8",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "CreateAudioFrame channel assign 1",
+          "aliases": [],
+          "pattern": "00 00 41 b9 e8 01 00 00 48 85 c9 74 07 49 39 cd ?? ?? ?? ?? 49 8b 0a 49 39 cd ?? ?? ?? ?? 4d 89 6e 28 c1 e8",
+          "target_offset": 16,
+          "expected": "4c0f43e9",
+          "patch": "4989cd90",
+          "source_md5": "6d8c7c6005f2c03454f2344e48cfcdc8",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8"
+          ],
+          "fixed": 28,
+          "unique": true
+        },
+        {
+          "name": "CreateAudioFrame channel assign 2",
+          "aliases": [],
+          "pattern": "c9 74 07 49 39 cd ?? ?? ?? ?? 49 8b 0a 49 39 cd ?? ?? ?? ?? 4d 89 6e 28 c1 e8 02 69 c0 7b 14 00 00 c1 e8 11",
+          "target_offset": 16,
+          "expected": "4c0f43e9",
+          "patch": "4989cd90",
+          "source_md5": "6d8c7c6005f2c03454f2344e48cfcdc8",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8"
+          ],
+          "fixed": 28,
+          "unique": true
+        },
+        {
+          "name": "OpusSdp max playback rate 48k",
+          "aliases": [],
+          "pattern": "28 01 00 00 3d 40 1f 00 00 7c 09 3d 80 bb 00 00 ?? ?? ?? ?? 44 89 b4 24 c8 00 00 00 48 8d 05 9e c4 88 00 48",
+          "target_offset": 16,
+          "expected": "440f42f0",
+          "patch": "90909090",
+          "source_md5": "6d8c7c6005f2c03454f2344e48cfcdc8",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "HighPassFilter::Process ret",
+          "aliases": [],
+          "pattern": "48 83 c1 08 e9 c7 69 de ff cc cc cc cc cc cc cc ?? 56 56 57 53 48 83 ec 48 48 89 d6 48 89 cf 48 8b",
+          "target_offset": 16,
+          "expected": "41",
+          "patch": "c3",
+          "source_md5": "6d8c7c6005f2c03454f2344e48cfcdc8",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "OpusEncoder init force CBR",
+          "aliases": [],
+          "pattern": "8b 46 2c 4c 89 f9 ba aa 0f 00 00 e8 21 84 18 00 ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? 48 89 86 98 00 00 00 48 b8 18 fc ff ff 18 00 00",
+          "target_offset": 16,
+          "expected": "48b80100000001000000",
+          "patch": "48b80000000001000000",
+          "source_md5": "6d8c7c6005f2c03454f2344e48cfcdc8",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "OpusEncoder setVBR force CBR",
+          "aliases": [],
+          "pattern": "8b 00 bf ff ff ff ff 83 f8 01 0f 87 be 07 00 00 ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? 89 4e 40 e9 6f 07 00 00 48 8b 84 24 88 00 00 00",
+          "target_offset": 16,
+          "expected": "898698000000b90100000029c1",
+          "patch": "31c0898698000000b901000000",
+          "source_md5": "6d8c7c6005f2c03454f2344e48cfcdc8",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "CELT force",
+          "aliases": [],
+          "pattern": "05 83 c4 3e 00 0f 11 46 7c 48 c7 86 8c 00 00 00 ?? ?? ?? ?? 48 63 86 94 00 00 00 48 69 c8 1f 85 eb 51 48 89",
+          "target_offset": 16,
+          "expected": "18fcffff",
+          "patch": "ea030000",
+          "source_md5": "6d8c7c6005f2c03454f2344e48cfcdc8",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "CELT default mode",
+          "aliases": [],
+          "pattern": "c7 86 b4 37 00 00 01 00 00 00 c7 86 98 37 00 00 ?? ?? ?? ?? c7 86 a8 37 00 00 51 04 00 00 8b 96 94 00 00 00",
+          "target_offset": 16,
+          "expected": "e9030000",
+          "patch": "ea030000",
+          "source_md5": "6d8c7c6005f2c03454f2344e48cfcdc8",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "Opus analysis gate bypass",
+          "aliases": [],
+          "pattern": "00 00 00 00 83 7f 2c 07 48 89 7d b8 44 89 6d 0c ?? 64 8b 87 94 00 00 00 3d 80 3e 00 00 7c 57 48 89",
+          "target_offset": 16,
+          "expected": "7c",
+          "patch": "eb",
+          "source_md5": "6d8c7c6005f2c03454f2344e48cfcdc8",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "Opus frame copy/gain",
+          "aliases": [],
+          "pattern": "94 00 00 00 48 63 d1 49 8d 4c 95 00 4c 8b 75 f8 ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? 48 63 d2 48 98 48 0f af c0 48 c1 e0 10 49 ba 00",
+          "target_offset": 16,
+          "expected": "0f85a10100009869c0a70900004963d04c69c2d34d62104c89c248c1ea3f49c1e82041c1f8064101d09941f7f84585f60f8e9a02000069d029feffff81c200000010f30f2ac24469c0ae030000c1fa06",
+          "patch": "4589c8450fafc64585c00f8ec0020000b80000803f660f6ec831d2f3410f100497f30f59c1f30f11049148ffc24c39c272e9e99902000090909090909090909090909090909090909090909090909090",
+          "source_md5": "6d8c7c6005f2c03454f2344e48cfcdc8",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "6d8c7c6005f2c03454f2344e48cfcdc8"
+          ],
+          "fixed": 32,
+          "unique": true
+        }
+      ]
+    },
+    {
+      "id": "build-0ebc96a7f0dde80d1866d4cf61eb49cd",
+      "kind": "exact",
+      "source_md5": "0ebc96a7f0dde80d1866d4cf61eb49cd",
+      "discord": "app-1.0.9266",
+      "sites": [
+        {
+          "name": "CreateAudioFrame_ChannelAssign_Mov",
+          "aliases": [],
+          "pattern": "c9 74 07 49 39 cd 4c 0f 43 e9 49 8b 0a 49 39 cd ?? ?? ?? ?? 4d 89 6e 28 c1 e8 02 69 c0 7b 14 00 00 c1 e8 11",
+          "target_offset": 16,
+          "expected": "4c0f43e9",
+          "patch": "4989cd90",
+          "source_md5": "0ebc96a7f0dde80d1866d4cf61eb49cd",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "0ebc96a7f0dde80d1866d4cf61eb49cd"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "CapturedAudioProcessor_APMBypass_NopJmp",
+          "aliases": [],
+          "pattern": "34 8b 47 34 89 44 24 34 48 89 f9 e8 80 f8 22 00 ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? 39 01 00 00 4c 89 6c 24 38 44 0f b6 ac 24 b0 01",
+          "target_offset": 16,
+          "expected": "84c0740d83be80020000090f8f",
+          "patch": "909090909090909090909090e9",
+          "source_md5": "0ebc96a7f0dde80d1866d4cf61eb49cd",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "0ebc96a7f0dde80d1866d4cf61eb49cd"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "CommitAudioCodec_ChannelCount_Imm02",
+          "aliases": [],
+          "pattern": "28 01 00 00 48 89 d9 48 89 fa e8 ca 1e 1e 00 bd ?? 00 00 00 80 bc 24 80 01 00 00 01 75 6b 48 8b 84",
+          "target_offset": 16,
+          "expected": "01",
+          "patch": "02",
+          "source_md5": "0ebc96a7f0dde80d1866d4cf61eb49cd",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "0ebc96a7f0dde80d1866d4cf61eb49cd"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "OpusSdp_StereoValueBypass_Jmp2",
+          "aliases": [],
+          "pattern": "75 19 48 83 f8 10 72 08 48 8b 9c 24 60 01 00 00 ?? ?? 80 3b 31 40 0f 94 c5 ff c5 48 83 f8 10 72 39 48",
+          "target_offset": 16,
+          "expected": "31ed",
+          "patch": "eb09",
+          "source_md5": "0ebc96a7f0dde80d1866d4cf61eb49cd",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "0ebc96a7f0dde80d1866d4cf61eb49cd"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "ApplySettings_BitrateBase_Mov248k",
+          "aliases": [],
+          "pattern": "00 b9 00 7d 00 00 0f 42 c8 41 81 fe 41 1f 00 00 ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? 80 bc 24 58 01 00 00 01",
+          "target_offset": 16,
+          "expected": "41bee02e0000",
+          "patch": "41be00e20400",
+          "source_md5": "0ebc96a7f0dde80d1866d4cf61eb49cd",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "0ebc96a7f0dde80d1866d4cf61eb49cd"
+          ],
+          "fixed": 24,
+          "unique": true
+        },
+        {
+          "name": "ApplySettings_BitrateSelect_Nop4",
+          "aliases": [],
+          "pattern": "0f 42 c8 41 81 fe 41 1f 00 00 ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? 80 bc 24 58 01 00 00 01 0f 85 40 01",
+          "target_offset": 16,
+          "expected": "440f43f1",
+          "patch": "90909090",
+          "source_md5": "0ebc96a7f0dde80d1866d4cf61eb49cd",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "0ebc96a7f0dde80d1866d4cf61eb49cd"
+          ],
+          "fixed": 22,
+          "unique": true
+        },
+        {
+          "name": "ApplySettings_BitrateChannels_Nop4",
+          "aliases": [],
+          "pattern": "81 fe 41 1f 00 00 ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? 80 bc 24 58 01 00 00 01 0f 85 40 01 00 00 48 8b",
+          "target_offset": 16,
+          "expected": "440faff5",
+          "patch": "90909090",
+          "source_md5": "0ebc96a7f0dde80d1866d4cf61eb49cd",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "0ebc96a7f0dde80d1866d4cf61eb49cd"
+          ],
+          "fixed": 22,
+          "unique": true
+        },
+        {
+          "name": "ApplySettings_MaxAvgBitrateClamp248k_Mov",
+          "aliases": [],
+          "pattern": "00 00 e8 97 3d ca ff eb 7b 48 81 fb 30 c8 07 00 ?? ?? ?? ?? ?? ?? ?? ?? ?? 3d 71 17 00 00 41 be 70 17 00 00 44",
+          "target_offset": 16,
+          "expected": "b830c80700",
+          "patch": "b800e20400",
+          "source_md5": "0ebc96a7f0dde80d1866d4cf61eb49cd",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "0ebc96a7f0dde80d1866d4cf61eb49cd"
+          ],
+          "fixed": 28,
+          "unique": true
+        },
+        {
+          "name": "SetTargetBitrate_ClampMax248k_Mov",
+          "aliases": [],
+          "pattern": "00 00 b9 70 17 00 00 0f 4d ca 81 f9 30 c8 07 00 ?? ?? ?? ?? ?? ?? ?? ?? 48 89 44 24 40 8b 46 44 80 7e 48 01 0f",
+          "target_offset": 16,
+          "expected": "bf30c80700",
+          "patch": "bf00e20400",
+          "source_md5": "0ebc96a7f0dde80d1866d4cf61eb49cd",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "0ebc96a7f0dde80d1866d4cf61eb49cd"
+          ],
+          "fixed": 29,
+          "unique": true
+        },
+        {
+          "name": "SetTargetBitrate_Mulss_Nop6",
+          "aliases": [],
+          "pattern": "02 49 83 c0 05 89 fa 49 39 c0 76 0e f3 0f 2a c7 ?? ?? ?? ?? ?? ?? f3 0f 2c d0 48 8b 8e d0 00 00 00 e8 7c e0 1d 00",
+          "target_offset": 16,
+          "expected": "f30f594481ec",
+          "patch": "909090909090",
+          "source_md5": "0ebc96a7f0dde80d1866d4cf61eb49cd",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "0ebc96a7f0dde80d1866d4cf61eb49cd"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "OpusSdp_MaxPlaybackRate_Keep48k_Nop4",
+          "aliases": [],
+          "pattern": "28 01 00 00 3d 40 1f 00 00 7c 09 3d 80 bb 00 00 ?? ?? ?? ?? 44 89 b4 24 c8 00 00 00 48 8d 05 59 d1 88 00 48",
+          "target_offset": 16,
+          "expected": "440f42f0",
+          "patch": "90909090",
+          "source_md5": "0ebc96a7f0dde80d1866d4cf61eb49cd",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "0ebc96a7f0dde80d1866d4cf61eb49cd"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "HighPassFilter_Process_Entry_Ret",
+          "aliases": [],
+          "pattern": "48 83 c1 08 e9 07 4e de ff cc cc cc cc cc cc cc ?? 56 56 57 53 48 83 ec 48 48 89 d6 48 89 cf 48 8b",
+          "target_offset": 16,
+          "expected": "41",
+          "patch": "c3",
+          "source_md5": "0ebc96a7f0dde80d1866d4cf61eb49cd",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "0ebc96a7f0dde80d1866d4cf61eb49cd"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "CELT_Force",
+          "aliases": [],
+          "pattern": "05 93 cf 3e 00 0f 11 46 7c 48 c7 86 8c 00 00 00 ?? ?? ?? ?? 48 63 86 94 00 00 00 48 69 c8 1f 85 eb 51 48 89",
+          "target_offset": 16,
+          "expected": "18fcffff",
+          "patch": "ea030000",
+          "source_md5": "0ebc96a7f0dde80d1866d4cf61eb49cd",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "0ebc96a7f0dde80d1866d4cf61eb49cd"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "CELT_DefaultMode",
+          "aliases": [],
+          "pattern": "c7 86 b4 37 00 00 01 00 00 00 c7 86 98 37 00 00 ?? ?? ?? ?? c7 86 a8 37 00 00 51 04 00 00 8b 96 94 00 00 00",
+          "target_offset": 16,
+          "expected": "e9030000",
+          "patch": "ea030000",
+          "source_md5": "0ebc96a7f0dde80d1866d4cf61eb49cd",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "0ebc96a7f0dde80d1866d4cf61eb49cd"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "SetTargetBitrate_ClampSelect_Nop3",
+          "aliases": [],
+          "pattern": "00 00 0f 4d ca 81 f9 30 c8 07 00 ?? ?? ?? ?? ?? ?? ?? ?? 48 89 44 24 40 8b 46 44 80 7e 48 01 0f 85 ba 00",
+          "target_offset": 16,
+          "expected": "0f4cf9",
+          "patch": "909090",
+          "source_md5": "0ebc96a7f0dde80d1866d4cf61eb49cd",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "0ebc96a7f0dde80d1866d4cf61eb49cd"
+          ],
+          "fixed": 27,
+          "unique": true
+        },
+        {
+          "name": "ApplySettings_MaxAvgBitrateSelect_Nop4",
+          "aliases": [],
+          "pattern": "ca ff eb 7b 48 81 fb 30 c8 07 00 ?? ?? ?? ?? ?? ?? ?? ?? ?? 3d 71 17 00 00 41 be 70 17 00 00 44 0f 4d f0 41",
+          "target_offset": 16,
+          "expected": "480f4cc3",
+          "patch": "90909090",
+          "source_md5": "0ebc96a7f0dde80d1866d4cf61eb49cd",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "0ebc96a7f0dde80d1866d4cf61eb49cd"
+          ],
+          "fixed": 27,
+          "unique": true
+        },
+        {
+          "name": "OpusEncodeNative_AnalysisGate_Jmp",
+          "aliases": [],
+          "pattern": "00 00 00 00 83 7f 2c 07 48 89 7d b8 44 89 6d 0c ?? 64 8b 87 94 00 00 00 3d 80 3e 00 00 7c 57 48 89",
+          "target_offset": 16,
+          "expected": "7c",
+          "patch": "eb",
+          "source_md5": "0ebc96a7f0dde80d1866d4cf61eb49cd",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "0ebc96a7f0dde80d1866d4cf61eb49cd"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "OpusEncodeFrame_FilterBypass_CopyGain",
+          "aliases": [],
+          "pattern": "94 00 00 00 48 63 d1 49 8d 4c 95 00 4c 8b 75 f8 ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? 48 63 d2 48 98 48 0f af c0 48 c1 e0 10 49 ba 00",
+          "target_offset": 16,
+          "expected": "0f85a10100009869c0a70900004963d04c69c2d34d62104c89c248c1ea3f49c1e82041c1f8064101d09941f7f84585f60f8e9a02000069d029feffff81c200000010f30f2ac24469c0ae030000c1fa06",
+          "patch": "4589c8450fafc64585c00f8ec0020000b80000803f660f6ec831d2f3410f100497f30f59c1f30f11049148ffc24c39c272e9e99902000090909090909090909090909090909090909090909090909090",
+          "source_md5": "0ebc96a7f0dde80d1866d4cf61eb49cd",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "0ebc96a7f0dde80d1866d4cf61eb49cd"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "OpusEncoder_Init_ForceCBR",
+          "aliases": [],
+          "pattern": "8b 46 2c 4c 89 f9 ba aa 0f 00 00 e8 31 84 18 00 ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? 48 89 86 98 00 00 00 48 b8 18 fc ff ff 18 00 00",
+          "target_offset": 16,
+          "expected": "48b80100000001000000",
+          "patch": "48b80000000001000000",
+          "source_md5": "0ebc96a7f0dde80d1866d4cf61eb49cd",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "0ebc96a7f0dde80d1866d4cf61eb49cd"
+          ],
+          "fixed": 32,
+          "unique": true
+        },
+        {
+          "name": "OpusEncoder_SetVBR_ForceCBR",
+          "aliases": [],
+          "pattern": "8b 00 bf ff ff ff ff 83 f8 01 0f 87 be 07 00 00 ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? 89 4e 40 e9 6f 07 00 00 48 8b 84 24 88 00 00 00",
+          "target_offset": 16,
+          "expected": "898698000000b90100000029c1",
+          "patch": "31c0898698000000b901000000",
+          "source_md5": "0ebc96a7f0dde80d1866d4cf61eb49cd",
+          "context": 16,
+          "kind": "exact",
+          "sources": [
+            "0ebc96a7f0dde80d1866d4cf61eb49cd"
+          ],
+          "fixed": 32,
+          "unique": true
+        }
+      ]
+    }
+  ]
+}
