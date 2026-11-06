@@ -6,8 +6,8 @@
 // Exit codes: 0 merged+validated (summary JSON on stdout), 2 hard-validate
 // failure, 3 manual RE needed (markdown on stdout), 4 site-rule violation,
 // 5 merged tables.json failed patchdb/validate.mjs (stderr on stderr).
-import { readFileSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
+import { readFileSync, writeFileSync } from "node:fs";
 import { argv, exit } from "node:process";
 
 const reportPath = argv[2];
