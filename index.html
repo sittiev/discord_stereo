@@ -332,6 +332,7 @@
 
           <section class="pane" id="s-apply" hidden>
             <div id="apply-summary"></div>
+            <m3e-callout variant="warning" id="compat-warning" hidden></m3e-callout>
             <div class="actions-row">
               <m3e-button variant="text" id="btn-revert">Reverter</m3e-button>
               <m3e-button variant="tonal" id="btn-analyze">Analisar</m3e-button>
@@ -434,6 +435,7 @@
           Reabra o Discord para ativar o estéreo. Se o wizard ajudou, apoie o
           projeto: deixe uma estrela no repositório ou doe.
         </div>
+        <p id="done-compat" class="muted" hidden></p>
         <div slot="actions">
           <m3e-button variant="text"><m3e-dialog-action return-value="close">Fechar</m3e-dialog-action></m3e-button>
           <m3e-button variant="outlined" data-url="https://github.com/sittiev/discord_stereo">Estrela</m3e-button>

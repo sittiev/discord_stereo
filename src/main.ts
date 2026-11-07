@@ -54,11 +54,17 @@ type SiteState =
   | { state: "ok" }
   | { state: "patched" }
   | { state: "mismatch"; found: string };
+interface CompatInfo {
+  source_md5: string;
+  source_discord?: string;
+}
+
 interface Analysis {
   path: string;
   size: number;
   md5: string;
   known_pristine: boolean;
+  compat?: CompatInfo;
   sites: Array<[string, SiteState]>;
   expected?: Array<[string, string]>;
 }
@@ -87,6 +93,8 @@ let selectedClient: FoundClient | null = null;
 let goals: GoalInfo[] = [];
 let selectedGoal = "v4";
 let analysis: Analysis | null = null;
+
+const DISCORD_URL = "https://discord.gg/jb72VayAzN";
 
 // ---------------------------------------------------------------- steps
 // Header is the native `m3e-stepper`. Panels live outside it: in
@@ -505,6 +513,12 @@ const SITE_INFO: Record<string, string> = {
   "Opus frame copy/gain": "Copia o frame estéreo sem filtro/downmix (fix L/R).",
 };
 
+function linkButtons(root: HTMLElement): void {
+  root.querySelectorAll<HTMLElement>("[data-url]").forEach((button) =>
+    button.addEventListener("click", () => openExternal(button.dataset.url ?? "")),
+  );
+}
+
 function renderApply(): void {
   const summary = document.getElementById("apply-summary")!;
   if (!selectedClient) {
@@ -546,13 +560,27 @@ function renderApply(): void {
   if (analysis && analysis.sites.length === 0) {
     noFix.innerHTML = `
       Esta versão ainda não tem correção pronta - entre no Discord para acompanhar:
-      <span class="link" data-url="https://discord.gg/jb72VayAzN">https://discord.gg/jb72VayAzN</span>`;
+      <span class="link" data-url="${DISCORD_URL}">${DISCORD_URL}</span>`;
     noFix.hidden = false;
-    noFix.querySelectorAll<HTMLElement>("[data-url]").forEach((b) =>
-      b.addEventListener("click", () => openExternal(b.dataset.url ?? "")),
-    );
+    linkButtons(noFix);
   } else {
     noFix.hidden = true;
+  }
+
+  const compatWarning = document.getElementById("compat-warning")!;
+  if (analysis?.compat && selectedClient) {
+    const source = analysis.compat.source_discord ?? analysis.compat.source_md5;
+    compatWarning.innerHTML = `
+      <strong>Build não homologada.</strong>
+      Este patch foi feito para <code>${esc(source)}</code>, não para
+      <code>${esc(selectedClient.version_dir)}</code> (MD5 <code>${esc(analysis.md5)}</code>).
+      Pode não funcionar. Entre no
+      <span class="link" data-url="${DISCORD_URL}">Discord</span>
+      para acompanhar, pedir suporte ou enviar informações.`;
+    compatWarning.hidden = false;
+    linkButtons(compatWarning);
+  } else {
+    compatWarning.hidden = true;
   }
   updateApplyButtons();
 }
@@ -618,6 +646,10 @@ async function doAnalyze(): Promise<void> {
     ).length;
     if (analysis.sites.length === 0) {
       snack("Build sem patch conhecido - relatório enviado automaticamente.");
+    } else if (analysis.compat) {
+      snack(
+        `Build não homologada: ${patched}/${analysis.sites.length} patches já aplicados`,
+      );
     } else {
       snack(`Análise: ${patched}/${analysis.sites.length} patches já aplicados`);
     }
@@ -657,7 +689,7 @@ async function doReport(): Promise<void> {
       clientKind: selectedClient.kind,
       lang: "pt",
     });
-    snack(`Build sem patch conhecido - relatório enviado: ${outcome.path}`);
+    snack(`Build não homologada - relatório enviado: ${outcome.path}`);
   } catch (err) {
     snack(`Falha ao gerar relatório: ${localizeBackendError(String(err))}`);
   }
@@ -675,7 +707,17 @@ async function doApply(): Promise<void> {
       goal: selectedGoal,
     });
     analysis = result;
-    snack(`Aplicado: ${result.sites.length} patches. Reabra o Discord.`);
+    snack(
+      result.compat
+        ? `Aplicado em build não homologada: ${result.sites.length} patches. Teste o áudio.`
+        : `Aplicado: ${result.sites.length} patches. Reabra o Discord.`,
+    );
+    const doneCompat = document.getElementById("done-compat")!;
+    doneCompat.hidden = !result.compat;
+    if (result.compat) {
+      const source = result.compat.source_discord ?? result.compat.source_md5;
+      doneCompat.textContent = `Build não homologada (${source}). Teste o áudio e, se funcionar, reporte no Discord.`;
+    }
     // Subtle confetti on success; only when animations are on.
     if (animPref) {
       void confetti({ particleCount: 70, spread: 75, origin: { y: 0.6 } });
