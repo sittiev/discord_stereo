@@ -108,6 +108,8 @@ const candidate = {
   ...(typeof report.discord_dir === "string" && report.discord_dir
     ? { discord: report.discord_dir }
     : {}),
+  ...(typeof report.os === "string" && report.os ? { os: report.os } : {}),
+  ...(typeof report.arch === "string" && report.arch ? { arch: report.arch } : {}),
   sites,
 };
 
