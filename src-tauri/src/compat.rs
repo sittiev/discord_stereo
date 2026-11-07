@@ -503,6 +503,56 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "needs STEREO_TEST_NODE_9267 pointing at a real Windows 9267 node"]
+    fn resolves_the_9267_fixture_at_finder_offsets() {
+        let Ok(path) = std::env::var("STEREO_TEST_NODE_9267") else {
+            return;
+        };
+        let bytes = std::fs::read(path).expect("read fixture");
+        let db =
+            crate::tables::parse_db(include_str!("../../patchdb/tables.json")).expect("parse db");
+        let table = db
+            .tables
+            .iter()
+            .find(|table| {
+                table.goal == "v6"
+                    && table.binary_md5.as_deref() == Some("0ebc96a7f0dde80d1866d4cf61eb49cd")
+            })
+            .expect("v6 9266 table");
+        let resolved = resolve(table, &bytes).expect("resolve fixture");
+        let expected = [
+            ("CreateAudioFrame_ChannelAssign_Mov", 0x0013d990),
+            ("CapturedAudioProcessor_APMBypass_NopJmp", 0x000f10b0),
+            ("CommitAudioCodec_ChannelCount_Imm02", 0x006824b7),
+            ("OpusSdp_StereoValueBypass_Jmp2", 0x006824e6),
+            ("ApplySettings_BitrateBase_Mov248k", 0x006828ea),
+            ("ApplySettings_BitrateSelect_Nop4", 0x006828f0),
+            ("ApplySettings_BitrateChannels_Nop4", 0x006828f4),
+            ("ApplySettings_MaxAvgBitrateClamp248k_Mov", 0x006829d2),
+            ("SetTargetBitrate_ClampMax248k_Mov", 0x006849e7),
+            ("SetTargetBitrate_Mulss_Nop6", 0x00684a4e),
+            ("OpusSdp_MaxPlaybackRate_Keep48k_Nop4", 0x0068261e),
+            ("HighPassFilter_Process_Entry_Ret", 0x0068eb30),
+            ("CELT_Force", 0x00aa4688),
+            ("CELT_DefaultMode", 0x00aa4704),
+            ("SetTargetBitrate_ClampSelect_Nop3", 0x006849ec),
+            ("ApplySettings_MaxAvgBitrateSelect_Nop4", 0x006829d7),
+            ("OpusEncodeNative_AnalysisGate_Jmp", 0x00aa5209),
+            ("OpusEncodeFrame_FilterBypass_CopyGain", 0x00aa70d9),
+            ("OpusEncoder_Init_ForceCBR", 0x00aa463f),
+            ("OpusEncoder_SetVBR_ForceCBR", 0x00aa9e57),
+        ];
+        for (name, offset) in expected {
+            let site = resolved
+                .iter()
+                .find(|site| site.name == name)
+                .unwrap_or_else(|| panic!("missing site {name}"));
+            assert_eq!(site.offset, offset, "{name}");
+            assert!(site.reason.is_none(), "{name}: {:?}", site.reason);
+        }
+    }
+
+    #[test]
     fn ambiguous_original_bytes_stay_unresolved() {
         let table = table(vec![offset_site(
             "site",
