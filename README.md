@@ -115,7 +115,9 @@ The offsets live in [`patchdb/tables.json`](patchdb/tables.json), keyed by incre
   dir. Dev override: `STEREO_DB_URL`.
 - A binary matched by MD5 gets surgical offsets. Unknown binaries fall back to tables with
   AOB patterns (`??` wildcards) that require exactly one match and an `expect` check.
-- A binary with no resolvable table is only ever analyzed, never written.
+- When no exact table matches, v6 also tries the cross-build profile bank. Every site must
+  resolve to its expected original bytes (or already-patched bytes) before the UI offers a
+  warned compatibility apply. Any unresolved site keeps the binary read-only.
 - The schema is validated on every push in CI (`patchdb/validate.mjs`).
 
 ## Download
@@ -154,6 +156,7 @@ cd src-tauri && cargo check --locked && cargo test
 | Part | Status |
 |---|---|
 | Offset tables v3/v4/v5 | Validated against `app-1.0.161` linux x86_64 `discord_voice.node`, MD5 `0bd81054ee44228a03928e84044a4d32` |
+| Cross-build compatibility | v6 profile resolver; Windows 1281 fixture resolves 20/20; warned UI apply only after every site verifies |
 | Pattern scanner (AOB + `expect`) | Unit-tested in Rust; refuses 0 or 2+ matches |
 | Apply/revert cycle | Unit-tested: verify-then-write, idempotent apply, backup restore |
 | CI gate + release builds | Run on GitHub Actions for all three OSes |
@@ -165,9 +168,10 @@ cd src-tauri && cargo check --locked && cargo test
 > Builds are unsigned. This project is unofficial and not affiliated with Discord Inc. — it
 > modifies local app files at your own risk and never automates Discord.
 
-- The offset tables pin one Linux build of `discord_voice.node`. Other client versions get
-  analyzed (never patched) until a matching table or a unique AOB pattern ships to the
-  Patch-DB.
+- The offset tables pin specific `discord_voice.node` builds. Other client versions get a
+  warned compatibility attempt: the app resolves sites through the cross-build profile bank
+  and only writes when every site verifies. If any site is unresolved, the build is analyzed
+  and never patched.
 - The CI has no word on how patched audio behaves in closed Discord builds. The bench that
   picked the flags is a local measurement setup, not a Discord endorsement.
 - The app interface is in Portuguese (pt-BR).
