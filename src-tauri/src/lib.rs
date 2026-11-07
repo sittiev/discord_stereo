@@ -2,6 +2,7 @@
 //!
 //! All commands are read-only or explicitly requested by the user via
 //! button press; nothing here runs at app startup beyond `detect` and the
+mod compat;
 mod detect;
 mod patch_engine;
 mod report;

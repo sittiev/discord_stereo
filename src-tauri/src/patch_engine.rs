@@ -38,6 +38,16 @@ pub enum SiteState {
     Mismatch { found: String },
 }
 
+/// Source table used when the binary has no exact md5 match.
+#[derive(Debug, Clone, Serialize)]
+pub struct CompatInfo {
+    /// md5 of the build the reference table was cut against.
+    pub source_md5: String,
+    /// Human-readable build label from the reference table.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_discord: Option<String>,
+}
+
 /// Full node analysis for a goal.
 #[derive(Debug, Serialize)]
 pub struct Analysis {
@@ -49,6 +59,9 @@ pub struct Analysis {
     pub md5: String,
     /// Whether a table exists for this binary (md5-keyed or pattern-only).
     pub known_pristine: bool,
+    /// Present when the result came from a different build's table.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub compat: Option<CompatInfo>,
     /// Per-site states for the selected goal.
     pub sites: Vec<(String, SiteState)>,
     /// Expected bytes per site (hex), for divergence reports.
@@ -73,7 +86,7 @@ pub enum EngineError {
     NoTable { md5: String, goal: String },
 }
 
-fn decode_hex(s: &str, site_name: &str) -> Result<Vec<u8>, EngineError> {
+pub(crate) fn decode_hex(s: &str, site_name: &str) -> Result<Vec<u8>, EngineError> {
     let compact: String = s.split_whitespace().collect();
     hex::decode(&compact).map_err(|source| EngineError::Hex {
         site: site_name.to_owned(),
@@ -90,18 +103,18 @@ fn parse_offset(s: &str, site_name: &str) -> Result<u32, EngineError> {
 }
 
 /// Pattern tokens: `??` = wildcard (any byte), hex = exact byte.
-struct Aob {
-    pat: Vec<u8>,
-    mask: Vec<bool>,
+pub(crate) struct Aob {
+    pub(crate) pat: Vec<u8>,
+    pub(crate) mask: Vec<bool>,
 }
 
-fn parse_aob(pattern: &str) -> Option<Aob> {
+pub(crate) fn parse_aob(pattern: &str) -> Option<Aob> {
     let mut aob = Aob {
         pat: Vec::new(),
         mask: Vec::new(),
     };
     for token in pattern.split_whitespace() {
-        if token == "??" {
+        if matches!(token, "??" | "?" | ".." | "**") {
             aob.pat.push(0);
             aob.mask.push(false);
         } else {
@@ -118,6 +131,77 @@ fn parse_aob(pattern: &str) -> Option<Aob> {
         return None;
     }
     Some(aob)
+}
+
+fn aob_matches_at(bytes: &[u8], start: usize, aob: &Aob) -> bool {
+    let Some(slice) = bytes.get(start..start + aob.pat.len()) else {
+        return false;
+    };
+    aob.pat
+        .iter()
+        .zip(aob.mask.iter())
+        .zip(slice.iter())
+        .all(|((&pat, &mask), &byte)| !mask || pat == byte)
+}
+
+/// Every start offset where `aob` matches, capped at `limit`.
+///
+/// Uses the longest fixed run as an anchor so a 20 MB PE is not walked
+/// byte-by-byte for every context pattern in the compatibility bank.
+pub(crate) fn scan_all(bytes: &[u8], aob: &Aob, limit: usize) -> Vec<usize> {
+    let mut hits = Vec::new();
+    if aob.pat.len() > bytes.len() || limit == 0 {
+        return hits;
+    }
+
+    let mut best_start = 0;
+    let mut best_len = 0;
+    let mut i = 0;
+    while i < aob.mask.len() {
+        if !aob.mask[i] {
+            i += 1;
+            continue;
+        }
+        let start = i;
+        while i < aob.mask.len() && aob.mask[i] {
+            i += 1;
+        }
+        if i - start > best_len {
+            best_start = start;
+            best_len = i - start;
+        }
+    }
+
+    if best_len < 4 {
+        for start in 0..=bytes.len() - aob.pat.len() {
+            if aob_matches_at(bytes, start, aob) {
+                hits.push(start);
+                if hits.len() >= limit {
+                    break;
+                }
+            }
+        }
+        return hits;
+    }
+
+    let needle = &aob.pat[best_start..best_start + best_len];
+    let mut pos = 0;
+    while pos + best_len <= bytes.len() {
+        let Some(found) = bytes[pos..].windows(best_len).position(|w| w == needle) else {
+            break;
+        };
+        let anchor = pos + found;
+        if let Some(start) = anchor.checked_sub(best_start) {
+            if start + aob.pat.len() <= bytes.len() && aob_matches_at(bytes, start, aob) {
+                hits.push(start);
+                if hits.len() >= limit {
+                    break;
+                }
+            }
+        }
+        pos = anchor + 1;
+    }
+    hits
 }
 
 /// AOB scan: returns the offset of the single match, or None (0 or 2+ matches).
@@ -297,6 +381,67 @@ pub fn analyze(node: &Path, goal: &str, db: &PatchDb) -> Result<Analysis, Engine
     analyze_bytes(node, &bytes, goal, db)
 }
 
+struct ResolvedFor {
+    resolved: Vec<Resolved>,
+    known_pristine: bool,
+    compat: Option<CompatInfo>,
+}
+
+fn resolve_for(
+    db: &PatchDb,
+    goal: &str,
+    md5: &str,
+    bytes: &[u8],
+) -> Result<ResolvedFor, EngineError> {
+    if let Some(table) = table_for(db, goal, md5, bytes) {
+        return Ok(ResolvedFor {
+            resolved: resolve_sites(table, bytes)?,
+            known_pristine: true,
+            compat: None,
+        });
+    }
+    if let Some(table) = crate::compat::table_for(db, goal) {
+        return Ok(ResolvedFor {
+            resolved: crate::compat::resolve(table, bytes)?,
+            known_pristine: false,
+            compat: Some(CompatInfo {
+                source_md5: table.binary_md5.clone().unwrap_or_default(),
+                source_discord: table.discord.clone(),
+            }),
+        });
+    }
+    Ok(ResolvedFor {
+        resolved: Vec::new(),
+        known_pristine: false,
+        compat: None,
+    })
+}
+
+fn build_analysis(
+    node: &Path,
+    bytes: &[u8],
+    md5: String,
+    resolved: &[Resolved],
+    known_pristine: bool,
+    compat: Option<CompatInfo>,
+) -> Analysis {
+    Analysis {
+        path: node.to_path_buf(),
+        size: bytes.len() as u64,
+        md5,
+        known_pristine,
+        compat,
+        sites: resolved
+            .iter()
+            .map(|r| (r.name.clone(), site_state(r, bytes)))
+            .collect(),
+        expected: resolved
+            .iter()
+            .map(|r| (r.name.clone(), hex::encode(&r.orig)))
+            .collect(),
+    }
+}
+
 /// Pure variant of [`analyze`] over an in-memory node.
 ///
 /// # Errors
@@ -308,28 +453,15 @@ pub fn analyze_bytes(
     db: &PatchDb,
 ) -> Result<Analysis, EngineError> {
     let md5 = md5_hex(bytes);
-    let table = table_for(db, goal, &md5, bytes);
-    let resolved = table.map(|t| resolve_sites(t, bytes)).transpose()?;
-    let sites = resolved
-        .as_deref()
-        .unwrap_or_default()
-        .iter()
-        .map(|r| (r.name.clone(), site_state(r, bytes)))
-        .collect();
-    let expected = resolved
-        .as_deref()
-        .unwrap_or_default()
-        .iter()
-        .map(|r| (r.name.clone(), hex::encode(&r.orig)))
-        .collect();
-    Ok(Analysis {
-        path: node.to_path_buf(),
-        size: bytes.len() as u64,
+    let resolved = resolve_for(db, goal, &md5, bytes)?;
+    Ok(build_analysis(
+        node,
+        bytes,
         md5,
-        known_pristine: table.is_some(),
-        sites,
-        expected,
-    })
+        &resolved.resolved,
+        resolved.known_pristine,
+        resolved.compat,
+    ))
 }
 
 /// Per-site relocation evidence for divergence reports.
@@ -486,10 +618,19 @@ pub fn divergence_trace(
 pub fn apply(node: &Path, goal: &str, db: &PatchDb) -> Result<Analysis, EngineError> {
     let mut bytes = fs::read(node)?;
     let md5 = md5_hex(&bytes);
-    let Some(table) = table_for(db, goal, &md5, &bytes) else {
+    let resolved_for = resolve_for(db, goal, &md5, &bytes)?;
+    if !resolved_for.known_pristine && resolved_for.compat.is_none() {
         return Err(EngineError::NoTable { md5, goal: goal.into() });
-    };
-    let analysis = analyze_bytes(node, &bytes, goal, db)?;
+    }
+    let compat = resolved_for.compat.clone();
+    let analysis = build_analysis(
+        node,
+        &bytes,
+        md5,
+        &resolved_for.resolved,
+        resolved_for.known_pristine,
+        compat.clone(),
+    );
     let mismatched = analysis
         .sites
         .iter()
@@ -499,8 +640,8 @@ pub fn apply(node: &Path, goal: &str, db: &PatchDb) -> Result<Analysis, EngineEr
         return Err(EngineError::Validation { n: mismatched });
     }
 
-    let resolved = resolve_sites(table, &bytes)?;
-    let todo: Vec<&Resolved> = resolved
+    let todo: Vec<&Resolved> = resolved_for
+        .resolved
         .iter()
         .filter(|r| r.reason.is_none())
         .filter(|r| {
@@ -521,31 +662,24 @@ pub fn apply(node: &Path, goal: &str, db: &PatchDb) -> Result<Analysis, EngineEr
         bytes[start..start + r.patch.len()].copy_from_slice(&r.patch);
     }
     fs::write(node, &bytes)?;
-    let sites: Vec<(String, SiteState)> = analysis
-        .sites
-        .clone()
-        .into_iter()
-        .map(|(name, state)| match state {
-            SiteState::Ok => (name, SiteState::Patched),
-            state => (name, state),
-        })
-        .collect();
+    let after = build_analysis(
+        node,
+        &bytes,
+        md5_hex(&bytes),
+        &resolved_for.resolved,
+        resolved_for.known_pristine,
+        compat,
+    );
     debug_assert_eq!(
-        sites
+        after
+            .sites
             .iter()
             .filter(|(_, st)| matches!(st, SiteState::Ok))
-        .count(),
+            .count(),
         0,
         "apply left unpatched sites behind; verify-then-write invariant broken"
     );
-    Ok(Analysis {
-        path: node.to_path_buf(),
-        size: bytes.len() as u64,
-        md5: md5_hex(&bytes),
-        known_pristine: true,
-        sites,
-        expected: analysis.expected,
-    })
+    Ok(after)
 }
 
 /// Revert a node from the most recent `.bak-*` backup.
@@ -880,8 +1014,9 @@ mod tests {
         let trace = divergence_trace(Path::new("mem"), &bytes, "t", &db).unwrap();
         assert!(!trace.table_matched);
         assert_eq!(trace.source_md5, None);
-        assert!(analyze_bytes(Path::new("mem"), &bytes, "t", &db).unwrap().sites.is_empty(),
-            "wire sites stay empty in scan mode");
+        let analysis = analyze_bytes(Path::new("mem"), &bytes, "t", &db).unwrap();
+        assert_eq!(analysis.sites.len(), 1, "compat analysis exposes the foreign site");
+        assert!(analysis.compat.is_some(), "foreign table is reported as compat");
         let site = &trace.sites[0];
         assert_eq!(site.name, "slot0");
         assert_eq!(site.offset, Some(2));
