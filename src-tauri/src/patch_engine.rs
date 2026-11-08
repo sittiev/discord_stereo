@@ -36,6 +36,8 @@ pub enum SiteState {
     Patched,
     /// Bytes differ from both - binary mismatch at this site.
     Mismatch { found: String },
+    /// Optional filter site the user chose to keep untouched.
+    Ignored,
 }
 
 /// Source table used when the binary has no exact md5 match.
@@ -371,6 +373,34 @@ fn site_state(resolved: &Resolved, bytes: &[u8]) -> SiteState {
     }
 }
 
+/// Optional filter sites: they disable Discord's own Krisp, noise
+/// suppression and high-pass. The stereo/bitrate/quality core (downmix,
+/// CELT, channel assign, SDP, CBR, frame copy) is never toggleable.
+pub(crate) fn is_filter_site(name: &str) -> bool {
+    matches!(
+        name,
+        "Krisp NC create bypass (mutex-safe)"
+            | "Krisp NC process bypass (mutex-safe)"
+            | "NoiseCanceller::Process ret"
+            | "NoiseCanceller::Process bypass (mutex-safe)"
+            | "ShouldRunNoiseCancellation false"
+            | "HighPassFilter::Process ret"
+            | "HighPassFilter_Process_Entry_Ret"
+    )
+}
+
+/// Mark filter sites as ignored when the user keeps Discord's filters.
+pub(crate) fn apply_filter_policy(sites: &mut [(String, SiteState)], include_filters: bool) {
+    if include_filters {
+        return;
+    }
+    for (name, state) in sites {
+        if is_filter_site(name) {
+            *state = SiteState::Ignored;
+        }
+    }
+}
+
 /// Analyze a node against a goal without writing anything.
 ///
 /// # Errors
@@ -615,7 +645,12 @@ pub fn divergence_trace(
 /// - [`EngineError::NoTable`]: the goal has no tables at all.
 /// - [`EngineError::Validation`]: `n` sites are not patchable.
 /// - [`EngineError::Io`]: the node cannot be read or written.
-pub fn apply(node: &Path, goal: &str, db: &PatchDb) -> Result<Analysis, EngineError> {
+pub fn apply(
+    node: &Path,
+    goal: &str,
+    db: &PatchDb,
+    include_filters: bool,
+) -> Result<Analysis, EngineError> {
     let mut bytes = fs::read(node)?;
     let md5 = md5_hex(&bytes);
     let resolved_for = resolve_for(db, goal, &md5, &bytes)?;
@@ -623,7 +658,7 @@ pub fn apply(node: &Path, goal: &str, db: &PatchDb) -> Result<Analysis, EngineEr
         return Err(EngineError::NoTable { md5, goal: goal.into() });
     }
     let compat = resolved_for.compat.clone();
-    let analysis = build_analysis(
+    let mut analysis = build_analysis(
         node,
         &bytes,
         md5,
@@ -631,6 +666,7 @@ pub fn apply(node: &Path, goal: &str, db: &PatchDb) -> Result<Analysis, EngineEr
         resolved_for.known_pristine,
         compat.clone(),
     );
+    apply_filter_policy(&mut analysis.sites, include_filters);
     let mismatched = analysis
         .sites
         .iter()
@@ -644,6 +680,7 @@ pub fn apply(node: &Path, goal: &str, db: &PatchDb) -> Result<Analysis, EngineEr
         .resolved
         .iter()
         .filter(|r| r.reason.is_none())
+        .filter(|r| include_filters || !is_filter_site(&r.name))
         .filter(|r| {
             let start = r.offset as usize;
             bytes.get(start..start + r.patch.len()) != Some(r.patch.as_slice())
@@ -662,7 +699,7 @@ pub fn apply(node: &Path, goal: &str, db: &PatchDb) -> Result<Analysis, EngineEr
         bytes[start..start + r.patch.len()].copy_from_slice(&r.patch);
     }
     fs::write(node, &bytes)?;
-    let after = build_analysis(
+    let mut after = build_analysis(
         node,
         &bytes,
         md5_hex(&bytes),
@@ -670,6 +707,7 @@ pub fn apply(node: &Path, goal: &str, db: &PatchDb) -> Result<Analysis, EngineEr
         resolved_for.known_pristine,
         compat,
     );
+    apply_filter_policy(&mut after.sites, include_filters);
     debug_assert_eq!(
         after
             .sites
@@ -841,6 +879,46 @@ mod tests {
     }
 
     #[test]
+    fn filter_sites_skipped_when_filters_kept() {
+        let mut bytes = vec![0u8; 16];
+        bytes[0..2].copy_from_slice(&[0xaa, 0xbb]);
+        bytes[2] = 0x02;
+        let filter_name = "Krisp NC create bypass (mutex-safe)";
+        let db = parse_db(
+            &serde_json::json!({
+                "schema": 1,
+                "db_version": 1,
+                "updated": "2026-10-20",
+                "goals": [{ "id": "t", "title": { "pt": "T", "en": "T" }, "description": { "pt": "d", "en": "d" } }],
+                "tables": [{
+                    "goal": "t",
+                    "binary_md5": md5_hex(&bytes),
+                    "sites": [
+                        { "kind": "offset", "offset": "0x00", "orig": "aabb", "patch": "c3c3", "name": filter_name },
+                        { "kind": "offset", "offset": "0x02", "orig": "02", "patch": "01", "name": "CommitAudioCodec channel count 2" }
+                    ]
+                }]
+            })
+            .to_string(),
+        )
+        .expect("valid test db");
+        let path = node_created("filters-off", &bytes);
+        let a = apply(&path, "t", &db, false).unwrap();
+        assert!(matches!(
+            find_state(&a.sites, filter_name),
+            SiteState::Ignored
+        ));
+        assert!(matches!(
+            find_state(&a.sites, "CommitAudioCodec channel count 2"),
+            SiteState::Patched
+        ));
+        let after = fs::read(&path).unwrap();
+        assert_eq!(after[0..2], [0xaa, 0xbb], "filter site must stay pristine");
+        assert_eq!(after[2], 0x01, "stereo core site must be patched");
+        cleanup(&path);
+    }
+
+    #[test]
     fn pattern_zero_matches_reject_apply() {
         let bytes = vec![0u8; 64];
         let db = db_of(None, pattern_site("AA 00 ?? FF", "AA 00 99 FF", "AB 00 CD FF"));
@@ -880,10 +958,10 @@ mod tests {
         assert!(matches!(find_state(&pre.sites, "sig"), SiteState::Ok));
 
         let path = node_created("pattern", &bytes);
-        let first = apply(&path, "t", &db).unwrap();
+        let first = apply(&path, "t", &db, true).unwrap();
         assert!(matches!(find_state(&first.sites, "sig"), SiteState::Patched));
 
-        let err = apply(&path, "t", &db).unwrap_err();
+        let err = apply(&path, "t", &db, true).unwrap_err();
         assert!(matches!(err, EngineError::Validation { n: 1 }));
         let wrote = fs::read(&path).unwrap();
         assert_eq!(&wrote[30..34], &[0xAB, 0x00, 0xCD, 0xFF]);
@@ -904,9 +982,9 @@ mod tests {
         let db = db_of(Some(&md5_hex(&bytes)), offset_site());
 
         let path = node_created("offset", &bytes);
-        let first = apply(&path, "t", &db).unwrap();
+        let first = apply(&path, "t", &db, true).unwrap();
         assert!(matches!(find_state(&first.sites, "slot0"), SiteState::Patched));
-        let second = apply(&path, "t", &db).unwrap();
+        let second = apply(&path, "t", &db, true).unwrap();
         assert!(matches!(find_state(&second.sites, "slot0"), SiteState::Patched));
 
         let wrote = fs::read(&path).unwrap();
@@ -922,7 +1000,7 @@ mod tests {
         let bytes = vec![0x99u8, 0, 0, 0];
         let db = db_of(Some(&md5_hex(&bytes)), offset_site());
         let path = node_created("invalid", &bytes);
-        let err = apply(&path, "t", &db).unwrap_err();
+        let err = apply(&path, "t", &db, true).unwrap_err();
         assert!(matches!(err, EngineError::Validation { n: 1 }));
         assert_eq!(fs::read(&path).unwrap(), bytes);
         cleanup(&path);
@@ -933,7 +1011,7 @@ mod tests {
         let bytes = vec![0x02u8, 0, 0, 0];
         let db = db_of(Some(&md5_hex(&bytes)), offset_site());
         let path = node_created("notable", &bytes);
-        let err = apply(&path, "sem-goal", &db).unwrap_err();
+        let err = apply(&path, "sem-goal", &db, true).unwrap_err();
         assert!(matches!(err, EngineError::NoTable { .. }));
         cleanup(&path);
     }

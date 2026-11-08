@@ -13,7 +13,9 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use detect::{FoundClient, scan_all};
-use patch_engine::{Analysis, SiteState, analyze, apply, divergence_trace, revert};
+use patch_engine::{
+    Analysis, SiteState, analyze, apply, apply_filter_policy, divergence_trace, revert,
+};
 use serde::Serialize;
 use tauri::Manager;
 
@@ -54,8 +56,15 @@ struct GoalInfo {
 
 /// Analyze a node for a goal without writing (dry-run).
 #[tauri::command]
-fn analyze_node(node: String, goal: String) -> Result<Analysis, String> {
-    analyze(Path::new(&node), &goal, &tables::snapshot()).map_err(|e| e.to_string())
+fn analyze_node(
+    node: String,
+    goal: String,
+    include_filters: Option<bool>,
+) -> Result<Analysis, String> {
+    let mut analysis =
+        analyze(Path::new(&node), &goal, &tables::snapshot()).map_err(|e| e.to_string())?;
+    apply_filter_policy(&mut analysis.sites, include_filters.unwrap_or(true));
+    Ok(analysis)
 }
 
 /// Collect and submit a divergence report for an analysis that found no
@@ -89,6 +98,7 @@ fn report_divergence(
             let (state, found) = match &t.state {
                 SiteState::Ok => ("ok", String::new()),
                 SiteState::Patched => ("patched", String::new()),
+                SiteState::Ignored => ("ignored", String::new()),
                 SiteState::Mismatch { found } => ("mismatch", found.clone()),
             };
             report::SiteTrace {
@@ -163,12 +173,13 @@ struct ReportOutcome {
 
 /// Apply a goal to a node (verify-then-write, backup, idempotent).
 #[tauri::command]
-fn apply_goal(node: String, goal: String) -> Result<Analysis, String> {
+fn apply_goal(node: String, goal: String, include_filters: Option<bool>) -> Result<Analysis, String> {
     let path = PathBuf::from(&node);
     if discord_running() {
         return Err("Discord is running - close it before applying the patch".into());
     }
-    apply(&path, &goal, &tables::snapshot()).map_err(|e| e.to_string())
+    apply(&path, &goal, &tables::snapshot(), include_filters.unwrap_or(true))
+        .map_err(|e| e.to_string())
 }
 
 /// Revert a node from the newest `.bak-*` backup.
