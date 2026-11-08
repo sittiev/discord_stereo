@@ -844,7 +844,7 @@
           "pattern": "00 b9 00 7d 00 00 0f 42 c8 41 81 fe 41 1f 00 00 ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? 80 bc 24 58 01 00 00 01",
           "target_offset": 16,
           "expected": "41bee02e0000",
-          "patch": "41be00e20400",
+          "patch": "41be30c80700",
           "source_md5": "0ebc96a7f0dde80d1866d4cf61eb49cd",
           "context": 16,
           "kind": "exact",

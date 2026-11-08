@@ -516,9 +516,9 @@ mod tests {
             .iter()
             .find(|table| {
                 table.goal == "v6"
-                    && table.binary_md5.as_deref() == Some("0ebc96a7f0dde80d1866d4cf61eb49cd")
+                    && table.binary_md5.as_deref() == Some("6f0c4c13d83e94b815211cb5867e8025")
             })
-            .expect("v6 9266 table");
+            .expect("v6 9267 table");
         let resolved = resolve(table, &bytes).expect("resolve fixture");
         let expected = [
             ("CreateAudioFrame_ChannelAssign_Mov", 0x0013d990),
@@ -528,8 +528,6 @@ mod tests {
             ("ApplySettings_BitrateBase_Mov248k", 0x006828ea),
             ("ApplySettings_BitrateSelect_Nop4", 0x006828f0),
             ("ApplySettings_BitrateChannels_Nop4", 0x006828f4),
-            ("ApplySettings_MaxAvgBitrateClamp248k_Mov", 0x006829d2),
-            ("SetTargetBitrate_ClampMax248k_Mov", 0x006849e7),
             ("SetTargetBitrate_Mulss_Nop6", 0x00684a4e),
             ("OpusSdp_MaxPlaybackRate_Keep48k_Nop4", 0x0068261e),
             ("HighPassFilter_Process_Entry_Ret", 0x0068eb30),

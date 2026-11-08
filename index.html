@@ -327,14 +327,15 @@
             <m3e-card variant="outlined">
               <div class="row-between">
                 <div class="pref-text">
-                  <span>Desativar sensibilidade e filtros</span>
+                  <span>Desativar Krisp e redução de ruído</span>
                   <span class="muted">
-                    Mata Krisp, supressor de ruído e passa-alta no node. Desligue
-                    para manter os filtros do Discord; ligar de novo e Aplicar
-                    reativa. Não toca estéreo nem bitrate do Opus.
+                    Mata o Krisp e o supressor de ruído no node. Passa-alta e
+                    filtros de frame já saem no perfil. Desligue para manter o
+                    Krisp; ligar de novo e Aplicar reativa. Não toca estéreo nem
+                    bitrate do Opus.
                   </span>
                 </div>
-                <m3e-switch id="pref-filters" aria-label="Desativar sensibilidade e filtros" checked></m3e-switch>
+                <m3e-switch id="pref-filters" aria-label="Desativar Krisp e redução de ruído" checked></m3e-switch>
               </div>
             </m3e-card>
             <div class="wizard-nav">
@@ -346,6 +347,11 @@
           <section class="pane" id="s-apply" hidden>
             <div id="apply-summary"></div>
             <m3e-callout variant="warning" id="compat-warning" hidden></m3e-callout>
+            <m3e-callout variant="warning" id="experimental-warning" hidden>
+              <strong>Experimental:</strong> força 8 canais a 208 kbps. A voz pode
+              falhar ou ficar muda; use só com um dispositivo de 8 canais e reverta
+              se não houver áudio.
+            </m3e-callout>
             <div class="actions-row">
               <m3e-button variant="text" id="btn-revert">Reverter</m3e-button>
               <m3e-button variant="tonal" id="btn-analyze">Analisar</m3e-button>

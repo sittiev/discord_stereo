@@ -228,7 +228,8 @@ for (const step of steps) {
 // ---------------------------------------------------------------- helpers
 // Theme: "auto" follows the system (m3e-theme observes prefers-color-scheme);
 // "light"/"dark" pin the scheme. Motion stays "expressive" (animations always
-// on); the filter toggle keeps Discord's Krisp/noise/high-pass when off.
+// on); the filter toggle keeps Discord's Krisp/noise when off. High-pass and
+// low-pass removal are part of the stereo profile and are not toggleable.
 const PREF_THEME = "sw.theme";
 const PREF_FILTERS = "sw.filters";
 const themeEl = document.querySelector("m3e-theme")!;
@@ -422,7 +423,12 @@ async function loadGoals(): Promise<void> {
   }
   const grid = document.getElementById("goal-grid")!;
   grid.innerHTML = "";
-  for (const g of goals) {
+  const experimentalBuilds = new Set(["app-1.0.9266", "app-1.0.9267"]);
+  const available = goals.filter(
+    (g) => g.id !== "v7" || experimentalBuilds.has(selectedClient?.version_dir ?? ""),
+  );
+  if (!available.some((g) => g.id === selectedGoal)) selectedGoal = "v4";
+  for (const g of available) {
     const card = document.createElement("m3e-card");
     card.className = "selectable";
     card.setAttribute("actionable", "");
@@ -472,6 +478,10 @@ const SITE_INFO: Record<string, string> = {
   "OpusConfig IsOk true": "Aceita a configuração estéreo/alta taxa na validação.",
   "NoiseCanceller::Process ret": "Desliga o supressor de ruído (Krisp).",
   "ShouldRunNoiseCancellation false": "Impede o supressor de ruído de ligar.",
+  "ApplySettings_BitrateBase_Mov248k": "Trava o bitrate base em 510 kbps.",
+  "ApplySettings_BitrateBase_Mov208k": "Trava o bitrate base em 208 kbps (experimental 8ch).",
+  "ApplySettings_BitrateSelect_Nop4": "Impede o seletor de reduzir o bitrate.",
+  "ApplySettings_BitrateChannels_Nop4": "Impede o ajuste de bitrate por canais.",
   "MCOpusImpl ctor bitrate 510k": "Trava o bitrate em 510 kbps.",
   "SdpToConfig bitrate 510k": "Trava o bitrate em 510 kbps.",
   "CommitAudioCodec bitrate 510k": "Trava o bitrate em 510 kbps.",
@@ -484,17 +494,20 @@ const SITE_INFO: Record<string, string> = {
   "RemixAndResample skip downmix": "Pula o downmix dentro do resampler (correção L=R).",
   "OpusConfig application kAudio": "Modo música do Opus (fullband).",
   "CreateAudioFrame_ChannelAssign_Mov": "Copia a contagem de canais real para o frame (preserva L/R).",
+  "CreateAudioFrame_ChannelAssign_Force8": "Força 8 canais no frame (experimental).",
   "CapturedAudioProcessor_APMBypass_NopJmp": "Pula o APM/downmix mono na captura.",
   "CommitAudioCodec_ChannelCount_Imm02": "Inicializa o codec com 2 canais.",
+  "CommitAudioCodec_ChannelCount_Imm08": "Inicializa o codec com 8 canais (experimental).",
   "OpusSdp_StereoValueBypass_Jmp2": "Força o SDP a negociar estéreo real.",
   "OpusSdp_MaxPlaybackRate_Keep48k_Nop4": "Mantém 48 kHz na negociação.",
   "HighPassFilter_Process_Entry_Ret": "Desliga o filtro passa-alta (preserva graves).",
+  "SetVoiceChannelCountCap_Force8_CL": "Sobe o limite de canais da voz para 8 (experimental).",
   "OpusEncoder_Init_ForceCBR": "Inicializa o encoder em CBR.",
   "OpusEncoder_SetVBR_ForceCBR": "Impede o encoder de voltar para VBR.",
   "CELT_Force": "Força o modo CELT (melhor estéreo).",
   "CELT_DefaultMode": "Define CELT como modo padrão.",
   "OpusEncodeNative_AnalysisGate_Jmp": "Pula o gate de análise do Opus.",
-  "OpusEncodeFrame_FilterBypass_CopyGain": "Copia o frame estéreo sem filtro/downmix (fix L/R).",
+  "OpusEncodeFrame_FilterBypass_CopyGain": "Pula o filtro low-pass/downmix e copia L/R.",
   "CommitAudioCodec channel count 2": "Inicializa o codec com 2 canais.",
   "OpusSdp force stereo": "Força o SDP a negociar estéreo real.",
   "CreateAudioFrame channel assign 1": "Copia a contagem de canais real para o frame.",
@@ -515,6 +528,8 @@ function linkButtons(root: HTMLElement): void {
 }
 
 function renderApply(): void {
+  const experimental = document.getElementById("experimental-warning")!;
+  experimental.hidden = selectedGoal !== "v7" || !selectedClient;
   const summary = document.getElementById("apply-summary")!;
   if (!selectedClient) {
     summary.innerHTML =
@@ -590,7 +605,7 @@ function stateIcon(st: SiteState): string {
 function stateText(st: SiteState): string {
   if (st.state === "ok") return "pronto para aplicar";
   if (st.state === "patched") return "já aplicado";
-  if (st.state === "ignored") return "ignorado - filtros do Discord mantidos";
+  if (st.state === "ignored") return "ignorado - Krisp/redução de ruído do Discord mantidos";
   return `divergente do esperado (${st.found}); o patch aborta antes de escrever`;
 }
 

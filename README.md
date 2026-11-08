@@ -110,7 +110,8 @@ improve filters, quality, and bitrate; only v6 gives true L/R separation.
 | v3 — Filters Removed | Removes filters and improves quality; no true L/R separation like v6. |
 | v4 — Full Quality | v3 + 510 kbps CBR lock + force-stereo + RemixAndResample fix. Improves quality; no true L/R separation like v6. |
 | v5 — Deep Quality | v4 + Opus kAudio: more depth and quality; no true L/R separation like v6. |
-| v6 — True Stereo 1:1 (recommended) | The only true 1:1 L/R profile: SDP force-stereo, Opus frame copy/gain, CELT. Windows Stable. |
+| v6 — True Stereo 1:1 (recommended) | The only true 1:1 L/R profile: SDP force-stereo, 510 kbps CBR, Opus frame copy/gain, CELT; high/low-pass bypassed. Windows Stable. |
+| v7 — 8ch Surround (experimental) | Forces 8 channels at 208 kbps CBR. Windows Stable only; audio untested and may break voice. Revert if silent. |
 
 ## Patch-DB
 
@@ -158,6 +159,7 @@ cd src-tauri && cargo check --locked && cargo test
 | Part | Status |
 |---|---|
 | v6 true stereo | Tested on Windows native + Wine; current tables in the Patch-DB |
+| v7 8ch surround | Static apply/revert only; audio untested; experimental and may break voice |
 | v3/v4/v5 legacy tables | Tested on Linux and Windows legacy builds; current tables in the Patch-DB |
 | Cross-build compatibility | Unknown builds get a warned compatibility attempt; apply only after every site verifies |
 | Patch matching | Requires a unique match; refuses 0 or 2+ matches |
@@ -178,6 +180,8 @@ cd src-tauri && cargo check --locked && cargo test
 - Windows Stable is tested on **native Windows and Wine**; Linux legacy
   tables are tested. Builds rotate, so the Info step identifies the build
   before you apply.
+- v7 is experimental: it forces 8 channels at 208 kbps and is not audio-tested.
+  It can leave the call silent or unstable; revert if there is no audio.
 - macOS has no byte tables yet and is analyze-only. PTB and Canary have no v6
   table yet.
 - On native Windows the app still relies on byte verification; the running-

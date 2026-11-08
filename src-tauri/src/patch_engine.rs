@@ -373,9 +373,10 @@ fn site_state(resolved: &Resolved, bytes: &[u8]) -> SiteState {
     }
 }
 
-/// Optional filter sites: they disable Discord's own Krisp, noise
-/// suppression and high-pass. The stereo/bitrate/quality core (downmix,
-/// CELT, channel assign, SDP, CBR, frame copy) is never toggleable.
+/// Optional filter sites: they disable Discord's own Krisp and noise
+/// suppression. High-pass/low-pass removal is part of the stereo profile and
+/// is never toggleable; the stereo/bitrate/quality core (downmix, CELT,
+/// channel assign, SDP, CBR, frame copy) is also always applied.
 pub(crate) fn is_filter_site(name: &str) -> bool {
     matches!(
         name,
@@ -384,8 +385,6 @@ pub(crate) fn is_filter_site(name: &str) -> bool {
             | "NoiseCanceller::Process ret"
             | "NoiseCanceller::Process bypass (mutex-safe)"
             | "ShouldRunNoiseCancellation false"
-            | "HighPassFilter::Process ret"
-            | "HighPassFilter_Process_Entry_Ret"
     )
 }
 
@@ -919,6 +918,13 @@ mod tests {
     }
 
     #[test]
+    fn high_pass_is_never_optional() {
+        assert!(!is_filter_site("HighPassFilter::Process ret"));
+        assert!(!is_filter_site("HighPassFilter_Process_Entry_Ret"));
+        assert!(is_filter_site("Krisp NC create bypass (mutex-safe)"));
+    }
+
+    #[test]
     fn pattern_zero_matches_reject_apply() {
         let bytes = vec![0u8; 64];
         let db = db_of(None, pattern_site("AA 00 ?? FF", "AA 00 99 FF", "AB 00 CD FF"));
@@ -1102,6 +1108,80 @@ mod tests {
         assert!(site.unique);
         assert_eq!(site.orig, vec![0x02]);
         assert_eq!(site.patch, vec![0x01]);
+    }
+
+    /// Dev-machine smoke: the experimental v7 table applies and reverts on a
+    /// real 9267 node. Audio is not exercised here.
+    #[test]
+    #[ignore = "needs STEREO_TEST_NODE_9267 pointing at a clean Windows 9267 node"]
+    fn v7_applies_and_reverts_on_9267() {
+        let Ok(source) = std::env::var("STEREO_TEST_NODE_9267") else {
+            return;
+        };
+        let clean = fs::read(&source).expect("read 9267 node");
+        assert_eq!(md5_hex(&clean), "6f0c4c13d83e94b815211cb5867e8025");
+        let db =
+            parse_db(include_str!("../../patchdb/tables.json")).expect("parse patchdb");
+        let dir = std::env::temp_dir().join(format!("sw-v7-{}", std::process::id()));
+        fs::create_dir_all(&dir).expect("temp dir");
+        let path = dir.join("discord_voice.node");
+        fs::write(&path, &clean).expect("write temp node");
+        let analysis = apply(&path, "v7", &db, true).expect("apply v7");
+        assert_eq!(analysis.sites.len(), 19);
+        assert_eq!(
+            md5_hex(&fs::read(&path).expect("read patched node")),
+            "54e557452448a37b857b98ce9c920753"
+        );
+        revert(&path).expect("revert v7");
+        assert_eq!(md5_hex(&fs::read(&path).expect("read reverted node")), md5_hex(&clean));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// Dev-machine smoke: v6 now locks the Windows tables at 510 kbps, with
+    /// no 248k clamp sites left behind. Skips builds whose env var is absent.
+    #[test]
+    #[ignore = "needs STEREO_TEST_NODE_9266 and/or STEREO_TEST_NODE_9267"]
+    fn v6_510k_applies_on_9266_and_9267() {
+        let cases = [
+            (
+                "STEREO_TEST_NODE_9266",
+                "0ebc96a7f0dde80d1866d4cf61eb49cd",
+                "33b556bdcc0868ca26dbcd4855e76dca",
+            ),
+            (
+                "STEREO_TEST_NODE_9267",
+                "6f0c4c13d83e94b815211cb5867e8025",
+                "487608fac0e09f29a3a1f27bc9b6b80a",
+            ),
+        ];
+        let db =
+            parse_db(include_str!("../../patchdb/tables.json")).expect("parse patchdb");
+        let mut ran = false;
+        for (env_key, clean_md5, patched_md5) in cases {
+            let Ok(source) = std::env::var(env_key) else {
+                continue;
+            };
+            ran = true;
+            let clean = fs::read(&source).expect("read clean node");
+            assert_eq!(md5_hex(&clean), clean_md5);
+            let dir = std::env::temp_dir().join(format!(
+                "sw-v6-{}-{clean_md5}",
+                std::process::id()
+            ));
+            fs::create_dir_all(&dir).expect("temp dir");
+            let path = dir.join("discord_voice.node");
+            fs::write(&path, &clean).expect("write temp node");
+            let analysis = apply(&path, "v6", &db, true).expect("apply v6");
+            assert_eq!(analysis.sites.len(), 18);
+            assert_eq!(
+                md5_hex(&fs::read(&path).expect("read patched node")),
+                patched_md5
+            );
+            revert(&path).expect("revert v6");
+            assert_eq!(md5_hex(&fs::read(&path).expect("read reverted node")), clean_md5);
+            let _ = fs::remove_dir_all(&dir);
+        }
+        assert!(ran, "set at least one STEREO_TEST_NODE_* env var");
     }
 
     /// Dev-machine smoke: the real v5-patched node must NOT produce a wall

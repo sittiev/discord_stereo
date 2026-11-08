@@ -210,6 +210,67 @@ mod tests {
     }
 
     #[test]
+    fn v6_windows_bitrate_is_not_capped_below_510k() {
+        let db = parse_db(BUILTIN_DB).expect("embedded patchdb valid");
+        for md5 in [
+            "0ebc96a7f0dde80d1866d4cf61eb49cd",
+            "6f0c4c13d83e94b815211cb5867e8025",
+        ] {
+            let table = db
+                .tables
+                .iter()
+                .find(|t| t.goal == "v6" && t.binary_md5.as_deref() == Some(md5))
+                .expect("v6 Windows table");
+            let base = table
+                .sites
+                .iter()
+                .find(|s| s.name() == "ApplySettings_BitrateBase_Mov248k")
+                .expect("bitrate base site");
+            let TableSite::Offset { patch, .. } = base else {
+                panic!("bitrate base must be an offset site");
+            };
+            assert_eq!(patch, "41be30c80700", "{md5}: base must be 510000 bps");
+            assert!(
+                !table
+                    .sites
+                    .iter()
+                    .any(|s| s.name().contains("Clamp248k")),
+                "{md5}: a 248k clamp would defeat the 510k base"
+            );
+        }
+    }
+
+    #[test]
+    fn v7_sites_force_eight_channels_at_208k() {
+        let db = parse_db(BUILTIN_DB).expect("embedded patchdb valid");
+        for md5 in [
+            "0ebc96a7f0dde80d1866d4cf61eb49cd",
+            "6f0c4c13d83e94b815211cb5867e8025",
+        ] {
+            let table = db
+                .tables
+                .iter()
+                .find(|t| t.goal == "v7" && t.binary_md5.as_deref() == Some(md5))
+                .expect("v7 Windows table");
+            let patch = |name: &str| {
+                table
+                    .sites
+                    .iter()
+                    .find(|s| s.name() == name)
+                    .and_then(|s| match s {
+                        TableSite::Offset { patch, .. } => Some(patch.as_str()),
+                        TableSite::Pattern { .. } => None,
+                    })
+                    .unwrap_or_else(|| panic!("missing {name}"))
+            };
+            assert_eq!(patch("CommitAudioCodec_ChannelCount_Imm08"), "08");
+            assert_eq!(patch("ApplySettings_BitrateBase_Mov208k"), "41be802c0300");
+            assert_eq!(patch("CreateAudioFrame_ChannelAssign_Force8"), "6a08415d");
+            assert_eq!(patch("SetVoiceChannelCountCap_Force8_CL"), "b108");
+        }
+    }
+
+    #[test]
     fn offset_without_md5_rejected() {
         let bad = r#"{"schema":1,"db_version":2,"updated":"2026-01-01","goals":[{"id":"v3","title":{"pt":"a","en":"a"},"description":{"pt":"b","en":"b"}}],"tables":[{"goal":"v3","sites":[{"kind":"offset","offset":"0x0","orig":"02","patch":"00","name":"x"}]}]}"#;
         assert!(parse_db(bad).is_err());
