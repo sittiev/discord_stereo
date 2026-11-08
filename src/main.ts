@@ -21,6 +21,8 @@ import "@m3e/web/tooltip";
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
+import confetti from "canvas-confetti";
+
 type ClientKind = "stable" | "ptb" | "canary" | "vencord";
 
 interface FoundClient {
@@ -724,6 +726,14 @@ async function doApply(): Promise<void> {
       const source = result.compat.source_discord ?? result.compat.source_md5;
       doneCompat.textContent = `Build não homologada (${source}). Teste o áudio e, se funcionar, reporte no Discord.`;
     }
+    void confetti({ particleCount: 70, spread: 75, origin: { y: 0.6 } });
+    for (const c of document.querySelectorAll("canvas")) {
+      c.setAttribute("aria-hidden", "true");
+    }
+    setTimeout(() => {
+      void confetti({ particleCount: 40, angle: 60, spread: 60, origin: { x: 0 } });
+      void confetti({ particleCount: 40, angle: 120, spread: 60, origin: { x: 1 } });
+    }, 250);
     (document.getElementById("done-dialog") as HTMLElement & { open: boolean }).open = true;
   } catch (err) {
     snack(`Erro ao aplicar: ${localizeBackendError(String(err))}`);
