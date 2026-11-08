@@ -32,6 +32,7 @@
 
 <p align="center">
   <a href="#what-it-does">What it does</a> •
+  <a href="#how-patches-work">How patches work</a> •
   <a href="#client-support">Client support</a> •
   <a href="#checking-your-version">Version</a> •
   <a href="#goals">Goals</a> •
@@ -53,6 +54,16 @@ Point it at your Discord install. Every action below is explicit:
   single byte changes; a `.bak-<goal>` copy of the original is kept for one-click revert.
 - Refuses to touch the binary while that Discord client is running (checked in `/proc` on
   Linux; on other platforms the byte verification is the safety layer).
+
+## How patches work
+
+> [!TIP]
+> **Offsets and sites.** An *offset* is where a byte lives inside the
+> `discord_voice.node` file. A *site* is one small change at that place, such as forcing
+> stereo or locking the bitrate. A *goal* (v3–v6) groups sites, and a *table* is that group
+> for one exact Discord build. The app checks every byte before writing, keeps a backup, and
+> stops if the file doesn't match. Builds change often, so check the MD5 shown in the Info
+> step.
 
 ## Client support
 
