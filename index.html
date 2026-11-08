@@ -319,25 +319,15 @@
           </section>
 
           <section class="pane" id="s-goal" hidden>
+            <m3e-callout variant="info">
+              Filtros de voz do node (Krisp, ruído, eco, AGC, passa-alta e
+              low-pass) ficam sempre desativados. Não há switch.
+            </m3e-callout>
             <div class="grid" id="goal-grid"></div>
             <m3e-callout variant="info">
               O botão &quot;testar microfone&quot; continua mono por design do
               cliente. O estéreo é ouvido por todos na chamada, não por quem fala.
             </m3e-callout>
-            <m3e-card variant="outlined">
-              <div class="row-between">
-                <div class="pref-text">
-                  <span>Desativar Krisp e redução de ruído</span>
-                  <span class="muted">
-                    Mata o Krisp e o supressor de ruído no node. Passa-alta e
-                    filtros de frame já saem no perfil. Desligue para manter o
-                    Krisp; ligar de novo e Aplicar reativa. Não toca estéreo nem
-                    bitrate do Opus.
-                  </span>
-                </div>
-                <m3e-switch id="pref-filters" aria-label="Desativar Krisp e redução de ruído" checked></m3e-switch>
-              </div>
-            </m3e-card>
             <div class="wizard-nav">
               <m3e-button variant="text" data-step="s-clients">Voltar</m3e-button>
               <m3e-button variant="filled" data-step="s-apply">Continuar</m3e-button>

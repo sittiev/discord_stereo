@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "db_version": 17,
+  "db_version": 18,
   "updated": "2026-11-08",
   "goals": [
     {
@@ -1873,6 +1873,20 @@
         },
         {
           "kind": "offset",
+          "name": "Krisp NC create bypass (mutex-safe)",
+          "offset": "0x000CF365",
+          "orig": "02",
+          "patch": "ff"
+        },
+        {
+          "kind": "offset",
+          "name": "Krisp NC process bypass (mutex-safe)",
+          "offset": "0x000CF5E6",
+          "orig": "02",
+          "patch": "ff"
+        },
+        {
+          "kind": "offset",
           "name": "CommitAudioCodec_ChannelCount_Imm02",
           "offset": "0x0067A407",
           "orig": "01",
@@ -2008,6 +2022,20 @@
         },
         {
           "kind": "offset",
+          "name": "Krisp NC create bypass (mutex-safe)",
+          "offset": "0x000CFFC5",
+          "orig": "02",
+          "patch": "ff"
+        },
+        {
+          "kind": "offset",
+          "name": "Krisp NC process bypass (mutex-safe)",
+          "offset": "0x000D0246",
+          "orig": "02",
+          "patch": "ff"
+        },
+        {
+          "kind": "offset",
           "name": "CommitAudioCodec_ChannelCount_Imm02",
           "offset": "0x006824B7",
           "orig": "01",
@@ -2140,6 +2168,20 @@
           "offset": "0x000F02C0",
           "orig": "84c0740d83be80020000090f8f",
           "patch": "909090909090909090909090e9"
+        },
+        {
+          "kind": "offset",
+          "name": "Krisp NC create bypass (mutex-safe)",
+          "offset": "0x000CF365",
+          "orig": "02",
+          "patch": "ff"
+        },
+        {
+          "kind": "offset",
+          "name": "Krisp NC process bypass (mutex-safe)",
+          "offset": "0x000CF5E6",
+          "orig": "02",
+          "patch": "ff"
         },
         {
           "kind": "offset",
@@ -2282,6 +2324,20 @@
           "offset": "0x000F10B0",
           "orig": "84c0740d83be80020000090f8f",
           "patch": "909090909090909090909090e9"
+        },
+        {
+          "kind": "offset",
+          "name": "Krisp NC create bypass (mutex-safe)",
+          "offset": "0x000CFFC5",
+          "orig": "02",
+          "patch": "ff"
+        },
+        {
+          "kind": "offset",
+          "name": "Krisp NC process bypass (mutex-safe)",
+          "offset": "0x000D0246",
+          "orig": "02",
+          "patch": "ff"
         },
         {
           "kind": "offset",

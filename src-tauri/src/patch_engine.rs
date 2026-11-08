@@ -1127,10 +1127,10 @@ mod tests {
         let path = dir.join("discord_voice.node");
         fs::write(&path, &clean).expect("write temp node");
         let analysis = apply(&path, "v7", &db, true).expect("apply v7");
-        assert_eq!(analysis.sites.len(), 19);
+        assert_eq!(analysis.sites.len(), 21);
         assert_eq!(
             md5_hex(&fs::read(&path).expect("read patched node")),
-            "54e557452448a37b857b98ce9c920753"
+            "315ab8bac0ff6f4f3042705c542650df"
         );
         revert(&path).expect("revert v7");
         assert_eq!(md5_hex(&fs::read(&path).expect("read reverted node")), md5_hex(&clean));
@@ -1146,12 +1146,12 @@ mod tests {
             (
                 "STEREO_TEST_NODE_9266",
                 "0ebc96a7f0dde80d1866d4cf61eb49cd",
-                "33b556bdcc0868ca26dbcd4855e76dca",
+                "93cf0a29daf17711942116f3ee56fe2a",
             ),
             (
                 "STEREO_TEST_NODE_9267",
                 "6f0c4c13d83e94b815211cb5867e8025",
-                "487608fac0e09f29a3a1f27bc9b6b80a",
+                "2bfa56af919a2065328f10181b9cfa68",
             ),
         ];
         let db =
@@ -1172,7 +1172,7 @@ mod tests {
             let path = dir.join("discord_voice.node");
             fs::write(&path, &clean).expect("write temp node");
             let analysis = apply(&path, "v6", &db, true).expect("apply v6");
-            assert_eq!(analysis.sites.len(), 18);
+            assert_eq!(analysis.sites.len(), 20);
             assert_eq!(
                 md5_hex(&fs::read(&path).expect("read patched node")),
                 patched_md5

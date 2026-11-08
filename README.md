@@ -60,7 +60,7 @@ Point it at your Discord install. Every action below is explicit:
 > [!TIP]
 > **Offsets and sites.** An *offset* is where a byte lives inside the
 > `discord_voice.node` file. A *site* is one small change at that place, such as forcing
-> stereo or locking the bitrate. A *goal* (v3–v6) groups sites, and a *table* is that group
+> stereo or locking the bitrate. A *goal* groups sites, and a *table* is that group
 > for one exact Discord build. The app checks every byte before writing, keeps a backup, and
 > stops if the file doesn't match. Builds change often, so check which build the Info step
 > shows.
@@ -102,16 +102,15 @@ analyzes it and never writes.
 
 ## Goals
 
-Each goal is a byte-site table matched to a Discord binary generation. v3–v5
-improve filters, quality, and bitrate; only v6 gives true L/R separation.
+The public UI ships v6 and the experimental v7 profile. v3/v4/v5 remain in the
+Patch-DB as research/backup data, hidden from the public UI.
 
 | Goal | What it does |
 |---|---|
-| v3 — Filters Removed | Removes filters and improves quality; no true L/R separation like v6. |
-| v4 — Full Quality | v3 + 510 kbps CBR lock + force-stereo + RemixAndResample fix. Improves quality; no true L/R separation like v6. |
-| v5 — Deep Quality | v4 + Opus kAudio: more depth and quality; no true L/R separation like v6. |
-| v6 — True Stereo 1:1 (recommended) | The only true 1:1 L/R profile: SDP force-stereo, 510 kbps CBR, Opus frame copy/gain, CELT; high-pass off and frame filter bypassed. Windows Stable. |
+| v6 — True Stereo 1:1 | The only true 1:1 L/R profile: SDP force-stereo, 510 kbps CBR, Opus frame copy/gain, CELT; Krisp/noise/echo/AGC/high-pass and the frame filter are always disabled (no toggle). Windows Stable. |
 | v7 — 8ch Surround (experimental) | Forces 8 channels at 208 kbps CBR. Windows Stable only; audio untested and may break voice. Revert if silent. |
+
+Set `STEREO_SHOW_RESEARCH=1` to reveal the v3/v4/v5 research goals in a development build.
 
 ## Patch-DB
 
@@ -158,9 +157,9 @@ cd src-tauri && cargo check --locked && cargo test
 
 | Part | Status |
 |---|---|
-| v6 true stereo | Stereo path tested on Windows native + Wine; the 510 kbps change is static-apply verified (audio re-test pending) |
+| v6 true stereo | Stereo path tested on Windows native + Wine in earlier builds; the 0.3.0 native release matrix is still pending (510 kbps is static-apply verified) |
 | v7 8ch surround | Static apply/revert only; audio untested; experimental and may break voice |
-| v3/v4/v5 legacy tables | Tested on Linux and Windows legacy builds; current tables in the Patch-DB |
+| Research/backup tables | Kept in the Patch-DB, hidden from the public UI; not part of the public support claim |
 | Cross-build compatibility | Unknown builds get a warned compatibility attempt; apply only after every site verifies |
 | Patch matching | Requires a unique match; refuses 0 or 2+ matches |
 | Apply/revert cycle | Unit-tested: verify-then-write, idempotent apply, backup restore |
@@ -177,9 +176,9 @@ cd src-tauri && cargo check --locked && cargo test
   warned compatibility attempt: the app resolves sites through the cross-build profile bank
   and only writes when every site verifies. If any site is unresolved, the build is analyzed
   and never patched.
-- Windows Stable is tested on **native Windows and Wine**; Linux legacy
-  tables are tested. Builds rotate, so the Info step identifies the build
-  before you apply.
+- The v6 stereo path was tested on **native Windows and Wine** in earlier
+  builds; the 0.3.0 native release matrix is still pending. Builds rotate, so
+  the Info step identifies the build before you apply.
 - v7 is experimental: it forces 8 channels at 208 kbps and is not audio-tested.
   It can leave the call silent or unstable; revert if there is no audio.
 - The v6 Windows tables now use 510 kbps CBR. Their stereo bytes are unchanged,
@@ -191,3 +190,7 @@ cd src-tauri && cargo check --locked && cargo test
 - The CI has no word on how patched audio behaves in closed Discord builds. The bench that
   picked the flags is a local measurement setup, not a Discord endorsement.
 - The app interface is in Portuguese (pt-BR).
+
+## License
+
+MIT. See [LICENSE](LICENSE).

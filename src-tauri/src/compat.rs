@@ -523,6 +523,8 @@ mod tests {
         let expected = [
             ("CreateAudioFrame_ChannelAssign_Mov", 0x0013d990),
             ("CapturedAudioProcessor_APMBypass_NopJmp", 0x000f10b0),
+            ("Krisp NC create bypass (mutex-safe)", 0x000cffc5),
+            ("Krisp NC process bypass (mutex-safe)", 0x000d0246),
             ("CommitAudioCodec_ChannelCount_Imm02", 0x006824b7),
             ("OpusSdp_StereoValueBypass_Jmp2", 0x006824e6),
             ("ApplySettings_BitrateBase_Mov510k", 0x006828ea),

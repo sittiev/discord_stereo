@@ -92,7 +92,7 @@ interface DbCheck {
 let clients: FoundClient[] = [];
 let selectedClient: FoundClient | null = null;
 let goals: GoalInfo[] = [];
-let selectedGoal = "v4";
+let selectedGoal = "v6";
 let analysis: Analysis | null = null;
 
 const DISCORD_URL = "https://discord.gg/jb72VayAzN";
@@ -231,7 +231,6 @@ for (const step of steps) {
 // on); the filter toggle keeps Discord's Krisp/noise when off. High-pass and
 // low-pass removal are part of the stereo profile and are not toggleable.
 const PREF_THEME = "sw.theme";
-const PREF_FILTERS = "sw.filters";
 const themeEl = document.querySelector("m3e-theme")!;
 
 type ThemePref = "auto" | "light" | "dark";
@@ -279,14 +278,7 @@ function loadThemePref(): ThemePref {
   return isThemePref(v) ? v : "auto";
 }
 
-function loadKillFilters(): boolean {
-  const v = storeGet(PREF_FILTERS);
-  if (v === "off") return false;
-  return true;
-}
-
 let themePref = loadThemePref();
-let killFilters = loadKillFilters();
 
 function applyThemePref(): void {
   themeEl.setAttribute("scheme", themePref);
@@ -427,7 +419,7 @@ async function loadGoals(): Promise<void> {
   const available = goals.filter(
     (g) => g.id !== "v7" || experimentalBuilds.has(selectedClient?.version_dir ?? ""),
   );
-  if (!available.some((g) => g.id === selectedGoal)) selectedGoal = "v4";
+  if (!available.some((g) => g.id === selectedGoal)) selectedGoal = available[0]?.id ?? "v6";
   for (const g of available) {
     const card = document.createElement("m3e-card");
     card.className = "selectable";
@@ -440,6 +432,11 @@ async function loadGoals(): Promise<void> {
       <div class="goal-body">
         <strong>${esc(loc(g.title))}</strong>
         <div class="muted">${esc(loc(g.description))}</div>
+        ${
+          g.id === "v7"
+            ? `<m3e-callout variant="warning"><strong>Experimental:</strong> pode quebrar a voz. Use só com um dispositivo de 8 canais e reverta se não houver áudio.</m3e-callout>`
+            : ""
+        }
         <div><m3e-chip variant="assist">${g.sites} ${g.sites === 1 ? "patch" : "patches"}</m3e-chip></div>
       </div>`;
     card.addEventListener("click", () => {
@@ -477,7 +474,14 @@ const SITE_INFO: Record<string, string> = {
   "HighPassFilter::Process ret": "Desliga o filtro passa-alta (preserva graves).",
   "OpusConfig IsOk true": "Aceita a configuração estéreo/alta taxa na validação.",
   "NoiseCanceller::Process ret": "Desliga o supressor de ruído (Krisp).",
+  "NoiseCanceller::Process bypass (mutex-safe)": "Pula o processamento do supressor de ruído.",
   "ShouldRunNoiseCancellation false": "Impede o supressor de ruído de ligar.",
+  "Krisp NC create bypass (mutex-safe)": "Impede o Krisp de ser criado.",
+  "Krisp NC process bypass (mutex-safe)": "Pula o processamento do Krisp.",
+  "DisableCbr ret": "Desliga o caminho VBR e mantém CBR.",
+  "ApplySettings_MaxAvgBitrateSelect_Nop4": "Impede o seletor de reduzir o bitrate médio.",
+  "SetTargetBitrate_ClampSelect_Nop3": "Impede a seleção do clamp de bitrate.",
+  "SetTargetBitrate_Mulss_Nop6": "Impede o multiplicador de bitrate.",
   "ApplySettings_BitrateBase_Mov510k": "Trava o bitrate base em 510 kbps.",
   "ApplySettings_BitrateBase_Mov208k": "Trava o bitrate base em 208 kbps (experimental 8ch).",
   "ApplySettings_BitrateSelect_Nop4": "Impede o seletor de reduzir o bitrate.",
@@ -605,7 +609,7 @@ function stateIcon(st: SiteState): string {
 function stateText(st: SiteState): string {
   if (st.state === "ok") return "pronto para aplicar";
   if (st.state === "patched") return "já aplicado";
-  if (st.state === "ignored") return "ignorado - Krisp/redução de ruído do Discord mantidos";
+  if (st.state === "ignored") return "ignorado - opção do usuário";
   return `divergente do esperado (${st.found}); o patch aborta antes de escrever`;
 }
 
@@ -648,7 +652,6 @@ async function doAnalyze(): Promise<void> {
     analysis = await invoke<Analysis>("analyze_node", {
       node: selectedClient.node_path,
       goal: selectedGoal,
-      includeFilters: killFilters,
     });
     document.getElementById("discord-running")!.hidden =
       !selectedClient.process_running;
@@ -658,7 +661,7 @@ async function doAnalyze(): Promise<void> {
     const ignored = analysis.sites.filter(
       ([, s]) => s.state === "ignored",
     ).length;
-    const suffix = ignored > 0 ? ` · ${ignored} filtros mantidos` : "";
+    const suffix = ignored > 0 ? ` · ${ignored} opções mantidas` : "";
     if (analysis.sites.length === 0) {
       snack("Build sem patch conhecido - relatório enviado automaticamente.");
     } else if (analysis.compat) {
@@ -720,7 +723,6 @@ async function doApply(): Promise<void> {
     const result = await invoke<Analysis>("apply_goal", {
       node: selectedClient.node_path,
       goal: selectedGoal,
-      includeFilters: killFilters,
     });
     analysis = result;
     const applied = result.sites.filter(
@@ -729,7 +731,7 @@ async function doApply(): Promise<void> {
     const ignored = result.sites.filter(
       ([, s]) => s.state === "ignored",
     ).length;
-    const suffix = ignored > 0 ? ` · ${ignored} filtros mantidos` : "";
+    const suffix = ignored > 0 ? ` · ${ignored} opções mantidas` : "";
     snack(
       result.compat
         ? `Aplicado em build não homologada: ${applied} patches. Teste o áudio.`
@@ -894,16 +896,6 @@ window.addEventListener("DOMContentLoaded", () => {
   }
   document.getElementById("btn-theme")!.addEventListener("click", () => {
     setThemePref(nextTheme(themePref));
-  });
-  const filterCtl = document.getElementById("pref-filters") as HTMLElement & {
-    checked: boolean;
-  };
-  filterCtl.checked = killFilters;
-  filterCtl.addEventListener("change", () => {
-    killFilters = filterCtl.checked;
-    storeSet(PREF_FILTERS, killFilters ? "on" : "off");
-    analysis = null;
-    updateApplyButtons();
   });
   void loadSysInfo();
   void (async () => {

@@ -29,8 +29,10 @@ fn detect_clients() -> Vec<FoundClient> {
 #[tauri::command]
 fn goals() -> Vec<GoalInfo> {
     let db = tables::snapshot();
+    let show_research = std::env::var_os("STEREO_SHOW_RESEARCH").is_some();
     db.goals
         .into_iter()
+        .filter(|g| show_research || g.id == "v6" || g.id == "v7")
         .map(|g| GoalInfo {
             sites: db
                 .tables

@@ -1,8 +1,9 @@
 [package]
 name = "stereo-wizard"
-version = "0.2.3"
+version = "0.3.0"
 description = "Discord stereo voice patch wizard multi-client"
 authors = ["rafael"]
+license = "MIT"
 edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
