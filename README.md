@@ -158,7 +158,7 @@ cd src-tauri && cargo check --locked && cargo test
 
 | Part | Status |
 |---|---|
-| v6 true stereo | Tested on Windows native + Wine; current tables in the Patch-DB |
+| v6 true stereo | Stereo path tested on Windows native + Wine; the 510 kbps change is static-apply verified (audio re-test pending) |
 | v7 8ch surround | Static apply/revert only; audio untested; experimental and may break voice |
 | v3/v4/v5 legacy tables | Tested on Linux and Windows legacy builds; current tables in the Patch-DB |
 | Cross-build compatibility | Unknown builds get a warned compatibility attempt; apply only after every site verifies |
@@ -182,6 +182,8 @@ cd src-tauri && cargo check --locked && cargo test
   before you apply.
 - v7 is experimental: it forces 8 channels at 208 kbps and is not audio-tested.
   It can leave the call silent or unstable; revert if there is no audio.
+- The v6 Windows tables now use 510 kbps CBR. Their stereo bytes are unchanged,
+  but the bitrate change is static-apply verified; re-test audio after updating.
 - macOS has no byte tables yet and is analyze-only. PTB and Canary have no v6
   table yet.
 - On native Windows the app still relies on byte verification; the running-
