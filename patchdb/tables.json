@@ -1,39 +1,39 @@
 {
   "schema": 1,
-  "db_version": 13,
-  "updated": "2026-11-07",
+  "db_version": 14,
+  "updated": "2026-11-08",
   "goals": [
     {
       "id": "v3",
       "title": {
-        "pt": "Filtros Removido",
-        "en": "Filters Out"
+        "pt": "Filtros Removidos",
+        "en": "Filters Removed"
       },
       "description": {
-        "pt": "N\u00facleo est\u00e9reo sem krisp/highpass/downmix; bitrate do servidor (~64k + boost).",
-        "en": "Stereo core without krisp/highpass/downmix; server bitrate (~64k+boost)."
+        "pt": "Remove filtros e melhora a qualidade; n\u00e3o faz separa\u00e7\u00e3o L/R real como o v6.",
+        "en": "Removes filters and improves quality; no true L/R separation like v6."
       }
     },
     {
       "id": "v4",
       "title": {
-        "pt": "Stereo Full",
-        "en": "Stereo Full"
+        "pt": "Qualidade Full",
+        "en": "Full Quality"
       },
       "description": {
-        "pt": "Recomendado: v3 + CBR 510 kbps travado + force-stereo + fix do RemixAndResample. Melhor centroide no bench.",
-        "en": "Recommended: v3 + locked 510 kbps CBR + force-stereo + RemixAndResample fix. Best CENTROID on the bench."
+        "pt": "v3 + CBR 510 kbps travado + force-stereo + fix do RemixAndResample. Melhora a qualidade; sem separa\u00e7\u00e3o L/R real como o v6.",
+        "en": "v3 + locked 510 kbps CBR + force-stereo + RemixAndResample fix. Improves quality; no true L/R separation like v6."
       }
     },
     {
       "id": "v5",
       "title": {
-        "pt": "Stereo Profundo",
-        "en": "Deep Stereo"
+        "pt": "Qualidade Profunda",
+        "en": "Deep Quality"
       },
       "description": {
-        "pt": "v4 + Opus kAudio: mais profundidade e separa\u00e7\u00e3o; centroide espectral mais baixo (trade-off do modo m\u00fasica).",
-        "en": "v4 + Opus kAudio: more depth and separation; lower spectral centroid (music-mode trade-off)."
+        "pt": "v4 + Opus kAudio: mais profundidade e qualidade; sem separa\u00e7\u00e3o L/R real como o v6.",
+        "en": "v4 + Opus kAudio: more depth and quality; no true L/R separation like v6."
       }
     },
     {
@@ -43,8 +43,8 @@
         "en": "True Stereo 1:1"
       },
       "description": {
-        "pt": "v5 + corre\u00e7\u00e3o do est\u00e9reo real: SDP force-stereo, c\u00f3pia/gain do frame Opus e modo CELT. Separa\u00e7\u00e3o L/R fiel no listener.",
-        "en": "v5 + true-stereo fix: SDP force-stereo, Opus frame copy/gain, CELT mode. Faithful L/R separation for the listener."
+        "pt": "\u00danico perfil com separa\u00e7\u00e3o L/R real 1:1: SDP force-stereo, c\u00f3pia/gain do frame Opus e CELT.",
+        "en": "The only profile with true 1:1 L/R separation: SDP force-stereo, Opus frame copy/gain, CELT."
       }
     }
   ],
