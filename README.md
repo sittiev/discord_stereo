@@ -62,8 +62,8 @@ Point it at your Discord install. Every action below is explicit:
 > `discord_voice.node` file. A *site* is one small change at that place, such as forcing
 > stereo or locking the bitrate. A *goal* (v3–v6) groups sites, and a *table* is that group
 > for one exact Discord build. The app checks every byte before writing, keeps a backup, and
-> stops if the file doesn't match. Builds change often, so check the MD5 shown in the Info
-> step.
+> stops if the file doesn't match. Builds change often, so check which build the Info step
+> shows.
 
 ## Client support
 
@@ -87,7 +87,8 @@ own node, so they need their own tables. Current coverage:
 
 - **Tested** = analyzed, applied and reverted with every byte check passing and a
   remote-listener audio pass on a current build. Builds rotate; the Info step
-  shows your binary MD5, and **Windows** covers both native Windows and Wine.
+  shows which build the wizard found, and **Windows** covers both native
+  Windows and Wine.
 - \* Cross-channel cells should behave like the stable row — the voice binary family is the
   same; re-verify before relying on it.
 - The wizard is the referee: when a table covers your build, Apply lights up; otherwise it
@@ -95,53 +96,31 @@ own node, so they need their own tables. Current coverage:
 
 ## Checking your version
 
-- **First, the wizard**: the Info step prints the install paths it found plus the MD5 of the
-  original voice binary; tables are keyed by MD5, not by the version label.
-- **Windows**: look inside `%LOCALAPPDATA%\Discord\` — the `app-1.0.xXXX` folder name is the
-  client version (`DiscordPTB\` / `DiscordCanary\` for the other channels).
-- **Linux (deb/rpm)**: `dpkg -s discord | grep -i version` or `rpm -q discord`.
-- **macOS**: right-click `/Applications/Discord.app` → Get Info → Version.
-- **Vencord** is a client mod on a regular install — it has no version of its own; read the
-  underlying client's.
-- Current **v6** tables cover the Windows Stable builds listed below. 9267
-  passed native Windows and Wine audio tests; 9266 passed under Wine; 9265 is
-  byte-validated. Re-check after every Discord update — the Info step prints
-  your MD5.
-- Legacy **v3/v4/v5** tables cover Linux `app-1.0.161`, Windows 9265, Windows
-  1281 and older canary builds.
-
-| Build | v6 clean MD5 | v6 patched MD5 |
-|---|---|---|
-| Windows 9265 | `6d8c7c6005f2c03454f2344e48cfcdc8` | `14387dedf0718e79b5ed43d8cc0e3866` |
-| Windows 9266 | `0ebc96a7f0dde80d1866d4cf61eb49cd` | `85de3c99480de4e709e110d35efd7fb6` |
-| Windows 9267 | `6f0c4c13d83e94b815211cb5867e8025` | `9b61496febfb2b441ba6b82785429896` |
+Open the wizard's Info step. It shows the Discord install path and which build it found.
+You do not need to look up the version manually. If the build has no verified table, the app
+analyzes it and never writes.
 
 ## Goals
 
-Each goal is a byte-site table matched to a Discord binary generation:
+Each goal is a byte-site table matched to a Discord binary generation. v3–v5
+improve filters, quality, and bitrate; only v6 gives true L/R separation.
 
 | Goal | What it does |
 |---|---|
-| v3 — Filters Out | Stereo core without krisp/highpass/downmix; server bitrate (~64k + boost). |
-| v4 — Stereo Full (recommended) | v3 + 510 kbps CBR lock + force-stereo + RemixAndResample fix. Best centroid in the bench. |
-| v5 — Deep Stereo | v4 + Opus kAudio: more depth and separation, lower spectral centroid (music-mode trade-off). |
-| v6 — True Stereo 1:1 | Tested true-stereo set: SDP force-stereo, Opus frame copy/gain, CELT. Windows 9265/9266/9267. |
+| v3 — Filters Removed | Removes filters and improves quality; no true L/R separation like v6. |
+| v4 — Full Quality | v3 + 510 kbps CBR lock + force-stereo + RemixAndResample fix. Improves quality; no true L/R separation like v6. |
+| v5 — Deep Quality | v4 + Opus kAudio: more depth and quality; no true L/R separation like v6. |
+| v6 — True Stereo 1:1 (recommended) | The only true 1:1 L/R profile: SDP force-stereo, Opus frame copy/gain, CELT. Windows Stable. |
 
 ## Patch-DB
 
-The offsets live in [`patchdb/tables.json`](patchdb/tables.json), keyed by incremental
-`db_version`, so old builds keep working after Discord updates:
+The patch tables live in [`patchdb/tables.json`](patchdb/tables.json). The app embeds the
+current table, so it works offline, and downloads a newer one when available.
 
-- The running binary embeds the current table as an offline bootstrap.
-- At boot it fetches the newest table from this repo (`main`), capped at 2 MiB with a 15 s
-  timeout, and adopts it only when `db_version` is greater — then caches it to the app data
-  dir. Dev override: `STEREO_DB_URL`.
-- A binary matched by MD5 gets surgical offsets. Unknown binaries fall back to tables with
-  AOB patterns (`??` wildcards) that require exactly one match and an `expect` check.
-- When no exact table matches, v6 also tries the cross-build profile bank. Every site must
-  resolve to its expected original bytes (or already-patched bytes) before the UI offers a
-  warned compatibility apply. Any unresolved site keeps the binary read-only.
-- The schema is validated on every push in CI (`patchdb/validate.mjs`).
+- A known build gets exact offsets. An unknown build gets a warned compatibility attempt,
+  and the app writes only when every site verifies.
+- A build without a verified table is analyzed and never written.
+- CI validates the table on every change.
 
 ## Download
 
@@ -180,8 +159,8 @@ cd src-tauri && cargo check --locked && cargo test
 |---|---|
 | v6 true stereo | Tested on Windows native + Wine; current tables in the Patch-DB |
 | v3/v4/v5 legacy tables | Tested on Linux and Windows legacy builds; current tables in the Patch-DB |
-| Cross-build compatibility | v6 profile resolver; Windows 1281 and 9267 fixtures resolve 20/20; warned apply only after every site verifies |
-| Pattern scanner (AOB + `expect`) | Unit-tested in Rust; refuses 0 or 2+ matches |
+| Cross-build compatibility | Unknown builds get a warned compatibility attempt; apply only after every site verifies |
+| Patch matching | Requires a unique match; refuses 0 or 2+ matches |
 | Apply/revert cycle | Unit-tested: verify-then-write, idempotent apply, backup restore |
 | CI gate + release builds | Run on GitHub Actions for all three OSes |
 | macOS node builds | No tables for those binaries yet; analyze-only |
@@ -197,8 +176,8 @@ cd src-tauri && cargo check --locked && cargo test
   and only writes when every site verifies. If any site is unresolved, the build is analyzed
   and never patched.
 - Windows Stable is tested on **native Windows and Wine**; Linux legacy
-  tables are tested on 1.0.161. Builds rotate, so check the Info step for your
-  MD5 before relying on a table.
+  tables are tested. Builds rotate, so the Info step identifies the build
+  before you apply.
 - macOS has no byte tables yet and is analyze-only. PTB and Canary have no v6
   table yet.
 - On native Windows the app still relies on byte verification; the running-
