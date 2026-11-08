@@ -110,7 +110,7 @@ improve filters, quality, and bitrate; only v6 gives true L/R separation.
 | v3 — Filters Removed | Removes filters and improves quality; no true L/R separation like v6. |
 | v4 — Full Quality | v3 + 510 kbps CBR lock + force-stereo + RemixAndResample fix. Improves quality; no true L/R separation like v6. |
 | v5 — Deep Quality | v4 + Opus kAudio: more depth and quality; no true L/R separation like v6. |
-| v6 — True Stereo 1:1 (recommended) | The only true 1:1 L/R profile: SDP force-stereo, 510 kbps CBR, Opus frame copy/gain, CELT; high/low-pass bypassed. Windows Stable. |
+| v6 — True Stereo 1:1 (recommended) | The only true 1:1 L/R profile: SDP force-stereo, 510 kbps CBR, Opus frame copy/gain, CELT; high-pass off and frame filter bypassed. Windows Stable. |
 | v7 — 8ch Surround (experimental) | Forces 8 channels at 208 kbps CBR. Windows Stable only; audio untested and may break voice. Revert if silent. |
 
 ## Patch-DB
