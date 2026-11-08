@@ -57,8 +57,8 @@ jobs:
         with:
           tagName: v__VERSION__
           releaseName: "Stereo Wizard v__VERSION__"
-          releaseDraft: true
-          prerelease: true
+          releaseDraft: false
+          prerelease: false
           generateReleaseNotes: true
           args: ${{ matrix.args }}
       - name: Portable (Windows)
