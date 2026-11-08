@@ -21,8 +21,6 @@ import "@m3e/web/tooltip";
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
-import confetti from "canvas-confetti";
-
 type ClientKind = "stable" | "ptb" | "canary" | "vencord";
 
 interface FoundClient {
@@ -53,7 +51,8 @@ interface GoalInfo {
 type SiteState =
   | { state: "ok" }
   | { state: "patched" }
-  | { state: "mismatch"; found: string };
+  | { state: "mismatch"; found: string }
+  | { state: "ignored" };
 interface CompatInfo {
   source_md5: string;
   source_discord?: string;
@@ -127,8 +126,8 @@ function gotoStep(id: string): void {
   }
   document.querySelector("main")!.scrollTo(0, 0);
   ON_ENTER[id]?.();
-  // Animated step change; without animation (or first entry), plain swap.
-  if (animPref && from !== -1 && from !== to && outEl && inEl && !outEl.hidden) {
+  // Animated step change; first entry is a plain swap.
+  if (from !== -1 && from !== to && outEl && inEl && !outEl.hidden) {
     slide(outEl, inEl, to > from);
   } else {
     for (const panel of document.querySelectorAll<HTMLElement>("section.pane")) {
@@ -226,10 +225,10 @@ for (const step of steps) {
 
 // ---------------------------------------------------------------- helpers
 // Theme: "auto" follows the system (m3e-theme observes prefers-color-scheme);
-// "light"/"dark" pin the scheme. Animations: off, the step slide and the
-// confetti drop out and the theme falls back to motion="standard".
+// "light"/"dark" pin the scheme. Motion stays "expressive" (animations always
+// on); the filter toggle keeps Discord's Krisp/noise/high-pass when off.
 const PREF_THEME = "sw.theme";
-const PREF_ANIM = "sw.anim";
+const PREF_FILTERS = "sw.filters";
 const themeEl = document.querySelector("m3e-theme")!;
 
 type ThemePref = "auto" | "light" | "dark";
@@ -277,25 +276,19 @@ function loadThemePref(): ThemePref {
   return isThemePref(v) ? v : "auto";
 }
 
-function loadAnimPref(): boolean {
-  const v = storeGet(PREF_ANIM);
-  if (v === "on") return true;
+function loadKillFilters(): boolean {
+  const v = storeGet(PREF_FILTERS);
   if (v === "off") return false;
-  // Default: on, except when the system asks for less motion.
-  return !matchMedia("(prefers-reduced-motion: reduce)").matches;
+  return true;
 }
 
 let themePref = loadThemePref();
-let animPref = loadAnimPref();
+let killFilters = loadKillFilters();
 
 function applyThemePref(): void {
   themeEl.setAttribute("scheme", themePref);
   document.documentElement.style.colorScheme =
     themePref === "auto" ? "light dark" : themePref;
-}
-
-function applyAnimPref(): void {
-  themeEl.setAttribute("motion", animPref ? "expressive" : "standard");
 }
 
 function setThemePref(v: ThemePref): void {
@@ -588,20 +581,21 @@ function renderApply(): void {
 function stateIcon(st: SiteState): string {
   if (st.state === "ok") return "○";
   if (st.state === "patched") return "●";
+  if (st.state === "ignored") return "◇";
   return "✕";
 }
 
 function stateText(st: SiteState): string {
   if (st.state === "ok") return "pronto para aplicar";
   if (st.state === "patched") return "já aplicado";
+  if (st.state === "ignored") return "ignorado - filtros do Discord mantidos";
   return `divergente do esperado (${st.found}); o patch aborta antes de escrever`;
 }
 
 function updateApplyButtons(): void {
   const sites = analysis?.sites ?? [];
   const hasMismatch = sites.some(([, st]) => st.state === "mismatch");
-  const allPatched =
-    sites.length > 0 && sites.every(([, st]) => st.state === "patched");
+  const hasActionable = sites.some(([, st]) => st.state === "ok");
   (document.getElementById("btn-analyze") as HTMLButtonElement).disabled =
     !selectedClient;
   (document.getElementById("btn-revert") as HTMLButtonElement).disabled =
@@ -610,8 +604,7 @@ function updateApplyButtons(): void {
     !selectedClient ||
     analysis === null ||
     hasMismatch ||
-    allPatched ||
-    sites.length === 0;
+    !hasActionable;
 }
 
 // Backend errors cross IPC as English thiserror strings; the known
@@ -638,20 +631,25 @@ async function doAnalyze(): Promise<void> {
     analysis = await invoke<Analysis>("analyze_node", {
       node: selectedClient.node_path,
       goal: selectedGoal,
+      includeFilters: killFilters,
     });
     document.getElementById("discord-running")!.hidden =
       !selectedClient.process_running;
     const patched = analysis.sites.filter(
       ([, s]) => s.state === "patched",
     ).length;
+    const ignored = analysis.sites.filter(
+      ([, s]) => s.state === "ignored",
+    ).length;
+    const suffix = ignored > 0 ? ` · ${ignored} filtros mantidos` : "";
     if (analysis.sites.length === 0) {
       snack("Build sem patch conhecido - relatório enviado automaticamente.");
     } else if (analysis.compat) {
       snack(
-        `Build não homologada: ${patched}/${analysis.sites.length} patches já aplicados`,
+        `Build não homologada: ${patched}/${analysis.sites.length} patches já aplicados${suffix}`,
       );
     } else {
-      snack(`Análise: ${patched}/${analysis.sites.length} patches já aplicados`);
+      snack(`Análise: ${patched}/${analysis.sites.length} patches já aplicados${suffix}`);
     }
   } catch (err) {
     snack(`Erro: ${localizeBackendError(String(err))}`);
@@ -705,29 +703,26 @@ async function doApply(): Promise<void> {
     const result = await invoke<Analysis>("apply_goal", {
       node: selectedClient.node_path,
       goal: selectedGoal,
+      includeFilters: killFilters,
     });
     analysis = result;
+    const applied = result.sites.filter(
+      ([, s]) => s.state === "patched",
+    ).length;
+    const ignored = result.sites.filter(
+      ([, s]) => s.state === "ignored",
+    ).length;
+    const suffix = ignored > 0 ? ` · ${ignored} filtros mantidos` : "";
     snack(
       result.compat
-        ? `Aplicado em build não homologada: ${result.sites.length} patches. Teste o áudio.`
-        : `Aplicado: ${result.sites.length} patches. Reabra o Discord.`,
+        ? `Aplicado em build não homologada: ${applied} patches. Teste o áudio.`
+        : `Aplicado: ${applied} patches. Reabra o Discord.${suffix}`,
     );
     const doneCompat = document.getElementById("done-compat")!;
     doneCompat.hidden = !result.compat;
     if (result.compat) {
       const source = result.compat.source_discord ?? result.compat.source_md5;
       doneCompat.textContent = `Build não homologada (${source}). Teste o áudio e, se funcionar, reporte no Discord.`;
-    }
-    // Subtle confetti on success; only when animations are on.
-    if (animPref) {
-      void confetti({ particleCount: 70, spread: 75, origin: { y: 0.6 } });
-      for (const c of document.querySelectorAll("canvas")) {
-        c.setAttribute("aria-hidden", "true");
-      }
-      setTimeout(() => {
-        void confetti({ particleCount: 40, angle: 60, spread: 60, origin: { x: 0 } });
-        void confetti({ particleCount: 40, angle: 120, spread: 60, origin: { x: 1 } });
-      }, 250);
     }
     (document.getElementById("done-dialog") as HTMLElement & { open: boolean }).open = true;
   } catch (err) {
@@ -860,8 +855,8 @@ window.addEventListener("DOMContentLoaded", () => {
     b.addEventListener("click", () => openExternal(b.dataset.url ?? ""));
   }
   applyThemePref();
-  applyAnimPref();
   syncThemeCtl();
+  themeEl.setAttribute("motion", "expressive");
   const themeCtl = document.getElementById("pref-theme")!;
   for (const seg of themeCtl.querySelectorAll<HTMLElement & { checked: boolean }>(
     "m3e-button-segment",
@@ -875,14 +870,15 @@ window.addEventListener("DOMContentLoaded", () => {
   document.getElementById("btn-theme")!.addEventListener("click", () => {
     setThemePref(nextTheme(themePref));
   });
-  const animCtl = document.getElementById("pref-anim") as HTMLElement & {
+  const filterCtl = document.getElementById("pref-filters") as HTMLElement & {
     checked: boolean;
   };
-  animCtl.checked = animPref;
-  animCtl.addEventListener("change", () => {
-    animPref = animCtl.checked;
-    storeSet(PREF_ANIM, animPref ? "on" : "off");
-    applyAnimPref();
+  filterCtl.checked = killFilters;
+  filterCtl.addEventListener("change", () => {
+    killFilters = filterCtl.checked;
+    storeSet(PREF_FILTERS, killFilters ? "on" : "off");
+    analysis = null;
+    updateApplyButtons();
   });
   void loadSysInfo();
   void (async () => {

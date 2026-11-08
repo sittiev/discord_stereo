@@ -324,6 +324,19 @@
               O botão &quot;testar microfone&quot; continua mono por design do
               cliente. O estéreo é ouvido por todos na chamada, não por quem fala.
             </m3e-callout>
+            <m3e-card variant="outlined">
+              <div class="row-between">
+                <div class="pref-text">
+                  <span>Desativar sensibilidade e filtros</span>
+                  <span class="muted">
+                    Mata Krisp, supressor de ruído e passa-alta no node. Desligue
+                    para manter os filtros do Discord; ligar de novo e Aplicar
+                    reativa. Não toca estéreo nem bitrate do Opus.
+                  </span>
+                </div>
+                <m3e-switch id="pref-filters" aria-label="Desativar sensibilidade e filtros" checked></m3e-switch>
+              </div>
+            </m3e-card>
             <div class="wizard-nav">
               <m3e-button variant="text" data-step="s-clients">Voltar</m3e-button>
               <m3e-button variant="filled" data-step="s-apply">Continuar</m3e-button>
@@ -390,13 +403,6 @@
                     <m3e-button-segment value="light">Claro</m3e-button-segment>
                     <m3e-button-segment value="dark">Escuro</m3e-button-segment>
                   </m3e-segmented-button>
-                </div>
-                <div class="row-between">
-                  <div class="pref-text">
-                    <span>Animações</span>
-                    <span class="muted">Transições de passos e o confete de sucesso.</span>
-                  </div>
-                  <m3e-switch id="pref-anim" aria-label="Animações"></m3e-switch>
                 </div>
               </div>
             </m3e-card>
