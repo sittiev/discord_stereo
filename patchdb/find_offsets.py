@@ -67,6 +67,7 @@ SITE_ALIASES: dict[str, list[str]] = {
     "OpusEncodeNative_AnalysisGate_Jmp": ["Opus analysis gate bypass"],
     "OpusEncodeFrame_FilterBypass_CopyGain": ["Opus frame copy/gain"],
     "OpusEncoder_Init_ForceCBR": ["OpusEncoder init force CBR"],
+    "ApplySettings_BitrateBase_Mov510k": ["ApplySettings_BitrateBase_Mov248k"],
     "OpusEncoder_SetVBR_ForceCBR": ["OpusEncoder setVBR force CBR"],
 }
 

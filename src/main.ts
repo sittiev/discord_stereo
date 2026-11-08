@@ -478,7 +478,7 @@ const SITE_INFO: Record<string, string> = {
   "OpusConfig IsOk true": "Aceita a configuração estéreo/alta taxa na validação.",
   "NoiseCanceller::Process ret": "Desliga o supressor de ruído (Krisp).",
   "ShouldRunNoiseCancellation false": "Impede o supressor de ruído de ligar.",
-  "ApplySettings_BitrateBase_Mov248k": "Trava o bitrate base em 510 kbps.",
+  "ApplySettings_BitrateBase_Mov510k": "Trava o bitrate base em 510 kbps.",
   "ApplySettings_BitrateBase_Mov208k": "Trava o bitrate base em 208 kbps (experimental 8ch).",
   "ApplySettings_BitrateSelect_Nop4": "Impede o seletor de reduzir o bitrate.",
   "ApplySettings_BitrateChannels_Nop4": "Impede o ajuste de bitrate por canais.",

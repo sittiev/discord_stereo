@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "db_version": 16,
+  "db_version": 17,
   "updated": "2026-11-08",
   "goals": [
     {
@@ -1887,7 +1887,7 @@
         },
         {
           "kind": "offset",
-          "name": "ApplySettings_BitrateBase_Mov248k",
+          "name": "ApplySettings_BitrateBase_Mov510k",
           "offset": "0x0067A83A",
           "orig": "41bee02e0000",
           "patch": "41be30c80700"
@@ -2022,7 +2022,7 @@
         },
         {
           "kind": "offset",
-          "name": "ApplySettings_BitrateBase_Mov248k",
+          "name": "ApplySettings_BitrateBase_Mov510k",
           "offset": "0x006828EA",
           "orig": "41bee02e0000",
           "patch": "41be30c80700"

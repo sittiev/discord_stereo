@@ -839,8 +839,10 @@
           "unique": true
         },
         {
-          "name": "ApplySettings_BitrateBase_Mov248k",
-          "aliases": [],
+          "name": "ApplySettings_BitrateBase_Mov510k",
+          "aliases": [
+            "ApplySettings_BitrateBase_Mov248k"
+          ],
           "pattern": "00 b9 00 7d 00 00 0f 42 c8 41 81 fe 41 1f 00 00 ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? ?? 80 bc 24 58 01 00 00 01",
           "target_offset": 16,
           "expected": "41bee02e0000",

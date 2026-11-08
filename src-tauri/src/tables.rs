@@ -224,7 +224,7 @@ mod tests {
             let base = table
                 .sites
                 .iter()
-                .find(|s| s.name() == "ApplySettings_BitrateBase_Mov248k")
+                .find(|s| s.name() == "ApplySettings_BitrateBase_Mov510k")
                 .expect("bitrate base site");
             let TableSite::Offset { patch, .. } = base else {
                 panic!("bitrate base must be an offset site");

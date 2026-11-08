@@ -525,7 +525,7 @@ mod tests {
             ("CapturedAudioProcessor_APMBypass_NopJmp", 0x000f10b0),
             ("CommitAudioCodec_ChannelCount_Imm02", 0x006824b7),
             ("OpusSdp_StereoValueBypass_Jmp2", 0x006824e6),
-            ("ApplySettings_BitrateBase_Mov248k", 0x006828ea),
+            ("ApplySettings_BitrateBase_Mov510k", 0x006828ea),
             ("ApplySettings_BitrateSelect_Nop4", 0x006828f0),
             ("ApplySettings_BitrateChannels_Nop4", 0x006828f4),
             ("SetTargetBitrate_Mulss_Nop6", 0x00684a4e),
