@@ -125,22 +125,17 @@
       .pref-text .muted {
         font-size: 0.85em;
       }
-      /* Cursor policy: pointer hand only on what opens a link. The m3e :host
-         rules (pointer on button/card/chip etc.) lose to these document rules. */
-      m3e-button,
-      m3e-icon-button,
-      m3e-card,
-      m3e-chip,
-      m3e-expansion-panel,
-      m3e-step,
-      m3e-button-segment,
-      m3e-segmented-button,
-      m3e-switch,
-      m3e-list-item {
-        cursor: default;
+      /* Cursor policy: arrow everywhere, hand only on links. m3e declares
+         `cursor: pointer` on component hosts from inside the shadow styles,
+         so this outer rule overrides it with `!important`; slotted content
+         inherits the host cursor. */
+      body,
+      body * {
+        cursor: default !important;
       }
-      [data-url] {
-        cursor: pointer;
+      [data-url],
+      [data-url] * {
+        cursor: pointer !important;
       }
       .link {
         text-decoration: underline;
@@ -224,7 +219,6 @@
       .path {
         font-size: 0.8em;
         user-select: text;
-        cursor: text;
       }
       m3e-list-item {
         min-width: 0;

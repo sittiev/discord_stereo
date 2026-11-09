@@ -820,6 +820,39 @@ function renderAbout(): void {
 }
 
 // ---------------------------------------------------------------- misc
+// m3e sets `cursor: pointer` on hosts nested inside its own shadow trees
+// (expansion header, dialog close). Document CSS cannot reach those, so every
+// shadow root inherits the cursor from its light-DOM host instead.
+const SHADOW_CURSOR = "* { cursor: inherit !important; }";
+
+function enforceShadowCursor(root: ShadowRoot): void {
+  if (root.querySelector("style[data-cursor-policy]")) return;
+  const style = document.createElement("style");
+  style.dataset.cursorPolicy = "";
+  style.textContent = SHADOW_CURSOR;
+  root.append(style);
+}
+
+function installCursorPolicy(): void {
+  const attach = Element.prototype.attachShadow;
+  Element.prototype.attachShadow = function (this: Element, init: ShadowRootInit): ShadowRoot {
+    const root = attach.call(this, init);
+    enforceShadowCursor(root);
+    return root;
+  };
+  const visit = (node: ParentNode): void => {
+    for (const element of node.querySelectorAll("*")) {
+      const root = element.shadowRoot;
+      if (!root) continue;
+      enforceShadowCursor(root);
+      visit(root);
+    }
+  };
+  visit(document);
+}
+
+installCursorPolicy();
+
 function snack(msg: string): void {
   const sb = document.getElementById("snackbar") as HTMLElement & { open: boolean };
   sb.textContent = msg;
