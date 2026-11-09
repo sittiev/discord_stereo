@@ -34,9 +34,97 @@ from pathlib import Path
 
 ELF_MACHINE = {0x3E: "x86_64", 0x03: "x86", 0xB7: "arm64", 0x28: "arm"}
 PE_MACHINE = {0x8664: "x86_64", 0x014C: "x86", 0xAA64: "arm64", 0x01C4: "arm"}
+MACHO_CPU = {0x01000007: "x86_64", 0x0100000C: "arm64", 0x00000007: "x86", 0x0000000C: "arm"}
+MACHO_FAT_BIG = (b"\xca\xfe\xba\xbe", b"\xca\xfe\xba\xbf")
+MACHO_FAT_LITTLE = (b"\xbe\xba\xfe\xca", b"\xbf\xba\xfe\xca")
+MACHO_THIN = (b"\xcf\xfa\xed\xfe", b"\xce\xfa\xed\xfe")
 
 
-def load_symbols(path: Path):
+def macho_slice(data: bytes, wanted: str):
+    """Return (slice_offset, slice_bytes) for the wanted arch of a Mach-O file."""
+    if data[:4] in MACHO_FAT_BIG or data[:4] in MACHO_FAT_LITTLE:
+        endian = ">" if data[:4] in MACHO_FAT_BIG else "<"
+        wide = data[:4] in (b"\xca\xfe\xba\xbf", b"\xbf\xba\xfe\xca")
+        count = struct.unpack_from(f"{endian}I", data, 4)[0]
+        entry = 32 if wide else 20
+        slices = []
+        for index in range(count):
+            base = 8 + index * entry
+            if wide:
+                cputype, _sub, offset, size, _align, _res = struct.unpack_from(
+                    f"{endian}IIQQII", data, base
+                )
+            else:
+                cputype, _sub, offset, size, _align = struct.unpack_from(f"{endian}IIIII", data, base)
+            slices.append((MACHO_CPU.get(cputype, f"cpu_0x{cputype:x}"), offset, size))
+        for arch, offset, size in slices:
+            if arch == wanted:
+                return offset, data[offset : offset + size]
+        raise SystemExit(f"error: no {wanted} slice in Mach-O (found {[item[0] for item in slices]})")
+    return 0, data
+
+
+def macho_segments(slice_data: bytes):
+    """Return (vmaddr, vmsize, fileoff) for every LC_SEGMENT_64 of a thin Mach-O."""
+    magic = struct.unpack_from("<I", slice_data, 0)[0]
+    if magic != 0xFEEDFACF:
+        raise SystemExit(f"error: unsupported Mach-O header 0x{magic:x}")
+    commands = struct.unpack_from("<I", slice_data, 16)[0]
+    offset = 32
+    segments = []
+    for _ in range(commands):
+        command, size = struct.unpack_from("<II", slice_data, offset)
+        if size == 0:
+            break
+        if command == 0x19:  # LC_SEGMENT_64
+            _name, vmaddr, vmsize, fileoff, _filesize = struct.unpack_from(
+                "<16sQQQQ", slice_data, offset + 8
+            )
+            segments.append((vmaddr, vmsize, fileoff))
+        offset += size
+    return segments
+
+
+def macho_file_offset(vaddr: int, segments, slice_offset: int):
+    """Translate a Mach-O virtual address to an absolute file offset."""
+    for vmaddr, vmsize, fileoff in segments:
+        if vmaddr <= vaddr < vmaddr + vmsize:
+            return slice_offset + fileoff + (vaddr - vmaddr)
+    return None
+
+
+def load_symbols(path: Path, data: bytes, arch: str = "x86_64"):
+    if data[:4] in MACHO_FAT_BIG or data[:4] in MACHO_FAT_LITTLE or data[:4] in MACHO_THIN:
+        slice_offset, slice_data = macho_slice(data, arch)
+        segments = macho_segments(slice_data)
+        command = ["llvm-nm", "--defined-only", "-C"]
+        if slice_offset:
+            command += ["-arch", arch]
+        command.append(str(path))
+        try:
+            output = subprocess.run(command, capture_output=True, text=True, check=True).stdout
+        except (OSError, subprocess.CalledProcessError) as exc:
+            raise SystemExit(f"error: llvm-nm failed on {path}: {exc}")
+        syms = []
+        for line in output.splitlines():
+            parts = line.split(" ", 2)
+            if len(parts) < 3:
+                continue
+            try:
+                vaddr = int(parts[0], 16)
+            except ValueError:
+                continue
+            name = parts[2].strip()
+            if name.startswith("_"):
+                name = name[1:]
+            file_offset = macho_file_offset(vaddr, segments, slice_offset)
+            if file_offset is not None:
+                syms.append((file_offset, name))
+        syms.sort()
+        by_name: dict[str, int] = {}
+        for offset, name in syms:
+            by_name.setdefault(name, offset)
+        return [offset for offset, _ in syms], syms, by_name
     try:
         nm = subprocess.run(
             ["nm", "--defined-only", str(path)], capture_output=True, text=True, check=True
@@ -76,6 +164,8 @@ def binary_info(path: Path, data: bytes) -> dict:
         pe = struct.unpack_from("<I", data, 0x3C)[0]
         machine = struct.unpack_from("<H", data, pe + 4)[0] if pe + 6 <= len(data) else 0
         return {"os": "windows", "arch": PE_MACHINE.get(machine, f"machine_0x{machine:x}")}
+    if data[:4] in MACHO_FAT_BIG or data[:4] in MACHO_FAT_LITTLE or data[:4] in MACHO_THIN:
+        return {"os": "macos", "arch": "x86_64"}
     return {"os": "unknown", "arch": "unknown"}
 
 
@@ -115,6 +205,7 @@ def client_kind(path: Path) -> str:
 def build_report(args, node_md5: str, info: dict, resolved: list, window: int) -> dict:
     now = int(time.time())
     match = re.search(r"app-\d+\.\d+\.\d+", str(args.node))
+    discord_dir = args.discord_dir or (match.group(0) if match else "")
     return {
         "app_version": "1.0.0",
         "schema": 2,
@@ -128,7 +219,7 @@ def build_report(args, node_md5: str, info: dict, resolved: list, window: int) -
         "node_path": str(args.node),
         "node_md5": node_md5,
         "node_size": args.node.stat().st_size,
-        "discord_dir": match.group(0) if match else "",
+        "discord_dir": discord_dir,
         "client_kind": client_kind(args.node),
         "table_kind": "none",
         "source_md5": args.ref_md5,
@@ -146,6 +237,8 @@ def main() -> int:
     parser.add_argument("--mapping", type=Path, help="write the per-site mapping JSON here")
     parser.add_argument("--report", type=Path, help="write a schema-2 report with resolved sites here")
     parser.add_argument("--window", type=lambda value: int(value, 0), default=0x1200)
+    parser.add_argument("--arch", default="x86_64", help="Mach-O slice to map (x86_64 or arm64)")
+    parser.add_argument("--discord-dir", help="override the app-<version> label stored in the table")
     args = parser.parse_args()
 
     db = json.loads(Path(args.tables).read_text(encoding="utf-8"))
@@ -158,9 +251,11 @@ def main() -> int:
         return 2
     ref_data = args.ref_node.read_bytes()
     data = args.node.read_bytes()
-    ref_addrs, ref_syms, _ = load_symbols(args.ref_node)
-    _, _, target_by_name = load_symbols(args.node)
+    ref_addrs, ref_syms, _ = load_symbols(args.ref_node, ref_data)
+    _, _, target_by_name = load_symbols(args.node, data, args.arch)
     info = binary_info(args.node, data)
+    if info["os"] == "macos":
+        info["arch"] = args.arch
     node_md5 = hashlib.md5(data).hexdigest()
 
     mapping = []
