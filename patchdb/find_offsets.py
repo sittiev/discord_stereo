@@ -257,6 +257,47 @@ def parse_pe(path: Path, data: bytes | None = None) -> PEInfo:
     )
 
 
+ELF_MACHINE_TO_PE = {0x3E: 0x8664, 0x03: 0x014C, 0xB7: 0xAA64, 0x28: 0x01C4}
+
+
+def parse_elf(path: Path, data: bytes | None = None) -> PEInfo:
+    """Header-only ELF support: offset tables use raw file offsets, so the
+    relocation scan needs no section/function metadata (PE extras degrade to
+    no-ops)."""
+    if data is None:
+        data = path.read_bytes()
+    if len(data) < 64 or data[:4] != b"\x7fELF":
+        raise ValueError(f"not an ELF file: {path}")
+    if data[4] != 2:
+        raise ValueError(f"unsupported ELF class (only 64-bit): {path}")
+    endian = "<" if data[5] == 1 else ">"
+    machine = struct.unpack_from(f"{endian}H", data, 18)[0]
+    return PEInfo(
+        path=path,
+        data=data,
+        machine=ELF_MACHINE_TO_PE.get(machine, 0x8664),
+        image_base=0,
+        timestamp=0,
+        size_of_headers=0,
+        sections=[],
+        exception_rva=0,
+        exception_size=0,
+    )
+
+
+def parse_binary(path: Path, data: bytes | None = None) -> PEInfo:
+    raw = data if data is not None else path.read_bytes()
+    if raw[:4] == b"\x7fELF":
+        return parse_elf(path, raw)
+    if raw[:2] == b"MZ":
+        return parse_pe(path, raw)
+    raise ValueError(f"unsupported binary format: {path}")
+
+
+def binary_os(pe: PEInfo) -> str:
+    return "linux" if pe.data[:4] == b"\x7fELF" else "windows"
+
+
 # ---------------------------------------------------------------------------
 # AOB patterns
 # ---------------------------------------------------------------------------
@@ -1262,7 +1303,7 @@ def build_report(
         "ts_unix": ts,
         "ts_iso": datetime.fromtimestamp(ts, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "report_id": f"{ts}-{node_md5[:12]}",
-        "os": "windows",
+        "os": binary_os(pe),
         "arch": pe.arch,
         "goal": goal,
         "goal_title": db.goal_title(goal, lang),
@@ -1456,7 +1497,7 @@ def parse_md5_pair(text: str) -> tuple[str, str]:
 def cmd_scan(args: argparse.Namespace) -> int:
     node = Path(args.node).expanduser()
     data = node.read_bytes()
-    pe = parse_pe(node, data)
+    pe = parse_binary(node, data)
     db = load_db(Path(args.tables))
     md5 = md5_hex(data)
     ref = choose_reference(db, args.goal, node, md5, args.ref_md5)
@@ -1551,7 +1592,7 @@ def cmd_selftest(args: argparse.Namespace) -> int:
             print(f"FAIL {path}: no {args.goal} table for {actual}")
             failures += 1
             continue
-        pe = parse_pe(path, data)
+        pe = parse_binary(path, data)
         results = scan_binary(pe, table, profiles, force_scan=True)
         bad = [result for result in results if not result.ok]
         if bad:
@@ -1603,7 +1644,7 @@ def cmd_diff(args: argparse.Namespace) -> int:
 def cmd_inspect(args: argparse.Namespace) -> int:
     path = Path(args.node).expanduser()
     data = path.read_bytes()
-    pe = parse_pe(path, data)
+    pe = parse_binary(path, data)
     info = {
         "path": str(path),
         "md5": md5_hex(data),
