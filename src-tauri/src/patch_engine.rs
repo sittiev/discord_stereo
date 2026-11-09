@@ -258,21 +258,23 @@ fn table_for<'a>(db: &'a PatchDb, goal: &str, md5: &str, bytes: &[u8]) -> Option
         .find(|t| t.goal == goal && t.binary_md5.is_none())
 }
 
-/// md5 of the binary with every offset site's patch applied in memory;
-/// None when any site falls outside the binary.
+/// md5 of the current bytes when every offset site already holds its patch.
+/// The caller compares this against the file's own md5, so any other byte
+/// state cannot match without an md5 collision; skipping the hash keeps
+/// analysis instant on multi-hundred-MB foreign nodes.
 fn patched_md5(table: &Table, bytes: &[u8]) -> Option<String> {
-    let mut copy = bytes.to_vec();
     for site in &table.sites {
         let TableSite::Offset { offset, patch, .. } = site else {
             return None;
         };
-        let start = u32::from_str_radix(offset.trim_start_matches("0x"), 16).ok()?;
+        let start = u32::from_str_radix(offset.trim_start_matches("0x"), 16).ok()? as usize;
         let patch = decode_hex(patch, "site").ok()?;
-        let end = start as usize + patch.len();
-        copy.get_mut(start as usize..end)?;
-        copy[start as usize..end].copy_from_slice(&patch);
+        let end = start + patch.len();
+        if bytes.get(start..end)? != patch.as_slice() {
+            return None;
+        }
     }
-    Some(md5_hex(&copy))
+    Some(md5_hex(bytes))
 }
 
 fn resolve_sites(table: &Table, bytes: &[u8]) -> Result<Vec<Resolved>, EngineError> {
