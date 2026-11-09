@@ -29,9 +29,13 @@ fi
 
 for report in "${reports[@]}"; do
   read -r rid goal os dir md5 < <(node -e '
-    const r = require(process.argv[1]);
+    const r = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
     console.log([r.report_id, r.goal, r.os, r.discord_dir, r.node_md5].join(" "));
   ' "$report")
+  if [ -z "$rid" ] || [ -z "$md5" ]; then
+    echo "discord-reports-process: skip unreadable report $report"
+    continue
+  fi
   platform="$os"
   [ "$os" = "windows" ] && platform="win"
   host="${dir#app-}"

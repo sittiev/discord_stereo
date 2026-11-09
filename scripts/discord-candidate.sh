@@ -37,9 +37,13 @@ for dir in "${builds[@]}"; do
     continue
   fi
   read -r platform channel host md5 < <(node -e '
-    const m = require(process.argv[1]);
+    const m = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
     console.log([m.platform, m.channel, String(m.app_version).replace(/^app-/, ""), m.md5].join(" "));
   ' "$meta")
+  if [ -z "$platform" ] || [ -z "$md5" ]; then
+    echo "discord-candidate: skip unreadable metadata $meta"
+    continue
+  fi
   tag="$platform-$channel-$host"
   echo "== $tag (md5 $md5)"
 
