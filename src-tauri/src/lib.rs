@@ -58,15 +58,19 @@ struct GoalInfo {
 
 /// Analyze a node for a goal without writing (dry-run).
 #[tauri::command]
-fn analyze_node(
+async fn analyze_node(
     node: String,
     goal: String,
     include_filters: Option<bool>,
 ) -> Result<Analysis, String> {
-    let mut analysis =
-        analyze(Path::new(&node), &goal, &tables::snapshot()).map_err(|e| e.to_string())?;
-    apply_filter_policy(&mut analysis.sites, include_filters.unwrap_or(true));
-    Ok(analysis)
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut analysis =
+            analyze(Path::new(&node), &goal, &tables::snapshot()).map_err(|e| e.to_string())?;
+        apply_filter_policy(&mut analysis.sites, include_filters.unwrap_or(true));
+        Ok(analysis)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Collect and submit a divergence report for an analysis that found no
@@ -75,7 +79,21 @@ fn analyze_node(
 /// best-effort sinks. Called explicitly by the UI from the Analyze step
 /// when a divergence is shown.
 #[tauri::command]
-fn report_divergence(
+async fn report_divergence(
+    app: tauri::AppHandle,
+    node: String,
+    goal: String,
+    client_kind: String,
+    lang: String,
+) -> Result<ReportOutcome, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        report_divergence_blocking(app, node, goal, client_kind, lang)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+fn report_divergence_blocking(
     app: tauri::AppHandle,
     node: String,
     goal: String,
