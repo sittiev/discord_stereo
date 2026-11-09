@@ -1273,11 +1273,7 @@ def discord_dir_from_path(path: Path) -> str:
 CLIENT_DIR_KINDS = {
     "discord": "stable",
     "discordptb": "ptb",
-    "discord ptb": "ptb",
-    "discord-ptb": "ptb",
     "discordcanary": "canary",
-    "discord canary": "canary",
-    "discord-canary": "canary",
     "vencord": "vencord",
     "equicord": "vencord",
 }

@@ -97,11 +97,7 @@ def locate(data: bytes, sym_addr: int, delta: int, orig: bytes, patch: bytes, wi
 CLIENT_DIR_KINDS = {
     "discord": "stable",
     "discordptb": "ptb",
-    "discord ptb": "ptb",
-    "discord-ptb": "ptb",
     "discordcanary": "canary",
-    "discord canary": "canary",
-    "discord-canary": "canary",
     "vencord": "vencord",
     "equicord": "vencord",
 }
