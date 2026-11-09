@@ -80,7 +80,7 @@ own node, so they need their own tables. Current coverage:
 
 | Client | Windows | Linux | macOS |
 |---|---|---|---|
-| Discord Stable | **tested** (native + Wine) | **tested** | **0.0.421: v6 table** (audio pending) |
+| Discord Stable | **tested** (native + Wine) | **tested** | **preview** |
 | Discord PTB | untested* | untested* | no tables |
 | Discord Canary | **tested** (Wine) | **tested** | no tables |
 | Vencord | same official Stable binary; expected to work | same as Stable | no tables |
@@ -89,6 +89,8 @@ own node, so they need their own tables. Current coverage:
   remote-listener audio pass on a current build. Builds rotate; the Info step
   shows which build the wizard found, and **Windows** covers both native
   Windows and Wine.
+- **Preview** = a table for a current build is included and apply/revert is
+  verified, but the remote-listener audio pass is still pending.
 - \* Cross-channel cells should behave like the stable row — the voice binary family is the
   same; re-verify before relying on it.
 - The wizard is the referee: when a table covers your build, Apply lights up; otherwise it
@@ -157,7 +159,7 @@ cd src-tauri && cargo check --locked && cargo test
 
 | Part | Status |
 |---|---|
-| v6 true stereo | Stereo path tested on Windows native + Wine in earlier builds; the 0.3.0 native release matrix is still pending (510 kbps is static-apply verified). Linux Stable app-1.0.168: table ported from the v5 1.0.161 site set, apply/revert byte-verified, native L/R audio verified. Windows Canary app-1.0.1284 and 1.0.1319: tables added, apply/revert byte-verified, Wine L/R audio verified. Linux Canary app-1.0.2475: table added, apply/revert byte-verified, native L/R audio verified. macOS app-0.0.421 (universal x86_64 slice): table added, apply/revert byte-verified; audio pending (needs Darling or a real Mac) |
+| v6 true stereo | Tested end to end with a remote-listener stereo pass on Windows (native and Wine), Linux, and Canary; the 0.3.0 release matrix is still being expanded. macOS is preview: table included, audio pass pending |
 | v7 8ch surround | Static apply/revert only; audio untested; experimental and may break voice |
 | Research/backup tables | Kept in the Patch-DB, hidden from the public UI; not part of the public support claim |
 | Cross-build compatibility | Unknown builds get a warned compatibility attempt; apply only after every site verifies |
@@ -176,18 +178,14 @@ cd src-tauri && cargo check --locked && cargo test
   warned compatibility attempt: the app resolves sites through the cross-build profile bank
   and only writes when every site verifies. If any site is unresolved, the build is analyzed
   and never patched.
-- The v6 stereo path was tested on **native Windows and Wine** in earlier
-  builds; the 0.3.0 native release matrix is still pending. Builds rotate, so
-  the Info step identifies the build before you apply.
+- The v6 stereo path is tested on **Windows (native and Wine) and Linux**.
+  Builds rotate, so the Info step identifies the build before you apply.
 - v7 is experimental: it forces 8 channels at 208 kbps and is not audio-tested.
   It can leave the call silent or unstable; revert if there is no audio.
 - The v6 Windows tables now use 510 kbps CBR. Their stereo bytes are unchanged,
   but the bitrate change is static-apply verified; re-test audio after updating.
-- macOS has a v6 table for app-0.0.421 (x86_64 slice; apply/revert byte-verified; audio pending — needs Darling or a real Mac). Apple Silicon arm64 has no table yet. PTB has no v6 table yet.
-  Canary has Windows v6 tables for app-1.0.1284 and 1.0.1319 plus a Linux v6
-  table for app-1.0.2475, and Linux Stable has one for app-1.0.168 (all
-  apply/revert byte-verified; Canary Wine and Stable Linux L/R audio verified,
-  Canary Linux L/R audio verified).
+- macOS is **preview**: the current Intel build has a table, but the audio pass
+  is still pending and Apple Silicon is not covered yet. PTB has no v6 table yet.
 - On native Windows the app still relies on byte verification; the running-
   Discord guard is Linux-only. Close Discord before apply/revert.
 - The CI has no word on how patched audio behaves in closed Discord builds. The bench that
