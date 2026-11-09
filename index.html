@@ -16,10 +16,6 @@
       html {
         color-scheme: light dark;
       }
-      :root {
-        /* Content column width; topbar and footer align to it. */
-        --pane-w: 520px;
-      }
       body {
         display: flex;
         flex-direction: column;
@@ -29,65 +25,332 @@
         cursor: default;
         touch-action: manipulation;
       }
+      /* m3e-theme injects a later `body { background-color: var(--md-sys-
+         color-background) }` document rule; the doubled selector wins on
+         specificity and keeps the spec palette. */
+      html body {
+        background: var(--sw-bg);
+        color: var(--sw-text);
+        scrollbar-color: color-mix(in srgb, var(--sw-text-2) 55%, transparent)
+          transparent;
+      }
       [hidden] {
         display: none !important;
       }
-      /* Top bar: only the stepper - shows progress and also navigates.
-         Same column as the content (`main` + .pane): 520px + 16px padding on
-         each side. In a wide window the stepper does not stretch. */
-      .topbar {
+
+      /* ---- palette (spec tokens; light is the baseline) ---- */
+      :root,
+      html[data-theme="light"],
+      html[data-theme="auto"] {
+        --sw-bg: #e9e9f4;
+        --sw-surface: #fbfbfe;
+        --sw-surface-2: #efeff8;
+        --sw-outline: #d9d9ea;
+        --sw-line: #dedeec;
+        --sw-text: #1b1b2c;
+        --sw-text-2: #5e5e7c;
+        --sw-primary: #5a5bd8;
+        --sw-on-primary: #ffffff;
+        --sw-primary-ct: #e1e1fc;
+        --sw-on-primary-ct: #1c1c3a;
+        --sw-ambient: #b9b8f0;
+        --sw-ambient-2: #8e8cf0;
+        --sw-glow-a: rgba(122, 120, 220, 0.4);
+        --sw-glow-b: rgba(98, 96, 210, 0.32);
+        --sw-shadow: 0 24px 70px -18px rgba(28, 28, 70, 0.3);
+      }
+      html[data-theme="dark"] {
+        --sw-bg: #101116;
+        --sw-surface: #191a25;
+        --sw-surface-2: #292b40;
+        --sw-outline: #414258;
+        --sw-line: #2e3045;
+        --sw-text: #f4f2ff;
+        --sw-text-2: #aaaac8;
+        --sw-primary: #8185ff;
+        --sw-on-primary: #131320;
+        --sw-primary-ct: #4947a5;
+        --sw-on-primary-ct: #e4e3ff;
+        --sw-ambient: #6664d9;
+        --sw-ambient-2: #5865f2;
+        --sw-glow-a: rgba(102, 100, 217, 0.55);
+        --sw-glow-b: rgba(88, 101, 242, 0.42);
+        --sw-shadow: 0 24px 70px -18px rgba(4, 5, 14, 0.65);
+      }
+      @media (prefers-color-scheme: dark) {
+        html[data-theme="auto"] {
+          --sw-bg: #101116;
+          --sw-surface: #191a25;
+          --sw-surface-2: #292b40;
+          --sw-outline: #414258;
+          --sw-line: #2e3045;
+          --sw-text: #f4f2ff;
+          --sw-text-2: #aaaac8;
+          --sw-primary: #8185ff;
+          --sw-on-primary: #131320;
+          --sw-primary-ct: #4947a5;
+          --sw-on-primary-ct: #e4e3ff;
+          --sw-ambient: #6664d9;
+          --sw-ambient-2: #5865f2;
+          --sw-glow-a: rgba(102, 100, 217, 0.55);
+          --sw-glow-b: rgba(88, 101, 242, 0.42);
+          --sw-shadow: 0 24px 70px -18px rgba(4, 5, 14, 0.65);
+        }
+      }
+
+      /* m3e dark tokens follow the spec palette (component surfaces). */
+      m3e-theme[scheme="dark"],
+      html[data-theme="dark"] m3e-theme {
+        --md-sys-color-surface: #191a25;
+        --md-sys-color-surface-dim: #12131b;
+        --md-sys-color-surface-container-lowest: #13141c;
+        --md-sys-color-surface-container-low: #171823;
+        --md-sys-color-surface-container: #1b1c29;
+        --md-sys-color-surface-container-high: #20212f;
+        --md-sys-color-surface-container-highest: #242536;
+        --md-sys-color-on-surface: #f4f2ff;
+        --md-sys-color-on-surface-variant: #aaaac8;
+        --md-sys-color-outline: #414258;
+        --md-sys-color-outline-variant: #2e3045;
+        --md-sys-color-primary: #8185ff;
+        --md-sys-color-on-primary: #131320;
+        --md-sys-color-primary-container: #4947a5;
+        --md-sys-color-on-primary-container: #e4e3ff;
+        --md-sys-color-secondary: #b9b9e0;
+        --md-sys-color-on-secondary: #23233c;
+        --md-sys-color-secondary-container: #2a2c40;
+        --md-sys-color-on-secondary-container: #c9cae8;
+        --md-sys-color-tertiary: #c8b9e0;
+        --md-sys-color-on-tertiary: #2b2340;
+        --md-sys-color-tertiary-container: #333047;
+        --md-sys-color-on-tertiary-container: #ddd0f0;
+        --md-sys-color-error: #ffb4ab;
+        --md-sys-color-on-error: #690005;
+        --md-sys-color-error-container: #93000a;
+        --md-sys-color-on-error-container: #ffdad6;
+        --md-sys-color-inverse-surface: #e3e1f4;
+        --md-sys-color-inverse-on-surface: #2a2b3a;
+        --md-sys-color-scrim: #000000;
+        --md-sys-color-surface-tint: #8185ff;
+      }
+      @media (prefers-color-scheme: dark) {
+        m3e-theme[scheme="auto"] {
+          --md-sys-color-surface: #191a25;
+          --md-sys-color-surface-dim: #12131b;
+          --md-sys-color-surface-container-lowest: #13141c;
+          --md-sys-color-surface-container-low: #171823;
+          --md-sys-color-surface-container: #1b1c29;
+          --md-sys-color-surface-container-high: #20212f;
+          --md-sys-color-surface-container-highest: #242536;
+          --md-sys-color-on-surface: #f4f2ff;
+          --md-sys-color-on-surface-variant: #aaaac8;
+          --md-sys-color-outline: #414258;
+          --md-sys-color-outline-variant: #2e3045;
+          --md-sys-color-primary: #8185ff;
+          --md-sys-color-on-primary: #131320;
+          --md-sys-color-primary-container: #4947a5;
+          --md-sys-color-on-primary-container: #e4e3ff;
+          --md-sys-color-secondary: #b9b9e0;
+          --md-sys-color-on-secondary: #23233c;
+          --md-sys-color-secondary-container: #2a2c40;
+          --md-sys-color-on-secondary-container: #c9cae8;
+          --md-sys-color-tertiary: #c8b9e0;
+          --md-sys-color-on-tertiary: #2b2340;
+          --md-sys-color-tertiary-container: #333047;
+          --md-sys-color-on-tertiary-container: #ddd0f0;
+          --md-sys-color-error: #ffb4ab;
+          --md-sys-color-on-error: #690005;
+          --md-sys-color-error-container: #93000a;
+          --md-sys-color-on-error-container: #ffdad6;
+          --md-sys-color-inverse-surface: #e3e1f4;
+          --md-sys-color-inverse-on-surface: #2a2b3a;
+          --md-sys-color-scrim: #000000;
+          --md-sys-color-surface-tint: #8185ff;
+        }
+      }
+
+      /* Ambient layer behind the modal: soft indigo/lavender reflections at
+         the edges, standing in for the blurred Discord environment. It is
+         also the window drag region (decorations are off). */
+      .ambient {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        overflow: hidden;
+        background: var(--sw-bg);
+      }
+      .ambient-glow {
+        position: absolute;
+        border-radius: 50%;
+        pointer-events: none;
+      }
+      .glow-a {
+        width: 480px;
+        height: 480px;
+        left: -160px;
+        top: -200px;
+        background: var(--sw-glow-a);
+        filter: blur(70px);
+      }
+      .glow-b {
+        width: 420px;
+        height: 420px;
+        right: -140px;
+        bottom: -180px;
+        background: var(--sw-glow-b);
+        filter: blur(70px);
+      }
+
+      .stage {
+        position: relative;
+        z-index: 1;
+        flex: 1;
+        min-height: 0;
         display: flex;
         align-items: center;
+        justify-content: center;
+      }
+      .wizard {
+        width: min(89vw, 1080px);
+        height: min(84vh, 96vh);
+        display: flex;
+        flex-direction: column;
+        background: var(--sw-surface);
+        border: 1px solid var(--sw-outline);
+        border-radius: 36px;
+        box-shadow: var(--sw-shadow);
+        overflow: hidden;
+      }
+
+      /* ---- header: stepper + close ---- */
+      .wizard-header {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        padding: 22px 28px 10px 36px;
+        flex-shrink: 0;
+      }
+      .stepper {
+        flex: 1;
+        min-width: 0;
+      }
+      .stepper ol {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+      }
+      .stepper li {
+        flex: 1;
+        position: relative;
+        min-width: 0;
+      }
+      .stepper li:not(:last-child)::after {
+        content: "";
+        position: absolute;
+        top: 20px;
+        height: 2px;
+        border-radius: 2px;
+        left: calc(50% + 25px);
+        width: calc(100% - 50px);
+        background: var(--sw-line);
+      }
+      .stepper li.done:not(:last-child)::after {
+        background: color-mix(in srgb, var(--sw-primary) 55%, var(--sw-line));
+      }
+      .step-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
         gap: 8px;
-        box-sizing: border-box;
         width: 100%;
-        max-width: calc(var(--pane-w) + 32px);
-        margin: 0 auto;
-        padding: 8px 16px 0;
+        padding: 0;
+        border: 0;
+        background: none;
+        color: var(--sw-text-2);
+        font: inherit;
+      }
+      .step-btn:focus-visible {
+        outline: 2px solid var(--sw-primary);
+        outline-offset: 3px;
+        border-radius: 12px;
+      }
+      .step-dot {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 15px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        border: 2px solid var(--sw-outline);
+        background: var(--sw-surface);
+        color: var(--sw-text-2);
+        transition:
+          background 200ms cubic-bezier(0.2, 0, 0, 1),
+          border-color 200ms cubic-bezier(0.2, 0, 0, 1),
+          color 200ms cubic-bezier(0.2, 0, 0, 1);
+      }
+      .step-btn[aria-current="step"] {
+        color: var(--sw-text);
+      }
+      .step-btn[aria-current="step"] .step-dot {
+        background: var(--sw-primary);
+        border-color: var(--sw-primary);
+        color: var(--sw-on-primary);
+      }
+      .step-btn.done .step-dot {
+        background: var(--sw-primary-ct);
+        border-color: var(--sw-primary-ct);
+        color: var(--sw-on-primary-ct);
+      }
+      .step-btn[aria-current="step"] .step-label {
+        font-weight: 600;
+      }
+      .step-label {
+        font-size: 13px;
+        line-height: 1.2;
+      }
+      .close-btn {
+        width: 44px;
+        height: 44px;
         flex-shrink: 0;
+        border: 0;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--sw-surface-2);
+        color: var(--sw-text-2);
+        transition:
+          background 180ms ease,
+          color 180ms ease;
       }
-      /* The stepper host must shrink to the topbar column: `min-width: auto`
-         keeps it at the labels' intrinsic width, overflowing right and
-         pushing the last step past the pane edge. */
-      m3e-stepper {
-        min-width: 0;
-        flex: 1 1 0;
+      .close-btn:hover {
+        background: color-mix(in srgb, var(--sw-surface-2) 78%, var(--sw-primary) 22%);
+        color: var(--sw-text);
       }
-      /* Equal step cells: the native `flex: 1 1 auto` sizes cells by label
-         text, squeezing short labels like "Info" against the right edge. */
-      m3e-step {
-        flex: 1 1 0;
-        min-width: 0;
+      .close-btn:focus-visible {
+        outline: 2px solid var(--sw-primary);
+        outline-offset: 2px;
       }
-      .titlebar {
-        width: 100%;
-        height: 8px;
-        user-select: none;
-        flex-shrink: 0;
-      }
-      main {
+
+      /* ---- body: two-column bento ---- */
+      .wizard-body {
         flex: 1;
         min-height: 0;
         overflow-y: auto;
+        overflow-x: hidden;
         overscroll-behavior: contain;
-        padding: 8px 16px 16px;
-        box-sizing: border-box;
-      }
-      .pane {
-        width: 100%;
-        min-width: 0;
-        max-width: var(--pane-w);
-        margin: 0 auto;
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
+        padding: 6px 36px 26px;
+        scrollbar-width: thin;
       }
       /* Step change: carousel with offset and fade (the Motion "item offset"
          pattern), animated via WAAPI in main.ts. #panels clips the panel that
          passes the edge during the slide. */
       #panels {
-        display: flex;
-        flex-direction: column;
         position: relative;
         overflow-x: clip;
       }
@@ -96,74 +359,219 @@
           overflow: hidden;
         }
       }
+      .pane {
+        display: grid;
+        grid-template-columns: minmax(0, 34fr) minmax(0, 66fr);
+        gap: 28px;
+      }
+      .identity {
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        padding: 30px 28px;
+        border-radius: 28px;
+        border: 1px solid var(--sw-outline);
+        background:
+          radial-gradient(
+            120% 90% at 15% 0%,
+            color-mix(in srgb, var(--sw-primary) 24%, transparent),
+            transparent 55%
+          ),
+          var(--sw-surface-2);
+      }
+      .blob {
+        position: absolute;
+        pointer-events: none;
+      }
+      .blob-a {
+        width: 230px;
+        height: 230px;
+        right: -80px;
+        top: -70px;
+        background: color-mix(in srgb, var(--sw-primary) 20%, transparent);
+        border-radius: 38% 62% 58% 42% / 40% 45% 55% 60%;
+        transform: rotate(24deg);
+      }
+      .blob-b {
+        width: 270px;
+        height: 150px;
+        left: -95px;
+        bottom: 36px;
+        background: color-mix(in srgb, var(--sw-ambient) 16%, transparent);
+        border-radius: 60% 40% 45% 55% / 50% 60% 40% 50%;
+      }
+      .identity-top {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        position: relative;
+      }
+      .brand-mark {
+        width: 44px;
+        height: 44px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--sw-primary);
+        color: var(--sw-on-primary);
+      }
+      .brand-mark svg {
+        width: 26px;
+        height: 26px;
+      }
+      .brand-wave {
+        color: var(--sw-primary);
+        display: inline-flex;
+      }
+      .identity-title {
+        margin: 0;
+        font-size: clamp(30px, 3.4vw, 44px);
+        line-height: 1.05;
+        letter-spacing: -0.02em;
+        font-weight: 700;
+        position: relative;
+      }
+      .identity-desc {
+        margin: 0;
+        color: var(--sw-text-2);
+        font-size: 14.5px;
+        line-height: 1.5;
+        position: relative;
+      }
+      .identity-card {
+        margin-top: auto;
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 16px;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--sw-surface) 55%, transparent);
+        border: 1px solid var(--sw-outline);
+        color: var(--sw-text-2);
+        font-size: 13px;
+      }
+      .identity-card .mini-wave {
+        color: var(--sw-primary);
+        display: inline-flex;
+      }
+
+      .config {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        min-width: 0;
+      }
       .grid {
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: 16px;
+      }
+
+      /* ---- selectable cards (clients, goals) ---- */
+      /* m3e-card paints its surface on an internal `.base` with the
+         --m3e-card-container-color token; the host carries the ring. */
+      m3e-card.selectable {
+        --m3e-card-container-color: var(--sw-surface-2);
+        --m3e-card-shape: 28px;
+        border-radius: 28px;
+      }
+      m3e-card.selectable:hover {
+        --m3e-card-container-color: color-mix(in srgb, var(--sw-surface-2) 70%, var(--sw-primary) 12%);
+      }
+      m3e-card.selectable.selected {
+        --m3e-card-container-color: color-mix(in srgb, var(--sw-surface-2) 55%, var(--sw-primary) 16%);
+        box-shadow: 0 0 0 2px var(--sw-primary);
+      }
+      #client-list m3e-card.selectable {
+        --m3e-card-shape: 20px;
+        border-radius: 20px;
       }
       .goal-body {
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        padding: 4px 4px 4px 8px;
+        gap: 14px;
+        padding: 24px;
       }
-      .about-body {
-        padding: 12px 16px;
-      }
-      .pref-body {
+      .goal-head {
         display: flex;
-        flex-direction: column;
-        gap: 16px;
-        padding: 12px 16px;
+        align-items: flex-start;
+        gap: 18px;
       }
-      .pref-text {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-        min-width: 0;
-      }
-      .pref-text .muted {
-        font-size: 0.85em;
-      }
-      /* Cursor policy: arrow everywhere, hand only on links. m3e declares
-         `cursor: pointer` on component hosts from inside the shadow styles,
-         so this outer rule overrides it with `!important`; slotted content
-         inherits the host cursor. */
-      body,
-      body * {
-        cursor: default !important;
-      }
-      [data-url],
-      [data-url] * {
-        cursor: pointer !important;
-      }
-      .link {
-        text-decoration: underline;
-      }
-      .row-between {
+      .goal-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 18px;
+        flex-shrink: 0;
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        gap: 12px;
+        justify-content: center;
+        background: var(--sw-primary-ct);
+        color: var(--sw-primary);
       }
-      .row-between > :first-child {
+      .goal-icon svg {
+        width: 30px;
+        height: 30px;
+      }
+      .goal-text {
+        flex: 1;
         min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
       }
-      .row-between > :last-child {
-        flex-shrink: 0;
+      .goal-title-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
       }
-      .muted {
-        opacity: 0.72;
+      .goal-title-row strong {
+        font-size: 20px;
+        letter-spacing: -0.01em;
       }
-      .nowrap {
+      .pill {
+        padding: 3px 12px;
+        border-radius: 999px;
+        background: var(--sw-primary-ct);
+        color: var(--sw-on-primary-ct);
+        font-size: 12px;
+        font-weight: 600;
         white-space: nowrap;
+      }
+      .radio {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
         flex-shrink: 0;
+        margin-top: 4px;
+        border: 2px solid var(--sw-outline);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: border-color 200ms cubic-bezier(0.2, 0, 0, 1);
       }
-      m3e-callout {
-        width: 100%;
+      m3e-card.selectable.selected .radio {
+        border-color: var(--sw-primary);
       }
-      /* Actions of the Apply step: recovery kept to the left; the flow
-         (Analyze, Apply) to the right, in the advance buttons column. */
+      m3e-card.selectable.selected .radio::after {
+        content: "";
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--sw-primary);
+      }
+      .goal-foot {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        align-items: flex-start;
+      }
+
+      /* ---- apply step ---- */
       .actions-row {
         display: flex;
         align-items: center;
@@ -173,33 +581,52 @@
       .actions-row #btn-revert {
         margin-right: auto;
       }
-      .wizard-nav {
-        display: flex;
-        justify-content: flex-end;
-        gap: 8px;
-        padding-top: 8px;
+      m3e-list#site-list {
+        border-radius: 20px;
+        border: 1px solid var(--sw-outline);
+        background: var(--sw-surface-2);
       }
-      /* Fixed footer: About lives here, not in a step. The theme toggle
-         sits to the left, separated from the links; the border spans the
-         whole window, content aligns to the column (`--pane-w`). */
-      #app-footer {
+      .site-state {
+        display: inline-flex;
+        color: var(--sw-primary);
+      }
+      .site-state.state-pat {
+        color: #23a55a;
+      }
+      .site-state.state-bad {
+        color: #f23f43;
+      }
+      .site-state.state-skip {
+        color: var(--sw-text-2);
+      }
+
+      /* ---- footer ---- */
+      .wizard-footer {
         display: flex;
         align-items: center;
-        justify-content: flex-end;
-        gap: 2px;
-        padding: 4px max(16px, calc((100% - var(--pane-w)) / 2));
+        gap: 12px;
+        padding: 14px 36px;
         flex-shrink: 0;
-        border-top: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+        border-top: 1px solid var(--sw-line);
       }
-      #app-footer #btn-theme {
+      .wizard-footer #btn-theme {
         margin-right: auto;
       }
+      #btn-back,
+      #btn-next {
+        min-width: 138px;
+        height: 46px;
+        border-radius: 999px;
+        font-weight: 600;
+      }
+
       m3e-snackbar#snackbar {
         position: fixed;
         top: auto;
-        bottom: 64px;
-        left: 12px;
-        right: 12px;
+        bottom: 92px;
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%);
         z-index: 50;
       }
       m3e-icon-button svg {
@@ -208,6 +635,8 @@
       m3e-theme {
         display: contents;
       }
+
+      /* ---- shared bits ---- */
       .cell {
         display: block;
         width: 0;
@@ -223,8 +652,6 @@
       m3e-list-item {
         min-width: 0;
       }
-      /* Client row: own flex with the icon always optically centered.
-         (`m3e-list-item` pins leading to the top on 3 lines, per spec.) */
       .client-row {
         display: flex;
         align-items: center;
@@ -243,18 +670,6 @@
         font-size: 0.72em;
         opacity: 0.72;
       }
-      /* Clean selection: filled relief + ring in the theme primary.
-         Blur-free `box-shadow` follows the radius and paints outside the
-         opaque `.base` (a negative outline got buried). No extra icon;
-         `aria-pressed` carries the state to screen readers. */
-      m3e-card.selectable {
-        border-radius: 12px;
-      }
-      m3e-card.selectable[variant="filled"] {
-        box-shadow: 0 0 0 2px var(--md-sys-color-primary, #7289da);
-      }
-      /* Client icon: real brand mark at 24px, same size on all, always at
-         the vertical center of the row. */
       .client-icon {
         display: inline-flex;
         width: 24px;
@@ -265,14 +680,41 @@
         width: 24px;
         height: 24px;
       }
-      m3e-list-item > [slot="leading"] {
-        align-self: center;
-        display: inline-flex;
+      .row-between {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
       }
-      #client-list,
-      #site-list {
-        width: 100%;
+      .row-between > :first-child {
         min-width: 0;
+      }
+      .row-between > :last-child {
+        flex-shrink: 0;
+      }
+      .muted {
+        opacity: 0.72;
+      }
+      .pref-body {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        padding: 12px 16px;
+      }
+      .pref-text {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+      }
+      .pref-text .muted {
+        font-size: 0.85em;
+      }
+      .about-body {
+        padding: 12px 16px;
+      }
+      .link {
+        text-decoration: underline;
       }
       #sysinfo {
         display: flex;
@@ -280,151 +722,322 @@
         flex-wrap: wrap;
         font-variant-numeric: tabular-nums;
       }
+      m3e-callout {
+        width: 100%;
+      }
+
+      /* Cursor policy: arrow everywhere, hand only on links. m3e declares
+         `cursor: pointer` on component hosts from inside the shadow styles,
+         so this outer rule overrides it with `!important`; slotted content
+         inherits the host cursor. */
+      body,
+      body * {
+        cursor: default !important;
+      }
+      [data-url],
+      [data-url] * {
+        cursor: pointer !important;
+      }
+
+      /* ---- narrow: single column, compact identity ---- */
+      @media (max-width: 720px) {
+        .wizard {
+          width: 94vw;
+          height: 92vh;
+          border-radius: 28px;
+        }
+        .pane {
+          grid-template-columns: 1fr;
+        }
+        .identity {
+          min-height: 0;
+          padding: 18px 20px;
+          gap: 12px;
+          flex-direction: row;
+          flex-wrap: wrap;
+          align-items: center;
+        }
+        .identity-title {
+          font-size: 24px;
+        }
+        .identity-desc,
+        .identity-card,
+        .blob {
+          display: none;
+        }
+        .wizard-header {
+          padding: 16px 16px 6px 22px;
+          gap: 10px;
+        }
+        .wizard-body {
+          padding: 4px 18px 18px;
+        }
+        .wizard-footer {
+          padding: 10px 16px;
+        }
+        #btn-back,
+        #btn-next {
+          min-width: 108px;
+        }
+        .step-dot {
+          width: 34px;
+          height: 34px;
+        }
+        .stepper li:not(:last-child)::after {
+          top: 16px;
+          left: calc(50% + 21px);
+          width: calc(100% - 42px);
+        }
+        .step-label {
+          font-size: 11px;
+        }
+      }
     </style>
   </head>
 
   <body>
-    <m3e-theme color="#7289da" scheme="auto" strong-focus>
-      <div class="titlebar" data-tauri-drag-region></div>
-      <div class="topbar">
-        <m3e-stepper
-          id="wizard"
-          orientation="horizontal"
-          header-position="above"
-          label-position="below"
-        >
-          <m3e-step for="s-clients" slot="step" selected>Clientes</m3e-step>
-          <m3e-step for="s-goal" slot="step">Patches</m3e-step>
-          <m3e-step for="s-apply" slot="step">Aplicar</m3e-step>
-          <m3e-step for="s-info" slot="step">Info</m3e-step>
-        </m3e-stepper>
+    <m3e-theme color="#8185FF" scheme="auto" strong-focus>
+      <div class="ambient" data-tauri-drag-region aria-hidden="true">
+        <span class="ambient-glow glow-a"></span>
+        <span class="ambient-glow glow-b"></span>
       </div>
-      <main>
-        <div id="panels">
-          <section class="pane" id="s-clients">
-            <div id="client-list" style="display: contents"></div>
-            <m3e-callout variant="info" id="no-clients" hidden>
-              Nenhum cliente do Discord encontrado nos caminhos padrão. Instale
-              o Discord (stable, PTB, canary ou Vencord) e tente de novo.
-            </m3e-callout>
-            <div class="wizard-nav">
-              <m3e-button variant="filled" id="btn-to-goal" disabled>Continuar</m3e-button>
-            </div>
-          </section>
 
-          <section class="pane" id="s-goal" hidden>
-            <m3e-callout variant="info">
-              Filtros de voz do node (Krisp, ruído, eco, AGC, passa-alta e
-              low-pass) ficam sempre desativados. Não há switch.
-            </m3e-callout>
-            <div class="grid" id="goal-grid"></div>
-            <m3e-callout variant="info">
-              O botão &quot;testar microfone&quot; continua mono por design do
-              cliente. O estéreo é ouvido por todos na chamada, não por quem fala.
-            </m3e-callout>
-            <div class="wizard-nav">
-              <m3e-button variant="text" data-step="s-clients">Voltar</m3e-button>
-              <m3e-button variant="filled" data-step="s-apply">Continuar</m3e-button>
-            </div>
-          </section>
+      <main class="stage">
+        <div class="wizard">
+          <header class="wizard-header">
+            <nav class="stepper" aria-label="Etapas do wizard">
+              <ol role="list">
+                <li>
+                  <button type="button" class="step-btn" data-step="s-clients" aria-current="step">
+                    <span class="step-dot" aria-hidden="true">1</span>
+                    <span class="step-label">Clientes</span>
+                  </button>
+                </li>
+                <li>
+                  <button type="button" class="step-btn" data-step="s-goal">
+                    <span class="step-dot" aria-hidden="true">2</span>
+                    <span class="step-label">Patches</span>
+                  </button>
+                </li>
+                <li>
+                  <button type="button" class="step-btn" data-step="s-apply">
+                    <span class="step-dot" aria-hidden="true">3</span>
+                    <span class="step-label">Aplicar</span>
+                  </button>
+                </li>
+                <li>
+                  <button type="button" class="step-btn" data-step="s-info">
+                    <span class="step-dot" aria-hidden="true">4</span>
+                    <span class="step-label">Info</span>
+                  </button>
+                </li>
+              </ol>
+            </nav>
+            <button type="button" id="btn-close" class="close-btn" aria-label="Fechar Stereo Wizard">
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                <path
+                  fill="currentColor"
+                  d="M18.3 5.71a.996.996 0 00-1.41 0L12 10.59 7.11 5.7A.996.996 0 105.7 7.11L10.59 12 5.7 16.89a.996.996 0 101.41 1.41L12 13.41l4.89 4.89a.996.996 0 101.41-1.41L13.41 12l4.89-4.89c.38-.38.38-1.02 0-1.4z"
+                />
+              </svg>
+            </button>
+          </header>
 
-          <section class="pane" id="s-apply" hidden>
-            <div id="apply-summary"></div>
-            <m3e-callout variant="warning" id="compat-warning" hidden></m3e-callout>
-            <m3e-callout variant="warning" id="experimental-warning" hidden>
-              <strong>Experimental:</strong> força 8 canais a 208 kbps. A voz pode
-              falhar ou ficar muda; use só com um dispositivo de 8 canais e reverta
-              se não houver áudio.
-            </m3e-callout>
-            <div class="actions-row">
-              <m3e-button variant="text" id="btn-revert">Reverter</m3e-button>
-              <m3e-button variant="tonal" id="btn-analyze">Analisar</m3e-button>
-              <m3e-button variant="filled" id="btn-apply" disabled>Aplicar</m3e-button>
-            </div>
-            <m3e-list id="site-list"></m3e-list>
-            <m3e-callout variant="warning" id="no-fix" hidden></m3e-callout>
-            <m3e-callout variant="warning" id="discord-running" hidden>
-              O Discord está aberto. Feche-o completamente antes de aplicar ou reverter.
-            </m3e-callout>
-            <div class="wizard-nav">
-              <m3e-button variant="text" data-step="s-goal">Voltar</m3e-button>
-              <m3e-button variant="filled" data-step="s-info">Continuar</m3e-button>
-            </div>
-          </section>
-
-          <section class="pane" id="s-info" hidden>
-            <m3e-heading variant="title" size="large">Informações e solução de problemas</m3e-heading>
-            <div id="sysinfo"></div>
-            <m3e-accordion>
-              <m3e-expansion-panel>
-                <span slot="header">Não encontro meu cliente</span>
-                <div>
-                  A varredura cobre stable, PTB, canary e Vencord nos caminhos
-                  padrão de cada sistema. Flatpak e Snap não são suportados
-                  nesta versão.
+          <div class="wizard-body" id="panels">
+            <section class="pane" id="s-clients">
+              <aside class="identity">
+                <div class="identity-top">
+                  <span class="brand-mark" data-brand></span>
+                  <span class="brand-wave" data-wave aria-hidden="true"></span>
                 </div>
-              </m3e-expansion-panel>
-              <m3e-expansion-panel>
-                <span slot="header">Validação falhou, nada foi escrito</span>
-                <div>
-                  O binário mudou de versão e a tabela de offsets não confere
-                  mais. O wizard nunca escreve em um binário desconhecido.
+                <h1 class="identity-title">Escolha seu cliente</h1>
+                <p class="identity-desc">
+                  O wizard detecta as instalações do Discord neste sistema.
+                  Selecione a que vai receber o patch de estéreo.
+                </p>
+                <div class="identity-card" aria-hidden="true">
+                  <span class="mini-wave" data-mini-wave></span>
+                  <span>Melhore sua voz no Discord</span>
                 </div>
-              </m3e-expansion-panel>
-              <m3e-expansion-panel>
-                <span slot="header">Sem estéreo nos meus fones</span>
-                <div>
-                  O loopback local é mono por design. Quem recebe precisa de um
-                  decoder estéreo, e o conteúdo precisa de diferença real entre
-                  canais.
-                </div>
-              </m3e-expansion-panel>
-            </m3e-accordion>
-            <m3e-heading variant="title" size="medium">Preferências</m3e-heading>
-            <m3e-card variant="outlined">
-              <div class="pref-body">
-                <div class="row-between">
-                  <div class="pref-text">
-                    <span>Tema</span>
-                    <span class="muted">Claro, escuro ou seguir o sistema.</span>
-                  </div>
-                  <m3e-segmented-button id="pref-theme" aria-label="Tema">
-                    <m3e-button-segment value="auto" checked>Sistema</m3e-button-segment>
-                    <m3e-button-segment value="light">Claro</m3e-button-segment>
-                    <m3e-button-segment value="dark">Escuro</m3e-button-segment>
-                  </m3e-segmented-button>
-                </div>
+                <span class="blob blob-a" aria-hidden="true"></span>
+                <span class="blob blob-b" aria-hidden="true"></span>
+              </aside>
+              <div class="config">
+                <div id="client-list" role="radiogroup" aria-label="Clientes detectados" style="display: contents"></div>
+                <m3e-callout variant="info" id="no-clients" hidden>
+                  Nenhum cliente do Discord encontrado nos caminhos padrão. Instale
+                  o Discord (stable, PTB, canary ou Vencord) e tente de novo.
+                </m3e-callout>
               </div>
-            </m3e-card>
-            <m3e-heading variant="title" size="medium">Sobre o Stereo Wizard</m3e-heading>
-            <m3e-callout variant="info">
-              Wizard que aplica patch no discord_voice.node para qualidade
-              máxima de áudio do microfone e estéreo no Discord. Engine
-              verify-then-write: nenhum byte é escrito em um binário não validado.
-            </m3e-callout>
-            <div class="grid" id="about-cards"></div>
-            <div class="wizard-nav">
-              <m3e-button variant="text" data-step="s-apply">Voltar</m3e-button>
-            </div>
-          </section>
+            </section>
+
+            <section class="pane" id="s-goal" hidden>
+              <aside class="identity">
+                <div class="identity-top">
+                  <span class="brand-mark" data-brand></span>
+                  <span class="brand-wave" data-wave aria-hidden="true"></span>
+                </div>
+                <h1 class="identity-title">Filtros de voz</h1>
+                <p class="identity-desc">
+                  Ajuste o perfil de áudio com os filtros essenciais para uma
+                  voz limpa e natural.
+                </p>
+                <div class="identity-card" aria-hidden="true">
+                  <span class="mini-wave" data-mini-wave></span>
+                  <span>Melhore sua voz no Discord</span>
+                </div>
+                <span class="blob blob-a" aria-hidden="true"></span>
+                <span class="blob blob-b" aria-hidden="true"></span>
+              </aside>
+              <div class="config">
+                <m3e-callout variant="info">
+                  Filtros de voz do node (Krisp, ruído, eco, AGC, passa-alta e
+                  low-pass) ficam sempre desativados. Não há switch.
+                </m3e-callout>
+                <div class="grid" id="goal-grid" role="radiogroup" aria-label="Patches disponíveis"></div>
+                <m3e-callout variant="info">
+                  O botão &quot;testar microfone&quot; continua mono por design do
+                  cliente. O estéreo é ouvido por todos na chamada, não por quem fala.
+                </m3e-callout>
+              </div>
+            </section>
+
+            <section class="pane" id="s-apply" hidden>
+              <aside class="identity">
+                <div class="identity-top">
+                  <span class="brand-mark" data-brand></span>
+                  <span class="brand-wave" data-wave aria-hidden="true"></span>
+                </div>
+                <h1 class="identity-title">Aplicar o patch</h1>
+                <p class="identity-desc">
+                  Analise o binário e aplique o patch com segurança. Nada é
+                  escrito sem validação.
+                </p>
+                <div class="identity-card" aria-hidden="true">
+                  <span class="mini-wave" data-mini-wave></span>
+                  <span>Melhore sua voz no Discord</span>
+                </div>
+                <span class="blob blob-a" aria-hidden="true"></span>
+                <span class="blob blob-b" aria-hidden="true"></span>
+              </aside>
+              <div class="config">
+                <div id="apply-summary"></div>
+                <m3e-callout variant="warning" id="compat-warning" hidden></m3e-callout>
+                <m3e-callout variant="warning" id="experimental-warning" hidden>
+                  <strong>Experimental:</strong> força 8 canais a 208 kbps. A voz pode
+                  falhar ou ficar muda; use só com um dispositivo de 8 canais e reverta
+                  se não houver áudio.
+                </m3e-callout>
+                <div class="actions-row">
+                  <m3e-button variant="text" id="btn-revert">Reverter</m3e-button>
+                  <m3e-button variant="tonal" id="btn-analyze">Analisar</m3e-button>
+                  <m3e-button variant="filled" id="btn-apply" disabled>Aplicar</m3e-button>
+                </div>
+                <m3e-list id="site-list"></m3e-list>
+                <m3e-callout variant="warning" id="no-fix" hidden></m3e-callout>
+                <m3e-callout variant="warning" id="discord-running" hidden>
+                  O Discord está aberto. Feche-o completamente antes de aplicar ou reverter.
+                </m3e-callout>
+              </div>
+            </section>
+
+            <section class="pane" id="s-info" hidden>
+              <aside class="identity">
+                <div class="identity-top">
+                  <span class="brand-mark" data-brand></span>
+                  <span class="brand-wave" data-wave aria-hidden="true"></span>
+                </div>
+                <h1 class="identity-title">Informações</h1>
+                <p class="identity-desc">
+                  Ajuda, preferências e links do projeto.
+                </p>
+                <div class="identity-card" aria-hidden="true">
+                  <span class="mini-wave" data-mini-wave></span>
+                  <span>Melhore sua voz no Discord</span>
+                </div>
+                <span class="blob blob-a" aria-hidden="true"></span>
+                <span class="blob blob-b" aria-hidden="true"></span>
+              </aside>
+              <div class="config">
+                <m3e-heading variant="title" size="large">Informações e solução de problemas</m3e-heading>
+                <div id="sysinfo"></div>
+                <m3e-accordion>
+                  <m3e-expansion-panel>
+                    <span slot="header">Não encontro meu cliente</span>
+                    <div>
+                      A varredura cobre stable, PTB, canary e Vencord nos caminhos
+                      padrão de cada sistema. Flatpak e Snap não são suportados
+                      nesta versão.
+                    </div>
+                  </m3e-expansion-panel>
+                  <m3e-expansion-panel>
+                    <span slot="header">Validação falhou, nada foi escrito</span>
+                    <div>
+                      O binário mudou de versão e a tabela de offsets não confere
+                      mais. O wizard nunca escreve em um binário desconhecido.
+                    </div>
+                  </m3e-expansion-panel>
+                  <m3e-expansion-panel>
+                    <span slot="header">Sem estéreo nos meus fones</span>
+                    <div>
+                      O loopback local é mono por design. Quem recebe precisa de um
+                      decoder estéreo, e o conteúdo precisa de diferença real entre
+                      canais.
+                    </div>
+                  </m3e-expansion-panel>
+                </m3e-accordion>
+                <m3e-heading variant="title" size="medium">Preferências</m3e-heading>
+                <m3e-card variant="outlined">
+                  <div class="pref-body">
+                    <div class="row-between">
+                      <div class="pref-text">
+                        <span>Tema</span>
+                        <span class="muted">Claro, escuro ou seguir o sistema.</span>
+                      </div>
+                      <m3e-segmented-button id="pref-theme" aria-label="Tema">
+                        <m3e-button-segment value="auto" checked>Sistema</m3e-button-segment>
+                        <m3e-button-segment value="light">Claro</m3e-button-segment>
+                        <m3e-button-segment value="dark">Escuro</m3e-button-segment>
+                      </m3e-segmented-button>
+                    </div>
+                  </div>
+                </m3e-card>
+                <m3e-heading variant="title" size="medium">Sobre o Stereo Wizard</m3e-heading>
+                <m3e-callout variant="info">
+                  Wizard que aplica patch no discord_voice.node para qualidade
+                  máxima de áudio do microfone e estéreo no Discord. Engine
+                  verify-then-write: nenhum byte é escrito em um binário não validado.
+                </m3e-callout>
+                <div class="grid" id="about-cards"></div>
+              </div>
+            </section>
+          </div>
+
+          <footer class="wizard-footer">
+            <m3e-icon-button id="btn-theme" aria-label="Tema: sistema - clique para claro">
+              <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+                <path
+                  fill="currentColor"
+                  d="M10.85 12.65h2.3L12 9l-1.15 3.65zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69zM14.3 16l-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9h-1.9z"
+                />
+              </svg>
+            </m3e-icon-button>
+            <m3e-button variant="tonal" id="btn-back">
+              <svg slot="icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                <path fill="currentColor" d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
+              </svg>
+              Voltar
+            </m3e-button>
+            <m3e-button variant="filled" id="btn-next" disabled>
+              Continuar
+              <svg slot="icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                <path fill="currentColor" d="M8.59 16.59 13.17 12 8.59 7.41 10 6l6 6-6 6z" />
+              </svg>
+            </m3e-button>
+          </footer>
         </div>
       </main>
-      <footer id="app-footer">
-        <m3e-icon-button
-          id="btn-theme"
-          aria-label="Tema: sistema - clique para claro"
-        >
-          <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
-            <path
-              fill="currentColor"
-              d="M10.85 12.65h2.3L12 9l-1.15 3.65zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69zM14.3 16l-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9h-1.9z"
-            />
-          </svg>
-        </m3e-icon-button>
-        <m3e-button variant="text" data-url="https://github.com/sittiev/discord_stereo">GitHub</m3e-button>
-        <m3e-button variant="text" data-url="https://discord.gg/jb72VayAzN">Discord</m3e-button>
-        <m3e-button variant="text" data-url="https://ko-fi.com/howitgoesonline">Doar</m3e-button>
-      </footer>
+
       <m3e-dialog id="done-dialog" dismissible>
         <span slot="header">Patch aplicado</span>
         <div>
@@ -444,6 +1057,9 @@
       // Before the bundle mounts: apply the saved theme to avoid a flash on open.
       try {
         const t = localStorage.getItem("sw.theme");
+        if (t === "light" || t === "dark" || t === "auto") {
+          document.documentElement.dataset.theme = t;
+        }
         if (t === "light" || t === "dark") {
           document.querySelector("m3e-theme").setAttribute("scheme", t);
           document.documentElement.style.colorScheme = t;

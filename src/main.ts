@@ -14,8 +14,6 @@ import "@m3e/web/list";
 import "@m3e/web/progress-indicator";
 import "@m3e/web/segmented-button";
 import "@m3e/web/snackbar";
-import "@m3e/web/stepper";
-import "@m3e/web/switch";
 import "@m3e/web/tooltip";
 
 import { invoke } from "@tauri-apps/api/core";
@@ -98,9 +96,8 @@ let analysis: Analysis | null = null;
 const DISCORD_URL = "https://discord.gg/jb72VayAzN";
 
 // ---------------------------------------------------------------- steps
-// Header is the native `m3e-stepper`. Panels live outside it: in
-// @m3e/web 2.10.x the internal `slot name="panel"` collapses to height 0, so
-// panel switching is done here and the stepper only reflects the current step.
+// Header is the custom stepper; panels live in #panels. Panel switching and
+// the WAAPI carousel are handled here.
 const ORDER = ["s-clients", "s-goal", "s-apply", "s-info"] as const;
 const ON_ENTER: Record<string, () => void> = {
   "s-clients": () => void refreshClients(),
@@ -111,7 +108,9 @@ const ON_ENTER: Record<string, () => void> = {
     renderAbout();
   },
 };
-const steps = [...document.querySelectorAll<HTMLElement>("m3e-step")];
+const steps = [
+  ...document.querySelectorAll<HTMLButtonElement>(".stepper .step-btn"),
+];
 let currentStep: (typeof ORDER)[number] | null = null;
 
 function gotoStep(id: string): void {
@@ -122,11 +121,16 @@ function gotoStep(id: string): void {
   const inEl = document.getElementById(id);
   currentStep = id as (typeof ORDER)[number];
   for (const s of steps) {
-    const idx = ORDER.indexOf((s.getAttribute("for") ?? "") as (typeof ORDER)[number]);
-    s.toggleAttribute("selected", idx === to);
-    s.toggleAttribute("completed", idx !== -1 && idx < to);
+    const idx = ORDER.indexOf((s.dataset.step ?? "") as (typeof ORDER)[number]);
+    if (idx === to) {
+      s.setAttribute("aria-current", "step");
+    } else {
+      s.removeAttribute("aria-current");
+    }
+    s.classList.toggle("done", idx !== -1 && idx < to);
   }
-  document.querySelector("main")!.scrollTo(0, 0);
+  document.querySelector(".wizard-body")!.scrollTo(0, 0);
+  updateFooterNav();
   ON_ENTER[id]?.();
   // Animated step change; first entry is a plain swap.
   if (from !== -1 && from !== to && outEl && inEl && !outEl.hidden) {
@@ -136,6 +140,16 @@ function gotoStep(id: string): void {
       panel.hidden = panel.id !== id;
     }
   }
+}
+
+// Footer navigation follows the current step: Back hidden on the first step,
+// Next hidden on the last, Next disabled until a client is selected.
+function updateFooterNav(): void {
+  const back = document.getElementById("btn-back") as HTMLButtonElement;
+  const next = document.getElementById("btn-next") as HTMLButtonElement;
+  back.hidden = currentStep === "s-clients";
+  next.hidden = currentStep === "s-info";
+  next.disabled = currentStep === "s-clients" && !selectedClient;
 }
 
 // Step change as a carousel (the Motion "item offset" pattern): the current
@@ -216,11 +230,10 @@ function slide(outEl: HTMLElement, inEl: HTMLElement, forward: boolean): void {
   }, (SLIDE_MS * 7) / 10 + 20);
 }
 
-// Stepper clicks navigate; Back/Continue from the footers use `data-step`
-// (handler in boot).
+// Stepper clicks navigate; footer Back/Next have their own handlers in boot.
 for (const step of steps) {
   step.addEventListener("click", () => {
-    const id = step.getAttribute("for");
+    const id = step.dataset.step;
     if (id) gotoStep(id);
   });
 }
@@ -284,6 +297,7 @@ function applyThemePref(): void {
   themeEl.setAttribute("scheme", themePref);
   document.documentElement.style.colorScheme =
     themePref === "auto" ? "light dark" : themePref;
+  document.documentElement.dataset.theme = themePref;
 }
 
 function setThemePref(v: ThemePref): void {
@@ -347,15 +361,14 @@ function clientIcon(kind: ClientKind): string {
 }
 
 // ---------------------------------------------------------------- clients
-// One card selected at a time: the `filled` relief + `aria-pressed`; the
-// others go back to `outlined`. (`m3e-card` has no `selected` attribute.)
+// One card selected at a time (radio semantics on the card group).
 function selectCard(container: HTMLElement, card: HTMLElement): void {
   for (const sib of container.querySelectorAll("m3e-card")) {
-    sib.setAttribute("variant", "outlined");
-    sib.setAttribute("aria-pressed", "false");
+    sib.classList.remove("selected");
+    sib.setAttribute("aria-checked", "false");
   }
-  card.setAttribute("variant", "filled");
-  card.setAttribute("aria-pressed", "true");
+  card.classList.add("selected");
+  card.setAttribute("aria-checked", "true");
 }
 
 async function refreshClients(): Promise<void> {
@@ -381,10 +394,11 @@ async function refreshClients(): Promise<void> {
     const card = document.createElement("m3e-card");
     card.className = "selectable";
     card.setAttribute("actionable", "");
-    card.setAttribute("role", "button");
+    card.setAttribute("variant", "outlined");
+    card.setAttribute("role", "radio");
     const isSel = selectedClient?.node_path === c.node_path;
-    card.setAttribute("variant", isSel ? "filled" : "outlined");
-    card.setAttribute("aria-pressed", String(isSel));
+    card.classList.toggle("selected", isSel);
+    card.setAttribute("aria-checked", String(isSel));
     card.innerHTML = `
       <div class="client-row">
         ${clientIcon(c.kind)}
@@ -398,7 +412,7 @@ async function refreshClients(): Promise<void> {
       selectedClient = c;
       selectCard(list, card);
       analysis = null;
-      (document.getElementById("btn-to-goal") as HTMLButtonElement).disabled = false;
+      updateFooterNav();
       updateApplyButtons();
     });
     list.append(card);
@@ -424,20 +438,32 @@ async function loadGoals(): Promise<void> {
     const card = document.createElement("m3e-card");
     card.className = "selectable";
     card.setAttribute("actionable", "");
-    card.setAttribute("role", "button");
+    card.setAttribute("variant", "outlined");
+    card.setAttribute("role", "radio");
     const isSel = g.id === selectedGoal;
-    card.setAttribute("variant", isSel ? "filled" : "outlined");
-    card.setAttribute("aria-pressed", String(isSel));
+    card.classList.toggle("selected", isSel);
+    card.setAttribute("aria-checked", String(isSel));
     card.innerHTML = `
       <div class="goal-body">
-        <strong>${esc(loc(g.title))}</strong>
-        <div class="muted">${esc(loc(g.description))}</div>
-        ${
-          g.id === "v7"
-            ? `<m3e-callout variant="warning"><strong>Experimental:</strong> pode quebrar a voz. Use só com um dispositivo de 8 canais e reverta se não houver áudio.</m3e-callout>`
-            : ""
-        }
-        <div><m3e-chip variant="assist">${g.sites} ${g.sites === 1 ? "patch" : "patches"}</m3e-chip></div>
+        <div class="goal-head">
+          <span class="goal-icon" aria-hidden="true">${WAVE_SVG(30)}</span>
+          <div class="goal-text">
+            <div class="goal-title-row">
+              <strong>${esc(loc(g.title))}</strong>
+              ${g.id === "v6" ? '<span class="pill">Recomendado</span>' : ""}
+            </div>
+            <div class="muted">${esc(loc(g.description))}</div>
+          </div>
+          <span class="radio" aria-hidden="true"></span>
+        </div>
+        <div class="goal-foot">
+          <m3e-chip variant="assist">${g.sites} ${g.sites === 1 ? "patch" : "patches"}</m3e-chip>
+          ${
+            g.id === "v7"
+              ? `<m3e-callout variant="warning"><strong>Experimental:</strong> pode quebrar a voz. Use só com um dispositivo de 8 canais e reverta se não houver áudio.</m3e-callout>`
+              : ""
+          }
+        </div>
       </div>`;
     card.addEventListener("click", () => {
       selectedGoal = g.id;
@@ -600,10 +626,16 @@ function renderApply(): void {
 }
 
 function stateIcon(st: SiteState): string {
-  if (st.state === "ok") return "○";
-  if (st.state === "patched") return "●";
-  if (st.state === "ignored") return "◇";
-  return "✕";
+  if (st.state === "ok") {
+    return `<span class="site-state" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/></svg></span>`;
+  }
+  if (st.state === "patched") {
+    return `<span class="site-state state-pat" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M12 4a8 8 0 100 16 8 8 0 000-16zm-2.2 11.5-3.3-3.3 1.4-1.4 1.9 1.9 4.3-4.3 1.4 1.4-5.7 5.7z"/></svg></span>`;
+  }
+  if (st.state === "ignored") {
+    return `<span class="site-state state-skip" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l9 9-9 9-9-9z"/></svg></span>`;
+  }
+  return `<span class="site-state state-bad" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></span>`;
 }
 
 function stateText(st: SiteState): string {
@@ -853,6 +885,38 @@ function installCursorPolicy(): void {
 
 installCursorPolicy();
 
+// ---------------------------------------------------------------- identity
+// Static waveform used in the identity panels and goal cards; the Discord
+// mark reuses the stable client path (one source for the brand glyph).
+function WAVE_SVG(size: number): string {
+  return `<svg viewBox="0 0 32 24" width="${size}" height="${Math.round(size * 0.75)}" fill="currentColor" aria-hidden="true"><rect x="1" y="10" width="3" height="4" rx="1"/><rect x="6" y="7" width="3" height="10" rx="1"/><rect x="11" y="3" width="3" height="18" rx="1"/><rect x="16" y="1" width="3" height="22" rx="1"/><rect x="21" y="6" width="3" height="12" rx="1"/><rect x="26" y="9" width="3" height="6" rx="1"/></svg>`;
+}
+
+function renderIdentity(): void {
+  for (const aside of document.querySelectorAll<HTMLElement>("aside.identity")) {
+    const mark = aside.querySelector(".brand-mark");
+    if (mark && mark.childElementCount === 0) {
+      mark.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="${CLIENT_ICON.stable.path}"/></svg>`;
+    }
+    const wave = aside.querySelector(".brand-wave");
+    if (wave && wave.childElementCount === 0) wave.innerHTML = WAVE_SVG(24);
+    const mini = aside.querySelector(".mini-wave");
+    if (mini && mini.childElementCount === 0) mini.innerHTML = WAVE_SVG(18);
+  }
+}
+
+// The window has no decorations, so this is the real close control
+// (plugin:window|close); in the plain-browser harness it falls back to
+// window.close(), which only works on script-opened tabs.
+async function closeApp(): Promise<void> {
+  try {
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    await getCurrentWindow().close();
+  } catch {
+    window.close();
+  }
+}
+
 function snack(msg: string): void {
   const sb = document.getElementById("snackbar") as HTMLElement & { open: boolean };
   sb.textContent = msg;
@@ -892,28 +956,27 @@ window.addEventListener("DOMContentLoaded", () => {
   document.getElementById("btn-analyze")!.addEventListener("click", doAnalyze);
   document.getElementById("btn-apply")!.addEventListener("click", doApply);
   document.getElementById("btn-revert")!.addEventListener("click", doRevert);
-  document.getElementById("btn-to-goal")!.addEventListener("click", () => {
-    if (!selectedClient) {
+  document.getElementById("btn-close")!.addEventListener("click", () => {
+    void closeApp();
+  });
+  document.getElementById("btn-back")!.addEventListener("click", () => {
+    const idx = ORDER.indexOf(currentStep ?? "s-clients");
+    if (idx > 0) gotoStep(ORDER[idx - 1]);
+  });
+  document.getElementById("btn-next")!.addEventListener("click", () => {
+    if (currentStep === "s-clients" && !selectedClient) {
       snack("Escolha um cliente primeiro.");
       return;
     }
-    gotoStep("s-goal");
+    const idx = ORDER.indexOf(currentStep ?? "s-clients");
+    if (idx < ORDER.length - 1) gotoStep(ORDER[idx + 1]);
   });
-  for (const b of document.querySelectorAll<HTMLElement>("[data-step]")) {
-    b.addEventListener("click", () => {
-      const id = b.dataset.step!;
-      if (id === "s-goal" && !selectedClient) {
-        snack("Escolha um cliente primeiro.");
-        return;
-      }
-      gotoStep(id);
-    });
-  }
-  // Titlebar is drag-only (decorations off, no window controls).
-  // Footer and popup open external links; one delegate covers all.
+  // The ambient backdrop is drag-only (decorations off, no window controls).
+  // About cards and popup open external links; one delegate covers all.
   for (const b of document.querySelectorAll<HTMLElement>("[data-url]")) {
     b.addEventListener("click", () => openExternal(b.dataset.url ?? ""));
   }
+  renderIdentity();
   applyThemePref();
   syncThemeCtl();
   themeEl.setAttribute("motion", "expressive");

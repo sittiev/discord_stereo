@@ -14,10 +14,10 @@
     "windows": [
       {
         "title": "Stereo Wizard \u2014 Discord Voice",
-        "width": 600,
-        "height": 620,
-        "minWidth": 420,
-        "minHeight": 480,
+        "width": 880,
+        "height": 660,
+        "minWidth": 480,
+        "minHeight": 560,
         "resizable": true,
         "center": true,
         "decorations": false
