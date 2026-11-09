@@ -1,19 +1,22 @@
 #!/usr/bin/env node
-// Discord build watcher. Primary source: Discord's own distribution manifest
-// (module versions without any download). Bonus source: the
-// xHyroM/discord-datamining feed. Compares against a committed state file and
-// posts one webhook embed per changed channel.
+// Discord build watcher. Primary source: Discord's own distribution manifests
+// per platform (module versions without any download). Bonus source: the
+// xHyroM/discord-datamining feed (Windows). Compares against a committed
+// state file and posts one webhook embed per changed channel.
 //
 // Usage:
 //   node scripts/discord-watch.mjs check --state state/versions.json \
 //        [--report <path>] [--notify] [--apply-state]
 //   node scripts/discord-watch.mjs note pr --host 1.0.X --md5 H --run-url U \
-//        --auto-v6 <log> --auto-v7 <log>      (PR body on stdout)
-//   node scripts/discord-watch.mjs note issue --host 1.0.X --md5 H --report R (issue body on stdout)
-//   node scripts/discord-watch.mjs tables-differ --head A --tables B      (exit 1 = same patch bytes)
+//        --auto-v6 <log> --auto-v7 <log> [--platform win|linux --channel stable]
+//   node scripts/discord-watch.mjs note issue --host 1.0.X --md5 H \
+//        [--report R | --reason text] [--platform win|linux --channel stable]
+//   node scripts/discord-watch.mjs tables-differ --head A --tables B   (exit 1 = same patch bytes)
 //
 // First run (no state file): primary channels count as changes (one notify
 // each); bonus channels only seed state - same data, no duplicate spam.
+// State schema 2 nests channels under their platform; schema 1 states are
+// migrated automatically (flat channels were Windows-only).
 // Exit codes: 0 ok (report carries the changes), 1 fatal (manifest batch or
 // webhook refused). datamining being down is only a warning (bonus feed).
 
@@ -21,14 +24,12 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 
-const MANIFEST_URL = (channel) =>
-  `https://canary.discord.com/api/updates/distributions/app/manifests/latest?platform=win&channel=${channel}&arch=x64`;
+const PLATFORM_CHANNELS = { win: ["stable", "ptb", "canary"], linux: ["stable"] };
+const DATAMINING_CHANNELS = ["stable", "ptb", "canary"];
+const MANIFEST_URL = (platform, channel) =>
+  `https://canary.discord.com/api/updates/distributions/app/manifests/latest?platform=${platform}&channel=${channel}&arch=x64`;
 const DATAMINING_URL = (channel) =>
   `https://raw.githubusercontent.com/xHyroM/discord-datamining/master/data/client/channels/${channel}/host/host_build.json`;
-const SOURCES = {
-  discord: { channels: ["stable", "ptb", "canary"] },
-  datamining: { channels: ["stable", "ptb", "canary"] },
-};
 const COLOR = { discord: 0x5865f2, datamining: 0x99aab5 };
 const HEADERS = {
   "user-agent": "StereoWizard-Watch/0.3 (+https://github.com/sittiev/discord_stereo)",
@@ -37,6 +38,14 @@ const HEADERS = {
 const log = (msg) => process.stderr.write(`watch: ${msg}\n`);
 const short = (sha) => (sha ? String(sha).slice(0, 12) : "-");
 const modulePriority = (n) => (n === "discord_voice" ? 0 : n === "discord_krisp" ? 1 : 2);
+
+function watchTasks() {
+  const list = DATAMINING_CHANNELS.map((channel) => ({ source: "datamining", platform: null, channel }));
+  for (const [platform, channels] of Object.entries(PLATFORM_CHANNELS)) {
+    for (const channel of channels) list.push({ source: "discord", platform, channel });
+  }
+  return list;
+}
 
 async function getJson(url, label, { critical }) {
   try {
@@ -90,7 +99,7 @@ function changedModules(prev, next) {
   return changed;
 }
 
-function diffEntry(source, channel, prev, next) {
+function diffEntry(task, prev, next) {
   const firstRun = prev == null;
   const changed = firstRun
     ? Object.keys(next.modules)
@@ -99,8 +108,9 @@ function diffEntry(source, channel, prev, next) {
     : changedModules(prev, next);
   const hostChanged = firstRun || prev.host !== next.host;
   return {
-    source,
-    channel,
+    source: task.source,
+    platform: task.platform,
+    channel: task.channel,
     firstRun,
     hostChanged,
     from: prev ?? null,
@@ -129,8 +139,12 @@ function embedFor(entry) {
   const hostValue = first
     ? `monitor iniciado em **${entry.to.host}**`
     : `${entry.from.host || "?"} → **${entry.to.host}**`;
+  const title =
+    entry.source === "discord"
+      ? `Discord ${entry.platform} ${entry.channel} • nova build`
+      : `Datamining • ${entry.channel}`;
   const embed = {
-    title: entry.source === "discord" ? `Discord ${entry.channel} • nova build` : `Datamining • ${entry.channel}`,
+    title,
     color: COLOR[entry.source],
     fields: [
       { name: "Host", value: hostValue, inline: false },
@@ -143,7 +157,9 @@ function embedFor(entry) {
           : "Stereo Wizard watch • bônus: xHyroM/discord-datamining",
     },
   };
-  if (!first && entry.hostChanged) embed.url = `https://xhyrom.dev/discord/client?channel=${entry.channel}&platform=win`;
+  if (!first && entry.hostChanged && entry.source === "discord") {
+    embed.url = `https://xhyrom.dev/discord/client?channel=${entry.channel}&platform=${entry.platform}`;
+  }
   return { username: "Stereo Wizard watch", embeds: [embed] };
 }
 
@@ -160,7 +176,7 @@ async function postWebhook(webhook, entry) {
       });
       if (res.ok) return;
       if (res.status >= 400 && res.status < 500 && res.status !== 429) {
-        throw new Error(`webhook recusou ${entry.source}/${entry.channel}: HTTP ${res.status}`);
+        throw new Error(`webhook recusou ${entry.source}/${entry.platform ?? ""}/${entry.channel}: HTTP ${res.status}`);
       }
       lastError = new Error(`HTTP ${res.status}`);
     } catch (e) {
@@ -177,11 +193,11 @@ function markdownSummary(changes) {
   const rows = changes.slice(0, 20).map((c) => {
     const from = c.firstRun ? "—" : c.from?.host || "?";
     const mods = c.changed.filter((m) => m.name === "discord_voice" || m.name === "discord_krisp").map((m) => m.name);
-    return `| ${c.source} | ${c.channel} | ${from} → ${c.to.host} | ${c.changed.length}${mods.length ? ` (voz/krisp: ${mods.join(", ")})` : ""} |`;
+    return `| ${c.source} | ${c.platform ?? "—"} | ${c.channel} | ${from} → ${c.to.host} | ${c.changed.length}${mods.length ? ` (voz/krisp: ${mods.join(", ")})` : ""} |`;
   });
   return [
-    "| fonte | canal | host | módulos |",
-    "| --- | --- | --- | --- |",
+    "| fonte | plataforma | canal | host | módulos |",
+    "| --- | --- | --- | --- | --- |",
     ...rows,
     changes.length > 20 ? `\n(+${changes.length - 20} mudanças ocultas)` : "",
   ]
@@ -189,21 +205,81 @@ function markdownSummary(changes) {
     .join("\n");
 }
 
+function loadState(path) {
+  if (!existsSync(path)) return { schema: 2, sources: {} };
+  const parsed = JSON.parse(readFileSync(path, "utf8"));
+  if (parsed.schema === 2) return parsed;
+  const legacyWindows = {};
+  for (const [channel, entry] of Object.entries(parsed.sources?.discord ?? {})) {
+    if (entry && typeof entry === "object" && "host" in entry) legacyWindows[channel] = entry;
+  }
+  return { schema: 2, sources: { discord: { win: legacyWindows }, datamining: parsed.sources?.datamining ?? {} } };
+}
+
+function previousEntry(state, task) {
+  const node = state.sources?.[task.source];
+  if (!node) return null;
+  return task.platform ? node[task.platform]?.[task.channel] ?? null : node[task.channel] ?? null;
+}
+
+function storeChecked(checked, task, value) {
+  checked[task.source] ??= {};
+  if (task.platform) {
+    checked[task.source][task.platform] ??= {};
+    checked[task.source][task.platform][task.channel] = value;
+  } else {
+    checked[task.source][task.channel] = value;
+  }
+}
+
+function applyChecked(state, checked) {
+  for (const [source, scopes] of Object.entries(checked)) {
+    state.sources[source] ??= {};
+    for (const [scope, value] of Object.entries(scopes)) {
+      if (value && typeof value === "object" && "host" in value) {
+        state.sources[source][scope] = value;
+      } else if (value && typeof value === "object") {
+        state.sources[source][scope] = { ...state.sources[source][scope], ...value };
+      }
+    }
+  }
+}
+
 function noteArguments(argv) {
   const get = (flag) => {
     const i = argv.indexOf(flag);
-    if (i === -1) throw new Error(`note: missing ${flag}`);
+    if (i === -1) return null;
     return argv[i + 1];
   };
   const kind = argv[0];
-  if (kind !== "pr" && kind !== "issue") throw new Error("usage: discord-watch.mjs note pr|issue ...");
-  const out = { kind, host: get("--host"), md5: get("--md5") };
+  if (kind !== "pr" && kind !== "issue" && kind !== "report") {
+    throw new Error("usage: discord-watch.mjs note pr|issue|report ...");
+  }
+  const out = {
+    kind,
+    host: get("--host"),
+    md5: get("--md5"),
+    platform: get("--platform"),
+    channel: get("--channel"),
+  };
+  if (kind !== "report" && (!out.host || !out.md5)) throw new Error("note: --host and --md5 are required");
   if (kind === "pr") {
     out.runUrl = get("--run-url");
     out.autoV6 = get("--auto-v6");
     out.autoV7 = get("--auto-v7");
+    if (!out.runUrl || !out.autoV6 || !out.autoV7) {
+      throw new Error("note pr: --run-url, --auto-v6 and --auto-v7 are required");
+    }
+  } else if (kind === "report") {
+    out.report = get("--report");
+    out.runUrl = get("--run-url");
+    out.autoLog = get("--auto");
+    if (!out.report || !out.runUrl || !out.autoLog) {
+      throw new Error("note report: --report, --run-url and --auto are required");
+    }
   } else {
     out.report = get("--report");
+    out.reason = get("--reason");
   }
   return out;
 }
@@ -211,38 +287,54 @@ function noteArguments(argv) {
 function noteCommand(argv) {
   const args = noteArguments(argv);
   const md5Ref = `\`${args.md5}\``;
+  const target = [args.platform, args.channel].filter(Boolean).join("/");
   if (args.kind === "pr") {
     const v6 = JSON.parse(readFileSync(args.autoV6, "utf8"));
     const v7 = JSON.parse(readFileSync(args.autoV7, "utf8"));
     return [
       "### Tabela candidata automática",
       "",
-      `- Build: Discord ${args.host} (node md5 ${md5Ref})`,
+      `- Build: Discord ${args.platform ?? ""} ${args.host} (node md5 ${md5Ref})`,
       `- Cobertura: v6 ${v6.sites} sites · v7 ${v7.sites} sites (autopatch exit 0)`,
       `- db_version: ${v7.db_version}`,
-      `- Run: ${args.runUrl} (artifact \`discord-watch-reports-${args.md5}\`)`,
+      `- Run: ${args.runUrl} (artifact \`discord-watch-reports-*\`)`,
       "",
-      "Revisão (humano): Reverter → Analisar → Aplicar v6 no wizard e testar hard L/R (Wine ou Windows nativo).",
+      "Revisão (humano): Reverter → Analisar → Aplicar no wizard e testar de verdade (hard L/R) na plataforma alvo.",
       "O merge atualiza o asset via patchdb-archive; os apps adotam no próximo boot por db_version.",
       "",
     ].join("\n");
   }
-  const report = JSON.parse(readFileSync(args.report, "utf8"));
-  const failing = report.sites
-    .filter((s) => s.state !== "ok")
-    .slice(0, 12)
-    .map((s) => `- ${s.name}: state=${s.state} found=${(s.found || "?").slice(0, 16)}`);
-  return [
-    `### Build ${args.host} precisa de RE manual`,
-    "",
-    `- node md5: ${md5Ref}`,
-    "- Autopatch não fechou a cobertura; nada vai para publicar sem revisão humana.",
-    `- Reports: artifact \`discord-watch-reports-${args.md5}\`.`,
-    "",
-    "Sites que falharam (v6):",
-    ...(failing.length ? failing : ["- (nenhum no report v6; ver artifact)"]),
-    "",
-  ].join("\n");
+  if (args.kind === "report") {
+    const report = JSON.parse(readFileSync(args.report, "utf8"));
+    const auto = JSON.parse(readFileSync(args.autoLog, "utf8"));
+    return [
+      "### Tabela candidata a partir de report do app",
+      "",
+      `- report: \`${report.report_id}\` · goal ${report.goal} · build ${report.os} ${report.discord_dir} · node md5 \`${report.node_md5}\``,
+      `- autopatch: ${auto.sites} sites (exit 0) · db_version ${auto.db_version}`,
+      `- Run: ${args.runUrl}`,
+      "",
+      "Revisão (humano): Reverter → Analisar → Aplicar no wizard e testar hard L/R de verdade.",
+      "O merge atualiza o asset via patchdb-archive; os apps adotam no próximo boot por db_version.",
+      "",
+    ].join("\n");
+  }
+  const lines = [`### Build ${args.platform ?? ""} ${args.host} precisa de RE manual`, "", `- node md5: ${md5Ref}`];
+  if (target) lines.push(`- target: ${target}`);
+  if (args.reason) lines.push(`- motivo: ${args.reason}`);
+  lines.push(`- Reports: artifact \`discord-watch-reports-*\` da run (evidência por site).`);
+  if (args.report && existsSync(args.report)) {
+    const report = JSON.parse(readFileSync(args.report, "utf8"));
+    const failing = report.sites
+      .filter((s) => s.state !== "ok")
+      .slice(0, 12)
+      .map((s) => `- ${s.name}: state=${s.state} found=${(s.found || "?").slice(0, 16)}`);
+    lines.push("", "Sites que falharam (v6):", ...(failing.length ? failing : ["- (nenhum no report v6; ver artifact)"]));
+  } else {
+    lines.push("- O finder não conseguiu gerar report para este binário.");
+  }
+  lines.push("");
+  return lines.join("\n");
 }
 
 function tablesDiffer(argv) {
@@ -273,7 +365,9 @@ function tablesDiffer(argv) {
 }
 
 function parseArgs(argv) {
-  if (argv[0] !== "check") throw new Error("usage: discord-watch.mjs check --state <path> [--report <path>] [--notify] [--apply-state]");
+  if (argv[0] !== "check") {
+    throw new Error("usage: discord-watch.mjs check --state <path> [--report <path>] [--notify] [--apply-state]");
+  }
   const args = { state: "state/versions.json" };
   for (let i = 1; i < argv.length; i += 1) {
     if (argv[i] === "--state") args.state = argv[++i];
@@ -295,31 +389,25 @@ async function main() {
     return;
   }
   const args = parseArgs(process.argv.slice(2));
-  let state = { schema: 1, sources: {} };
-  if (existsSync(args.state)) state = JSON.parse(readFileSync(args.state, "utf8"));
-  if (!state.sources) state.sources = {};
+  const state = loadState(args.state);
 
   const checked = {};
   const changes = [];
-  for (const [source, { channels }] of Object.entries(SOURCES)) {
-    const normalize = source === "discord" ? normalizeManifest : normalizeDatamining;
-    for (const channel of channels) {
-      const label = `${source}/${channel}`;
-      const raw = await getJson(
-        source === "discord" ? MANIFEST_URL(channel) : DATAMINING_URL(channel),
-        label,
-        { critical: source === "discord" },
-      );
-      if (!raw) {
-        log(`${label}: fonte bônus indisponível (aviso, ignoro)`);
-        continue;
-      }
-      const next = normalize(raw);
-      checked[source] ??= {};
-      checked[source][channel] = next;
-      const entry = diffEntry(source, channel, state.sources[source]?.[channel] ?? null, next);
-      if (entry.firstRun || entry.hostChanged || entry.changed.length > 0) changes.push(entry);
+  for (const task of watchTasks()) {
+    const label = task.platform ? `${task.source}/${task.platform}/${task.channel}` : `${task.source}/${task.channel}`;
+    const raw = await getJson(
+      task.source === "discord" ? MANIFEST_URL(task.platform, task.channel) : DATAMINING_URL(task.channel),
+      label,
+      { critical: task.source === "discord" },
+    );
+    if (!raw) {
+      log(`${label}: fonte bônus indisponível (aviso, ignoro)`);
+      continue;
     }
+    const next = task.source === "discord" ? normalizeManifest(raw) : normalizeDatamining(raw);
+    storeChecked(checked, task, next);
+    const entry = diffEntry(task, previousEntry(state, task), next);
+    if (entry.firstRun || entry.hostChanged || entry.changed.length > 0) changes.push(entry);
   }
 
   const notified = [];
@@ -332,22 +420,19 @@ async function main() {
         continue;
       }
       await postWebhook(webhook, entry);
-      notified.push(`${entry.source}/${entry.channel}`);
+      notified.push(`${entry.source}/${entry.platform ?? ""}/${entry.channel}`);
     }
   }
 
   if (args.applyState) {
-    for (const [source, channels] of Object.entries(checked)) {
-      state.sources[source] ??= {};
-      state.sources[source] = { ...state.sources[source], ...channels };
-    }
+    applyChecked(state, checked);
     mkdirSync(dirname(args.state), { recursive: true });
     writeFileSync(args.state, `${JSON.stringify(state, null, 2)}\n`);
   }
 
   if (args.report) {
     mkdirSync(dirname(args.report), { recursive: true });
-    writeFileSync(args.report, `${JSON.stringify({ schema: 1, checked, changes, notified }, null, 2)}\n`);
+    writeFileSync(args.report, `${JSON.stringify({ schema: 2, checked, changes, notified }, null, 2)}\n`);
   }
 
   const summaryPath = process.env.GITHUB_STEP_SUMMARY;
@@ -358,14 +443,16 @@ async function main() {
   log(`ok: ${changes.length} mudança(s), ${notified.length} embed(s) enviado(s)`);
   console.log(
     JSON.stringify({
-      schema: 1,
+      schema: 2,
       changes: changes.length,
       notified,
       detail: changes.map((c) => ({
         source: c.source,
+        platform: c.platform,
         channel: c.channel,
         firstRun: c.firstRun,
         hostChanged: c.hostChanged,
+        host: c.to.host,
         modules: c.changed.length,
         voiceChanged: c.voiceChanged,
       })),

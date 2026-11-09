@@ -26,7 +26,7 @@ jobs:
     timeout-minutes: 10
     outputs:
       changed: ${{ steps.outputs.outputs.changed }}
-      discordChanged: ${{ steps.outputs.outputs.discordChanged }}
+      matrix: ${{ steps.outputs.outputs.matrix }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -42,13 +42,19 @@ jobs:
       - id: outputs
         env:
           WATCH_REPORT: ${{ runner.temp }}/watch.json
+          FORCE: ${{ inputs.force }}
         run: |
           node -e '
             const fs = require("fs");
             const w = JSON.parse(fs.readFileSync(process.env.WATCH_REPORT, "utf8"));
             const changes = w.changes ?? [];
-            const dc = changes.some((c) => c.source === "discord" && (c.firstRun || c.hostChanged || c.voiceChanged));
-            fs.appendFileSync(process.env.GITHUB_OUTPUT, `changed=${changes.length > 0}\ndiscordChanged=${dc}\n`);
+            let matrix = changes
+              .filter((c) => c.source === "discord" && (c.firstRun || c.hostChanged || c.changed.length > 0))
+              .map((c) => ({ platform: c.platform, channel: c.channel }));
+            if (process.env.FORCE === "true" && matrix.length === 0) {
+              matrix = [{ platform: "win", channel: "stable" }, { platform: "linux", channel: "stable" }];
+            }
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `changed=${changes.length > 0}\nmatrix=${JSON.stringify(matrix)}\n`);
           '
       - name: Commit state
         if: steps.outputs.outputs.changed == 'true'
@@ -60,116 +66,55 @@ jobs:
           git push
 
   extract:
-    name: Extract voice node
-    runs-on: windows-latest
-    timeout-minutes: 40
-    outputs:
-      host: ${{ steps.meta.outputs.host }}
-      md5: ${{ steps.meta.outputs.md5 }}
+    name: Extract ${{ matrix.build.platform }} ${{ matrix.build.channel }}
     needs: watch
-    if: needs.watch.outputs.discordChanged == 'true' || inputs.force == true
+    if: needs.watch.outputs.matrix != '' && needs.watch.outputs.matrix != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        build: ${{ fromJSON(needs.watch.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 1
-      - name: Install Discord and pull discord_voice.node
+      - name: Extract discord_voice.node (manifest package)
         env:
           NODE_OUT: ${{ runner.temp }}/node-out
-        run: bash scripts/extract-node-native.sh stable "$NODE_OUT"
-        shell: bash
-      - id: meta
-        shell: bash
-        run: |
-          meta_file=$(find "$RUNNER_TEMP/node-out" -name metadata.json | head -1)
-          echo "host=$(node -p 'JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).app_version' "$meta_file" | sed 's/^app-//')" >> "$GITHUB_OUTPUT"
-          echo "md5=$(node -p 'JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).md5' "$meta_file")" >> "$GITHUB_OUTPUT"
+        run: bash scripts/extract-node-manifest.sh "${{ matrix.build.platform }}" "${{ matrix.build.channel }}" "$NODE_OUT"
       - name: Upload node
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: discord-node-${{ steps.meta.outputs.md5 }}
+          name: discord-node-${{ matrix.build.platform }}-${{ matrix.build.channel }}
           path: ${{ runner.temp }}/node-out
           retention-days: 14
 
   build-candidate:
     name: Candidate tables
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     needs: [watch, extract]
-    if: needs.watch.outputs.discordChanged == 'true' || inputs.force == true
+    if: needs.extract.result == 'success'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 1
-      - name: Download extracted node
+      - name: Download extracted nodes
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          name: discord-node-${{ needs.extract.outputs.md5 }}
-          path: node-out
-      - name: Scan v6 and v7
-        run: |
-          node=$(find node-out -type f -name 'discord_voice.node' | head -1)
-          GOAL=v6 REPORT="$RUNNER_TEMP/v6.json" bash scripts/find-offsets.sh "$node" "$RUNNER_TEMP/v6.off.txt"
-          GOAL=v7 REPORT="$RUNNER_TEMP/v7.json" bash scripts/find-offsets.sh "$node" "$RUNNER_TEMP/v7.off.txt"
-      - name: Autopatch and validate
-        id: patch
-        run: |
-          set +e
-          node patchdb/autopatch.mjs "$RUNNER_TEMP/v6.json" patchdb/tables.json > "$RUNNER_TEMP/v6.auto.log" 2>&1
-          RC6=$?
-          if [ "$RC6" -eq 0 ]; then
-            node patchdb/autopatch.mjs "$RUNNER_TEMP/v7.json" patchdb/tables.json > "$RUNNER_TEMP/v7.auto.log" 2>&1
-            RC7=$?
-          else
-            RC7=skip
-          fi
-          set -e
-          echo "rc6=$RC6" >> "$GITHUB_OUTPUT"
-          echo "rc7=$RC7" >> "$GITHUB_OUTPUT"
-      - name: Upload report artifacts
+          path: artifacts
+      - name: Build candidates
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: bash scripts/discord-candidate.sh artifacts
+      - name: Upload candidate evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: discord-watch-reports-${{ needs.extract.outputs.md5 }}
-          path: |
-            ${{ runner.temp }}/v6.json
-            ${{ runner.temp }}/v7.json
-            ${{ runner.temp }}/v6.auto.log
-            ${{ runner.temp }}/v7.auto.log
+          name: discord-watch-reports-${{ github.run_id }}
+          path: ${{ runner.temp }}/candidate
           retention-days: 14
           if-no-files-found: warn
-      - name: Open PR (full coverage)
-        if: steps.patch.outputs.rc6 == '0' && steps.patch.outputs.rc7 == '0'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          BRANCH: db/auto-${{ needs.extract.outputs.host }}
-          HOST: ${{ needs.extract.outputs.host }}
-          MD5: ${{ needs.extract.outputs.md5 }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          git show HEAD:patchdb/tables.json > "$RUNNER_TEMP/head-tables.json" 2>/dev/null || printf '{}\n' > "$RUNNER_TEMP/head-tables.json"
-          if ! node scripts/discord-watch.mjs tables-differ --head "$RUNNER_TEMP/head-tables.json" --tables patchdb/tables.json; then
-            echo "tabela idêntica à HEAD (mudança só de db_version); PR dispensado" | tee pr-skip.txt
-            exit 0
-          fi
-          node scripts/discord-watch.mjs note pr \
-            --host "$HOST" --md5 "$MD5" --run-url "$RUN_URL" \
-            --auto-v6 "$RUNNER_TEMP/v6.auto.log" --auto-v7 "$RUNNER_TEMP/v7.auto.log" > pr-body.md
-          git config user.name "stereo-watch-bot"
-          git config user.email "actions@users.noreply.github.com"
-          git switch -c "$BRANCH"
-          git add patchdb/tables.json
-          git commit -m "patchdb: tables for $HOST"
-          git push --force origin "$BRANCH"
-          if ! gh pr create --title "patchdb: tables for $HOST" --body-file pr-body.md --base main --head "$BRANCH"; then
-            gh pr list --head "$BRANCH" --json url --jq '.[].url' | xargs -r echo "PR already exists:"
-          fi
-      - name: Open issue (manual RE needed)
-        if: steps.patch.outputs.rc6 != '0' || steps.patch.outputs.rc7 != '0'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          HOST: ${{ needs.extract.outputs.host }}
-          MD5: ${{ needs.extract.outputs.md5 }}
-        run: |
-          node scripts/discord-watch.mjs note issue \
-            --host "$HOST" --md5 "$MD5" --report "$RUNNER_TEMP/v6.json" > issue-body.md
-          gh issue create --title "patchdb: manual RE for $HOST" --body-file issue-body.md || echo "issue create failed (may already exist)"
