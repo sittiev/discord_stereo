@@ -24,7 +24,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 
-const PLATFORM_CHANNELS = { win: ["stable", "ptb", "canary"], linux: ["stable"] };
+const PLATFORM_CHANNELS = { win: ["stable", "ptb", "canary"], linux: ["stable", "canary"] };
 const DATAMINING_CHANNELS = ["stable", "ptb", "canary"];
 const MANIFEST_URL = (platform, channel) =>
   `https://canary.discord.com/api/updates/distributions/app/manifests/latest?platform=${platform}&channel=${channel}&arch=x64`;

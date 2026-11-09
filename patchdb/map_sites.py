@@ -94,6 +94,24 @@ def locate(data: bytes, sym_addr: int, delta: int, orig: bytes, patch: bytes, wi
     return "miss-1byte", None
 
 
+CLIENT_DIR_KINDS = {
+    "discord": "stable",
+    "discordptb": "ptb",
+    "discordcanary": "canary",
+    "vencord": "vencord",
+    "equicord": "vencord",
+}
+
+
+def client_kind(path: Path) -> str:
+    """Return the client kind from recognized install-directory names, not path substrings."""
+    for part in reversed(path.parts):
+        kind = CLIENT_DIR_KINDS.get(part.lower())
+        if kind is not None:
+            return kind
+    return "stable"
+
+
 def build_report(args, node_md5: str, info: dict, resolved: list, window: int) -> dict:
     now = int(time.time())
     match = re.search(r"app-\d+\.\d+\.\d+", str(args.node))
@@ -111,7 +129,7 @@ def build_report(args, node_md5: str, info: dict, resolved: list, window: int) -
         "node_md5": node_md5,
         "node_size": args.node.stat().st_size,
         "discord_dir": match.group(0) if match else "",
-        "client_kind": "stable",
+        "client_kind": client_kind(args.node),
         "table_kind": "none",
         "source_md5": args.ref_md5,
         "sites": resolved,

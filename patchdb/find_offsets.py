@@ -493,18 +493,38 @@ def version_key(discord: str) -> tuple[int, ...]:
     return (int(match.group(1)),) if match else (0,)
 
 
+def node_os(path: Path) -> str:
+    """Return "linux", "windows", or "" from the binary magic bytes."""
+    try:
+        with open(path, "rb") as handle:
+            magic = handle.read(4)
+    except OSError:
+        return ""
+    if magic == b"\x7fELF":
+        return "linux"
+    if magic[:2] == b"MZ":
+        return "windows"
+    return ""
+
+
 def choose_reference(
     db: PatchDb, goal: str, node_path: Path, md5: str, ref_md5: str | None = None
 ) -> Table:
+    """Pick a reference table; an explicit ref_md5 wins, otherwise the node's platform is preferred."""
     candidates = [table for table in db.tables if table.goal == goal and table.sites]
     if not candidates:
         raise ValueError(f"no tables for goal {goal!r}")
     if ref_md5:
         wanted = ref_md5.lower()
-        for table in candidates:
-            if table.binary_md5 == wanted:
+        for table in db.tables:
+            if table.goal == goal and table.binary_md5 == wanted and table.sites:
                 return table
         raise ValueError(f"no {goal} table for md5 {wanted}")
+    target_os = node_os(node_path)
+    if target_os:
+        same_os = [table for table in candidates if not table.os or table.os == target_os]
+        if same_os:
+            candidates = same_os
     for table in candidates:
         if table.binary_md5 == md5:
             return table
@@ -1250,14 +1270,21 @@ def discord_dir_from_path(path: Path) -> str:
     return ""
 
 
+CLIENT_DIR_KINDS = {
+    "discord": "stable",
+    "discordptb": "ptb",
+    "discordcanary": "canary",
+    "vencord": "vencord",
+    "equicord": "vencord",
+}
+
+
 def client_kind_from_path(path: Path) -> str:
-    text = str(path).lower()
-    if "canary" in text:
-        return "canary"
-    if "ptb" in text:
-        return "ptb"
-    if "vencord" in text or "equicord" in text:
-        return "vencord"
+    """Return the client kind from recognized install-directory names."""
+    for part in reversed(path.parts):
+        kind = CLIENT_DIR_KINDS.get(part.lower())
+        if kind is not None:
+            return kind
     return "stable"
 
 
