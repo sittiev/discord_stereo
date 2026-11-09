@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "db_version": 19,
+  "db_version": 20,
   "updated": "2026-11-09",
   "goals": [
     {
@@ -2599,6 +2599,155 @@
           "offset": "0x009F6DA2",
           "orig": "00",
           "patch": "01"
+        }
+      ]
+    },
+    {
+      "goal": "v6",
+      "binary_md5": "8cb1ec10d547fb5e3df53eca964facd1",
+      "discord": "app-1.0.1284",
+      "os": "windows",
+      "arch": "x86_64",
+      "sites": [
+        {
+          "kind": "offset",
+          "name": "CreateAudioFrame_ChannelAssign_Mov",
+          "offset": "0x0013D990",
+          "orig": "4c0f43e9",
+          "patch": "4989cd90"
+        },
+        {
+          "kind": "offset",
+          "name": "CapturedAudioProcessor_APMBypass_NopJmp",
+          "offset": "0x000F10B0",
+          "orig": "84c0740d83be80020000090f8f",
+          "patch": "909090909090909090909090e9"
+        },
+        {
+          "kind": "offset",
+          "name": "Krisp NC create bypass (mutex-safe)",
+          "offset": "0x000CFFC5",
+          "orig": "02",
+          "patch": "ff"
+        },
+        {
+          "kind": "offset",
+          "name": "Krisp NC process bypass (mutex-safe)",
+          "offset": "0x000D0246",
+          "orig": "02",
+          "patch": "ff"
+        },
+        {
+          "kind": "offset",
+          "name": "CommitAudioCodec_ChannelCount_Imm02",
+          "offset": "0x006824B7",
+          "orig": "01",
+          "patch": "02"
+        },
+        {
+          "kind": "offset",
+          "name": "OpusSdp_StereoValueBypass_Jmp2",
+          "offset": "0x006824E6",
+          "orig": "31ed",
+          "patch": "eb09"
+        },
+        {
+          "kind": "offset",
+          "name": "ApplySettings_BitrateBase_Mov510k",
+          "offset": "0x006828EA",
+          "orig": "41bee02e0000",
+          "patch": "41be30c80700"
+        },
+        {
+          "kind": "offset",
+          "name": "ApplySettings_BitrateSelect_Nop4",
+          "offset": "0x006828F0",
+          "orig": "440f43f1",
+          "patch": "90909090"
+        },
+        {
+          "kind": "offset",
+          "name": "ApplySettings_BitrateChannels_Nop4",
+          "offset": "0x006828F4",
+          "orig": "440faff5",
+          "patch": "90909090"
+        },
+        {
+          "kind": "offset",
+          "name": "SetTargetBitrate_Mulss_Nop6",
+          "offset": "0x00684A4E",
+          "orig": "f30f594481ec",
+          "patch": "909090909090"
+        },
+        {
+          "kind": "offset",
+          "name": "OpusSdp_MaxPlaybackRate_Keep48k_Nop4",
+          "offset": "0x0068261E",
+          "orig": "440f42f0",
+          "patch": "90909090"
+        },
+        {
+          "kind": "offset",
+          "name": "HighPassFilter_Process_Entry_Ret",
+          "offset": "0x0068EB30",
+          "orig": "41",
+          "patch": "c3"
+        },
+        {
+          "kind": "offset",
+          "name": "CELT_Force",
+          "offset": "0x00AA4688",
+          "orig": "18fcffff",
+          "patch": "ea030000"
+        },
+        {
+          "kind": "offset",
+          "name": "CELT_DefaultMode",
+          "offset": "0x00AA4704",
+          "orig": "e9030000",
+          "patch": "ea030000"
+        },
+        {
+          "kind": "offset",
+          "name": "SetTargetBitrate_ClampSelect_Nop3",
+          "offset": "0x006849EC",
+          "orig": "0f4cf9",
+          "patch": "909090"
+        },
+        {
+          "kind": "offset",
+          "name": "ApplySettings_MaxAvgBitrateSelect_Nop4",
+          "offset": "0x006829D7",
+          "orig": "480f4cc3",
+          "patch": "90909090"
+        },
+        {
+          "kind": "offset",
+          "name": "OpusEncodeNative_AnalysisGate_Jmp",
+          "offset": "0x00AA5209",
+          "orig": "7c",
+          "patch": "eb"
+        },
+        {
+          "kind": "offset",
+          "name": "OpusEncodeFrame_FilterBypass_CopyGain",
+          "offset": "0x00AA70D9",
+          "orig": "0f85a10100009869c0a70900004963d04c69c2d34d62104c89c248c1ea3f49c1e82041c1f8064101d09941f7f84585f60f8e9a02000069d029feffff81c200000010f30f2ac24469c0ae030000c1fa06",
+          "patch": "4589c8450fafc64585c00f8ec0020000b80000803f660f6ec831d2f3410f100497f30f59c1f30f11049148ffc24c39c272e9e99902000090909090909090909090909090909090909090909090909090"
+        },
+        {
+          "kind": "offset",
+          "name": "OpusEncoder_Init_ForceCBR",
+          "offset": "0x00AA463F",
+          "orig": "48b80100000001000000",
+          "patch": "48b80000000001000000"
+        },
+        {
+          "kind": "offset",
+          "name": "OpusEncoder_SetVBR_ForceCBR",
+          "offset": "0x00AA9E57",
+          "orig": "898698000000b90100000029c1",
+          "patch": "31c0898698000000b901000000"
         }
       ]
     }
