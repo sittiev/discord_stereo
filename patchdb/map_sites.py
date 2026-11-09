@@ -94,6 +94,17 @@ def locate(data: bytes, sym_addr: int, delta: int, orig: bytes, patch: bytes, wi
     return "miss-1byte", None
 
 
+def client_kind(path: Path) -> str:
+    text = str(path).lower()
+    if "canary" in text:
+        return "canary"
+    if "ptb" in text:
+        return "ptb"
+    if "vencord" in text or "equicord" in text:
+        return "vencord"
+    return "stable"
+
+
 def build_report(args, node_md5: str, info: dict, resolved: list, window: int) -> dict:
     now = int(time.time())
     match = re.search(r"app-\d+\.\d+\.\d+", str(args.node))
@@ -111,7 +122,7 @@ def build_report(args, node_md5: str, info: dict, resolved: list, window: int) -
         "node_md5": node_md5,
         "node_size": args.node.stat().st_size,
         "discord_dir": match.group(0) if match else "",
-        "client_kind": "stable",
+        "client_kind": client_kind(args.node),
         "table_kind": "none",
         "source_md5": args.ref_md5,
         "sites": resolved,
