@@ -74,7 +74,7 @@ own node, so they need their own tables. Current coverage:
 <p align="left">
   <img src="https://img.shields.io/badge/Discord%20Stable-tested%20on%20Windows%20native%2FWine%20%2B%20Linux-success?logo=discord" alt="Discord Stable">
   <img src="https://img.shields.io/badge/Discord%20PTB-untested-orange?logo=discord" alt="Discord PTB">
-  <img src="https://img.shields.io/badge/Discord%20Canary-untested-orange?logo=discord" alt="Discord Canary">
+  <img src="https://img.shields.io/badge/Discord%20Canary-tested%20on%20Wine-success?logo=discord" alt="Discord Canary">
   <img src="https://img.shields.io/badge/Vencord-same%20binary%20as%20Stable-orange?logo=vencord" alt="Vencord">
 </p>
 
@@ -82,7 +82,7 @@ own node, so they need their own tables. Current coverage:
 |---|---|---|---|
 | Discord Stable | **tested** (native + Wine) | **tested** | no tables |
 | Discord PTB | untested* | untested* | no tables |
-| Discord Canary | **1.0.1284 + 1.0.1319: v6 tables** (Wine audio pending) | untested* | no tables |
+| Discord Canary | **tested** (Wine) | untested* | no tables |
 | Vencord | same official Stable binary; expected to work | same as Stable | no tables |
 
 - **Tested** = analyzed, applied and reverted with every byte check passing and a
@@ -157,7 +157,7 @@ cd src-tauri && cargo check --locked && cargo test
 
 | Part | Status |
 |---|---|
-| v6 true stereo | Stereo path tested on Windows native + Wine in earlier builds; the 0.3.0 native release matrix is still pending (510 kbps is static-apply verified). Linux Stable app-1.0.168: table ported from the v5 1.0.161 site set, apply/revert byte-verified, native L/R audio verified. Windows Canary app-1.0.1284 and 1.0.1319: tables added, apply/revert byte-verified; Wine L/R audio pending |
+| v6 true stereo | Stereo path tested on Windows native + Wine in earlier builds; the 0.3.0 native release matrix is still pending (510 kbps is static-apply verified). Linux Stable app-1.0.168: table ported from the v5 1.0.161 site set, apply/revert byte-verified, native L/R audio verified. Windows Canary app-1.0.1284 and 1.0.1319: tables added, apply/revert byte-verified, Wine L/R audio verified |
 | v7 8ch surround | Static apply/revert only; audio untested; experimental and may break voice |
 | Research/backup tables | Kept in the Patch-DB, hidden from the public UI; not part of the public support claim |
 | Cross-build compatibility | Unknown builds get a warned compatibility attempt; apply only after every site verifies |
@@ -185,8 +185,8 @@ cd src-tauri && cargo check --locked && cargo test
   but the bitrate change is static-apply verified; re-test audio after updating.
 - macOS has no byte tables yet and is analyze-only. PTB has no v6 table yet.
   Canary has Windows v6 tables for app-1.0.1284 and 1.0.1319, and Linux Stable
-  has one for app-1.0.168 (both apply/revert byte-verified; Canary Wine L/R audio pending,
-  Linux native L/R audio verified).
+  has one for app-1.0.168 (apply/revert byte-verified; canary Wine and Linux
+  native L/R audio verified).
 - On native Windows the app still relies on byte verification; the running-
   Discord guard is Linux-only. Close Discord before apply/revert.
 - The CI has no word on how patched audio behaves in closed Discord builds. The bench that
