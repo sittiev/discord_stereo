@@ -157,7 +157,7 @@ cd src-tauri && cargo check --locked && cargo test
 
 | Part | Status |
 |---|---|
-| v6 true stereo | Stereo path tested on Windows native + Wine in earlier builds; the 0.3.0 native release matrix is still pending (510 kbps is static-apply verified). Linux Stable app-1.0.168: table ported from the v5 1.0.161 site set, apply/revert byte-verified; native L/R audio pending |
+| v6 true stereo | Stereo path tested on Windows native + Wine in earlier builds; the 0.3.0 native release matrix is still pending (510 kbps is static-apply verified). Linux Stable app-1.0.168: table ported from the v5 1.0.161 site set, apply/revert byte-verified, native L/R audio verified |
 | v7 8ch surround | Static apply/revert only; audio untested; experimental and may break voice |
 | Research/backup tables | Kept in the Patch-DB, hidden from the public UI; not part of the public support claim |
 | Cross-build compatibility | Unknown builds get a warned compatibility attempt; apply only after every site verifies |
@@ -185,7 +185,7 @@ cd src-tauri && cargo check --locked && cargo test
   but the bitrate change is static-apply verified; re-test audio after updating.
 - macOS has no byte tables yet and is analyze-only. PTB and Canary have no v6
   table yet. Linux Stable has a v6 table for app-1.0.168 (apply/revert
-  byte-verified; native L/R audio pending).
+  byte-verified, native L/R audio verified).
 - On native Windows the app still relies on byte verification; the running-
   Discord guard is Linux-only. Close Discord before apply/revert.
 - The CI has no word on how patched audio behaves in closed Discord builds. The bench that
