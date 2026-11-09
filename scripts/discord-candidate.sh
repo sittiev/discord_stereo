@@ -105,10 +105,10 @@ for dir in "${builds[@]}"; do
   body="$WORK/issue-$tag.md"
   if [ -f "$WORK/v6-$tag.json" ]; then
     node "$ROOT/scripts/discord-watch.mjs" note issue --host "$host" --md5 "$md5" --platform "$platform" --channel "$channel" \
-      --report "$WORK/v6-$tag.json" >"$body"
+      --run-url "$RUN_URL" --report "$WORK/v6-$tag.json" >"$body"
   else
     node "$ROOT/scripts/discord-watch.mjs" note issue --host "$host" --md5 "$md5" --platform "$platform" --channel "$channel" \
-      --reason "the finder produced no report for this binary" >"$body"
+      --run-url "$RUN_URL" --reason "the finder produced no report for this binary" >"$body"
   fi
   if [ "$dry" = "1" ]; then
     echo "   [dry] would open issue: $title"

@@ -261,10 +261,10 @@ function noteArguments(argv) {
     md5: get("--md5"),
     platform: get("--platform"),
     channel: get("--channel"),
+    runUrl: get("--run-url"),
   };
   if (kind !== "report" && (!out.host || !out.md5)) throw new Error("note: --host and --md5 are required");
   if (kind === "pr") {
-    out.runUrl = get("--run-url");
     out.autoV6 = get("--auto-v6");
     out.autoV7 = get("--auto-v7");
     if (!out.runUrl || !out.autoV6 || !out.autoV7) {
@@ -272,7 +272,6 @@ function noteArguments(argv) {
     }
   } else if (kind === "report") {
     out.report = get("--report");
-    out.runUrl = get("--run-url");
     out.autoLog = get("--auto");
     if (!out.report || !out.runUrl || !out.autoLog) {
       throw new Error("note report: --report, --run-url and --auto are required");
@@ -292,15 +291,15 @@ function noteCommand(argv) {
     const v6 = JSON.parse(readFileSync(args.autoV6, "utf8"));
     const v7 = JSON.parse(readFileSync(args.autoV7, "utf8"));
     return [
-      "### Tabela candidata automática",
+      "### Candidate patch table",
       "",
-      `- Build: Discord ${args.platform ?? ""} ${args.host} (node md5 ${md5Ref})`,
-      `- Cobertura: v6 ${v6.sites} sites · v7 ${v7.sites} sites (autopatch exit 0)`,
-      `- db_version: ${v7.db_version}`,
-      `- Run: ${args.runUrl} (artifact \`discord-watch-reports-*\`)`,
+      `- Build: Discord ${args.platform ?? ""} ${args.host} (\`node md5 ${args.md5}\`)`,
+      `- Coverage: v6 ${v6.sites} sites · v7 ${v7.sites} sites (autopatch exit 0)`,
+      `- \`db_version\`: ${v7.db_version}`,
+      `- Run: ${args.runUrl} (artifacts \`discord-watch-reports-*\`)`,
       "",
-      "Revisão (humano): Reverter → Analisar → Aplicar no wizard e testar de verdade (hard L/R) na plataforma alvo.",
-      "O merge atualiza o asset via patchdb-archive; os apps adotam no próximo boot por db_version.",
+      "Reviewer: revert → analyze → apply in the wizard, then verify hard-left/right on the target platform.",
+      "Merging publishes the table through `patchdb-archive`; clients pick it up on the next launch via `db_version`.",
       "",
     ].join("\n");
   }
@@ -308,32 +307,42 @@ function noteCommand(argv) {
     const report = JSON.parse(readFileSync(args.report, "utf8"));
     const auto = JSON.parse(readFileSync(args.autoLog, "utf8"));
     return [
-      "### Tabela candidata a partir de report do app",
+      "### Candidate patch table from app report",
       "",
-      `- report: \`${report.report_id}\` · goal ${report.goal} · build ${report.os} ${report.discord_dir} · node md5 \`${report.node_md5}\``,
-      `- autopatch: ${auto.sites} sites (exit 0) · db_version ${auto.db_version}`,
+      `- report: \`${report.report_id}\` · goal ${report.goal} · build ${report.os} ${report.discord_dir} (\`node md5 ${report.node_md5}\`)`,
+      `- autopatch: ${auto.sites} sites (exit 0) · \`db_version\` ${auto.db_version}`,
       `- Run: ${args.runUrl}`,
       "",
-      "Revisão (humano): Reverter → Analisar → Aplicar no wizard e testar hard L/R de verdade.",
-      "O merge atualiza o asset via patchdb-archive; os apps adotam no próximo boot por db_version.",
+      "Reviewer: revert → analyze → apply in the wizard, then verify hard-left/right before merging.",
+      "Merging publishes the table through `patchdb-archive`; clients pick it up on the next launch via `db_version`.",
       "",
     ].join("\n");
   }
-  const lines = [`### Build ${args.platform ?? ""} ${args.host} precisa de RE manual`, "", `- node md5: ${md5Ref}`];
-  if (target) lines.push(`- target: ${target}`);
-  if (args.reason) lines.push(`- motivo: ${args.reason}`);
-  lines.push(`- Reports: artifact \`discord-watch-reports-*\` da run (evidência por site).`);
+  const lines = [`### ${args.platform ?? ""} ${args.host} needs manual RE`, "", `- node md5: ${md5Ref}`];
+  if (target) lines.push(`- target: \`${target}\``);
+  if (args.runUrl) lines.push(`- run: ${args.runUrl}`);
+  if (args.reason) lines.push(`- reason: ${args.reason}`);
+  lines.push("- evidence: `discord-watch-reports-*` artifact (extracted node + v6/v7 reports)");
   if (args.report && existsSync(args.report)) {
     const report = JSON.parse(readFileSync(args.report, "utf8"));
-    const failing = report.sites
-      .filter((s) => s.state !== "ok")
-      .slice(0, 12)
-      .map((s) => `- ${s.name}: state=${s.state} found=${(s.found || "?").slice(0, 16)}`);
-    lines.push("", "Sites que falharam (v6):", ...(failing.length ? failing : ["- (nenhum no report v6; ver artifact)"]));
+    const failing = report.sites.filter((s) => s.state !== "ok");
+    const shown = failing.slice(0, 12).map((s) => {
+      const expected = s.expected_orig ? ` (expected \`${s.expected_orig.slice(0, 16)}\`)` : "";
+      return `- \`${s.name}\` — ${s.state}${expected}`;
+    });
+    lines.push("", `Unresolved ${report.goal ?? "v6"} sites (${Math.min(12, failing.length)} shown of ${failing.length}):`, ...shown);
   } else {
-    lines.push("- O finder não conseguiu gerar report para este binário.");
+    lines.push("- the finder produced no report for this binary");
   }
-  lines.push("");
+  lines.push(
+    "",
+    "Next steps:",
+    "1. Download the extracted node and reports from the run artifact.",
+    "2. Locate the remaining sites (finder or IDA) and record `orig`/`patch` byte pairs.",
+    "3. Merge with `node patchdb/autopatch.mjs <report> patchdb/tables.json`, then run `node patchdb/validate.mjs`.",
+    "4. Test apply/revert and hard-left/right before merging.",
+    "",
+  );
   return lines.join("\n");
 }
 

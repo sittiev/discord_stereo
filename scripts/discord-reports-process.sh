@@ -86,7 +86,7 @@ for report in "${reports[@]}"; do
     fi
   fi
   body="$WORK/issue-$tag.md"
-  node "$ROOT/scripts/discord-watch.mjs" note issue --host "$host" --md5 "$md5" --platform "$platform" --report "$report" >"$body"
+  node "$ROOT/scripts/discord-watch.mjs" note issue --host "$host" --md5 "$md5" --platform "$platform" --run-url "$RUN_URL" --report "$report" >"$body"
   if [ "$dry" = "1" ]; then
     echo "   [dry] would open issue: $title"
     continue
