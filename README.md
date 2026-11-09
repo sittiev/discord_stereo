@@ -80,7 +80,7 @@ own node, so they need their own tables. Current coverage:
 
 | Client | Windows | Linux | macOS |
 |---|---|---|---|
-| Discord Stable | **tested** (native + Wine) | **tested** | no tables |
+| Discord Stable | **tested** (native + Wine) | **tested** | **0.0.421: v6 table** (audio pending) |
 | Discord PTB | untested* | untested* | no tables |
 | Discord Canary | **tested** (Wine) | **tested** | no tables |
 | Vencord | same official Stable binary; expected to work | same as Stable | no tables |
@@ -157,7 +157,7 @@ cd src-tauri && cargo check --locked && cargo test
 
 | Part | Status |
 |---|---|
-| v6 true stereo | Stereo path tested on Windows native + Wine in earlier builds; the 0.3.0 native release matrix is still pending (510 kbps is static-apply verified). Linux Stable app-1.0.168: table ported from the v5 1.0.161 site set, apply/revert byte-verified, native L/R audio verified. Windows Canary app-1.0.1284 and 1.0.1319: tables added, apply/revert byte-verified, Wine L/R audio verified. Linux Canary app-1.0.2475: table added, apply/revert byte-verified, native L/R audio verified |
+| v6 true stereo | Stereo path tested on Windows native + Wine in earlier builds; the 0.3.0 native release matrix is still pending (510 kbps is static-apply verified). Linux Stable app-1.0.168: table ported from the v5 1.0.161 site set, apply/revert byte-verified, native L/R audio verified. Windows Canary app-1.0.1284 and 1.0.1319: tables added, apply/revert byte-verified, Wine L/R audio verified. Linux Canary app-1.0.2475: table added, apply/revert byte-verified, native L/R audio verified. macOS app-0.0.421 (universal x86_64 slice): table added, apply/revert byte-verified; audio pending (needs Darling or a real Mac) |
 | v7 8ch surround | Static apply/revert only; audio untested; experimental and may break voice |
 | Research/backup tables | Kept in the Patch-DB, hidden from the public UI; not part of the public support claim |
 | Cross-build compatibility | Unknown builds get a warned compatibility attempt; apply only after every site verifies |
@@ -183,7 +183,7 @@ cd src-tauri && cargo check --locked && cargo test
   It can leave the call silent or unstable; revert if there is no audio.
 - The v6 Windows tables now use 510 kbps CBR. Their stereo bytes are unchanged,
   but the bitrate change is static-apply verified; re-test audio after updating.
-- macOS has no byte tables yet and is analyze-only. PTB has no v6 table yet.
+- macOS has a v6 table for app-0.0.421 (x86_64 slice; apply/revert byte-verified; audio pending — needs Darling or a real Mac). Apple Silicon arm64 has no table yet. PTB has no v6 table yet.
   Canary has Windows v6 tables for app-1.0.1284 and 1.0.1319 plus a Linux v6
   table for app-1.0.2475, and Linux Stable has one for app-1.0.168 (all
   apply/revert byte-verified; Canary Wine and Stable Linux L/R audio verified,
