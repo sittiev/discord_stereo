@@ -494,6 +494,7 @@ def version_key(discord: str) -> tuple[int, ...]:
 
 
 def node_os(path: Path) -> str:
+    """Return "linux", "windows", or "" from the binary magic bytes."""
     try:
         with open(path, "rb") as handle:
             magic = handle.read(4)
@@ -509,6 +510,7 @@ def node_os(path: Path) -> str:
 def choose_reference(
     db: PatchDb, goal: str, node_path: Path, md5: str, ref_md5: str | None = None
 ) -> Table:
+    """Pick a reference table; an explicit ref_md5 wins, otherwise the node's platform is preferred."""
     candidates = [table for table in db.tables if table.goal == goal and table.sites]
     if not candidates:
         raise ValueError(f"no tables for goal {goal!r}")
@@ -1268,14 +1270,25 @@ def discord_dir_from_path(path: Path) -> str:
     return ""
 
 
+CLIENT_DIR_KINDS = {
+    "discord": "stable",
+    "discordptb": "ptb",
+    "discord ptb": "ptb",
+    "discord-ptb": "ptb",
+    "discordcanary": "canary",
+    "discord canary": "canary",
+    "discord-canary": "canary",
+    "vencord": "vencord",
+    "equicord": "vencord",
+}
+
+
 def client_kind_from_path(path: Path) -> str:
-    text = str(path).lower()
-    if "canary" in text:
-        return "canary"
-    if "ptb" in text:
-        return "ptb"
-    if "vencord" in text or "equicord" in text:
-        return "vencord"
+    """Return the client kind from recognized install-directory names."""
+    for part in reversed(path.parts):
+        kind = CLIENT_DIR_KINDS.get(part.lower())
+        if kind is not None:
+            return kind
     return "stable"
 
 

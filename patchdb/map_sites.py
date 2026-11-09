@@ -94,14 +94,25 @@ def locate(data: bytes, sym_addr: int, delta: int, orig: bytes, patch: bytes, wi
     return "miss-1byte", None
 
 
+CLIENT_DIR_KINDS = {
+    "discord": "stable",
+    "discordptb": "ptb",
+    "discord ptb": "ptb",
+    "discord-ptb": "ptb",
+    "discordcanary": "canary",
+    "discord canary": "canary",
+    "discord-canary": "canary",
+    "vencord": "vencord",
+    "equicord": "vencord",
+}
+
+
 def client_kind(path: Path) -> str:
-    text = str(path).lower()
-    if "canary" in text:
-        return "canary"
-    if "ptb" in text:
-        return "ptb"
-    if "vencord" in text or "equicord" in text:
-        return "vencord"
+    """Return the client kind from recognized install-directory names, not path substrings."""
+    for part in reversed(path.parts):
+        kind = CLIENT_DIR_KINDS.get(part.lower())
+        if kind is not None:
+            return kind
     return "stable"
 
 
