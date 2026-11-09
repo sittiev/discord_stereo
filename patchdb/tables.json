@@ -10,7 +10,7 @@
         "en": "Filters Removed"
       },
       "description": {
-        "pt": "Remove filtros e melhora a qualidade; n\u00e3o faz separa\u00e7\u00e3o L/R real como o v6.",
+        "pt": "Remove filtros e melhora a qualidade; não faz separação L/R real como o v6.",
         "en": "Removes filters and improves quality; no true L/R separation like v6."
       }
     },
@@ -21,7 +21,7 @@
         "en": "Full Quality"
       },
       "description": {
-        "pt": "v3 + CBR 510 kbps travado + force-stereo + fix do RemixAndResample. Melhora a qualidade; sem separa\u00e7\u00e3o L/R real como o v6.",
+        "pt": "v3 + CBR 510 kbps travado + force-stereo + fix do RemixAndResample. Melhora a qualidade; sem separação L/R real como o v6.",
         "en": "v3 + locked 510 kbps CBR + force-stereo + RemixAndResample fix. Improves quality; no true L/R separation like v6."
       }
     },
@@ -32,7 +32,7 @@
         "en": "Deep Quality"
       },
       "description": {
-        "pt": "v4 + Opus kAudio: mais profundidade e qualidade; sem separa\u00e7\u00e3o L/R real como o v6.",
+        "pt": "v4 + Opus kAudio: mais profundidade e qualidade; sem separação L/R real como o v6.",
         "en": "v4 + Opus kAudio: more depth and quality; no true L/R separation like v6."
       }
     },
@@ -43,7 +43,7 @@
         "en": "True Stereo 1:1"
       },
       "description": {
-        "pt": "\u00danico perfil com separa\u00e7\u00e3o L/R real 1:1 e CBR 510 kbps: SDP force-stereo, c\u00f3pia/gain do frame Opus e CELT.",
+        "pt": "Único perfil com separação L/R real 1:1 e CBR 510 kbps: SDP force-stereo, cópia/gain do frame Opus e CELT.",
         "en": "The only profile with true 1:1 L/R separation and 510 kbps CBR: SDP force-stereo, Opus frame copy/gain, CELT."
       }
     },
@@ -54,7 +54,7 @@
         "en": "8ch Surround (experimental)"
       },
       "description": {
-        "pt": "Experimental: for\u00e7a 8 canais e 208 kbps CBR. S\u00f3 Windows Stable com tabela v6; pode quebrar a voz. Reverta se n\u00e3o houver \u00e1udio.",
+        "pt": "Experimental: força 8 canais e 208 kbps CBR. Só Windows Stable com tabela v6; pode quebrar a voz. Reverta se não houver áudio.",
         "en": "Experimental: forces 8 channels at 208 kbps CBR. Windows Stable with a v6 table only; may break voice. Revert if there is no audio."
       }
     }
