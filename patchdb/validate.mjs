@@ -62,6 +62,7 @@ for (const t of tables) {
   const pair = `${t.goal}:${t.binary_md5 ?? "*"}:${t.discord ?? "*"}`;
   if (seen.has(pair)) fail(`duplicate table: ${pair}`);
   seen.add(pair);
+  const spans = [];
   for (const s of t.sites) {
     if (s.kind !== "offset" && s.kind !== "pattern") {
       fail(`invalid site kind: ${s.kind} (${s.name})`);
@@ -77,6 +78,8 @@ for (const t of tables) {
       if (s.orig.length !== s.patch.length) {
         fail(`site ${s.name}: orig and patch must be the same length`);
       }
+      const start = parseInt(s.offset, 16);
+      spans.push({ start, end: start + s.patch.length / 2, name: s.name });
     } else {
       if (!HEX_OR_WILD(s.pattern)) {
         fail(`site ${s.name}: pattern must be hex with ?? (2 chars per token)`);
@@ -91,6 +94,15 @@ for (const t of tables) {
           fail(`site ${s.name}: expect must be the same length as patch`);
         }
       }
+    }
+  }
+  spans.sort((a, b) => a.start - b.start);
+  for (let i = 1; i < spans.length; i += 1) {
+    if (spans[i].start < spans[i - 1].end) {
+      fail(
+        `table ${t.goal}/${t.discord ?? "any"}: sites overlap: ` +
+          `${spans[i - 1].name} and ${spans[i].name}`,
+      );
     }
   }
 }
