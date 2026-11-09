@@ -187,9 +187,10 @@ pub(crate) fn scan_all(bytes: &[u8], aob: &Aob, limit: usize) -> Vec<usize> {
     }
 
     let needle = &aob.pat[best_start..best_start + best_len];
+    let finder = memchr::memmem::Finder::new(needle);
     let mut pos = 0;
     while pos + best_len <= bytes.len() {
-        let Some(found) = bytes[pos..].windows(best_len).position(|w| w == needle) else {
+        let Some(found) = finder.find(&bytes[pos..]) else {
             break;
         };
         let anchor = pos + found;
@@ -208,22 +209,8 @@ pub(crate) fn scan_all(bytes: &[u8], aob: &Aob, limit: usize) -> Vec<usize> {
 
 /// AOB scan: returns the offset of the single match, or None (0 or 2+ matches).
 fn scan_pattern(bytes: &[u8], aob: &Aob) -> Option<usize> {
-    if aob.pat.len() > bytes.len() {
-        return None;
-    }
-    let mut found: Option<usize> = None;
-    'outer: for i in 0..=(bytes.len() - aob.pat.len()) {
-        for (j, (&p, &m)) in aob.pat.iter().zip(aob.mask.iter()).enumerate() {
-            if m && bytes[i + j] != p {
-                continue 'outer;
-            }
-        }
-        if found.is_some() {
-            return None;
-        }
-        found = Some(i);
-    }
-    found
+    let hits = scan_all(bytes, aob, 2);
+    (hits.len() == 1).then(|| hits[0])
 }
 
 /// Readable reason when the pattern did not produce a unique match.

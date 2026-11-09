@@ -328,11 +328,9 @@ fn find_all_exact(bytes: &[u8], needle: &[u8], limit: usize) -> Vec<usize> {
     if needle.is_empty() || needle.len() > bytes.len() {
         return hits;
     }
+    let finder = memchr::memmem::Finder::new(needle);
     let mut pos = 0;
-    while pos + needle.len() <= bytes.len() {
-        let Some(found) = bytes[pos..].windows(needle.len()).position(|w| w == needle) else {
-            break;
-        };
+    while let Some(found) = finder.find(&bytes[pos..]) {
         hits.push(pos + found);
         if hits.len() >= limit {
             break;
