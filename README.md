@@ -82,7 +82,7 @@ own node, so they need their own tables. Current coverage:
 |---|---|---|---|
 | Discord Stable | **tested** (native + Wine) | **tested** | no tables |
 | Discord PTB | untested* | untested* | no tables |
-| Discord Canary | **1.0.1284: v6 table** (Wine audio pending) | untested* | no tables |
+| Discord Canary | **1.0.1284 + 1.0.1319: v6 tables** (Wine audio pending) | untested* | no tables |
 | Vencord | same official Stable binary; expected to work | same as Stable | no tables |
 
 - **Tested** = analyzed, applied and reverted with every byte check passing and a
@@ -157,7 +157,7 @@ cd src-tauri && cargo check --locked && cargo test
 
 | Part | Status |
 |---|---|
-| v6 true stereo | Stereo path tested on Windows native + Wine in earlier builds; the 0.3.0 native release matrix is still pending (510 kbps is static-apply verified). Linux Stable app-1.0.168: table ported from the v5 1.0.161 site set, apply/revert byte-verified, native L/R audio verified. Windows Canary app-1.0.1284: table added, apply/revert byte-verified; Wine L/R audio pending |
+| v6 true stereo | Stereo path tested on Windows native + Wine in earlier builds; the 0.3.0 native release matrix is still pending (510 kbps is static-apply verified). Linux Stable app-1.0.168: table ported from the v5 1.0.161 site set, apply/revert byte-verified, native L/R audio verified. Windows Canary app-1.0.1284 and 1.0.1319: tables added, apply/revert byte-verified; Wine L/R audio pending |
 | v7 8ch surround | Static apply/revert only; audio untested; experimental and may break voice |
 | Research/backup tables | Kept in the Patch-DB, hidden from the public UI; not part of the public support claim |
 | Cross-build compatibility | Unknown builds get a warned compatibility attempt; apply only after every site verifies |
@@ -184,8 +184,8 @@ cd src-tauri && cargo check --locked && cargo test
 - The v6 Windows tables now use 510 kbps CBR. Their stereo bytes are unchanged,
   but the bitrate change is static-apply verified; re-test audio after updating.
 - macOS has no byte tables yet and is analyze-only. PTB has no v6 table yet.
-  Canary has a Windows v6 table for app-1.0.1284 and Linux Stable has one for
-  app-1.0.168 (both apply/revert byte-verified; Canary Wine L/R audio pending,
+  Canary has Windows v6 tables for app-1.0.1284 and 1.0.1319, and Linux Stable
+  has one for app-1.0.168 (both apply/revert byte-verified; Canary Wine L/R audio pending,
   Linux native L/R audio verified).
 - On native Windows the app still relies on byte verification; the running-
   Discord guard is Linux-only. Close Discord before apply/revert.
