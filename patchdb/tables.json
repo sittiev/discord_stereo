@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "db_version": 21,
+  "db_version": 22,
   "updated": "2026-11-09",
   "goals": [
     {
@@ -2897,6 +2897,148 @@
           "offset": "0x00ABDE67",
           "orig": "898698000000b90100000029c1",
           "patch": "31c0898698000000b901000000"
+        }
+      ]
+    },
+    {
+      "goal": "v6",
+      "binary_md5": "a8b516b594f231ff7b5cdf587f222dc0",
+      "discord": "app-1.0.2475",
+      "os": "linux",
+      "arch": "x86_64",
+      "sites": [
+        {
+          "kind": "offset",
+          "name": "StereoCheck1 CommitAudioCodec",
+          "offset": "0x003C727A",
+          "orig": "02",
+          "patch": "00"
+        },
+        {
+          "kind": "offset",
+          "name": "StereoCheck2 CreateAudioStream",
+          "offset": "0x003C2EFF",
+          "orig": "02",
+          "patch": "00"
+        },
+        {
+          "kind": "offset",
+          "name": "CreateAudioFrame clamp1->2",
+          "offset": "0x003BAC80",
+          "orig": "4939d44c0f43e2",
+          "patch": "49c7c402000000"
+        },
+        {
+          "kind": "offset",
+          "name": "CreateAudioFrame clamp2->2",
+          "offset": "0x003BAC8F",
+          "orig": "4939d44c0f43e2",
+          "patch": "49c7c402000000"
+        },
+        {
+          "kind": "offset",
+          "name": "MonoDownmix bypass (NOP+JMP)",
+          "offset": "0x0038BAFA",
+          "orig": "84c0740d83bb38020000090f8f08010000",
+          "patch": "9090909090909090909090e90901000090"
+        },
+        {
+          "kind": "offset",
+          "name": "MCOpusImpl ctor num_channels",
+          "offset": "0x009C587D",
+          "orig": "01",
+          "patch": "02"
+        },
+        {
+          "kind": "offset",
+          "name": "SdpToConfig num_channels",
+          "offset": "0x00A096C9",
+          "orig": "01",
+          "patch": "02"
+        },
+        {
+          "kind": "offset",
+          "name": "downmix_and_resample ret",
+          "offset": "0x009F3020",
+          "orig": "55",
+          "patch": "c3"
+        },
+        {
+          "kind": "offset",
+          "name": "HighPassFilter::Process ret",
+          "offset": "0x006BC5D0",
+          "orig": "55",
+          "patch": "c3"
+        },
+        {
+          "kind": "offset",
+          "name": "OpusConfig IsOk true",
+          "offset": "0x00A09230",
+          "orig": "554889e58b0f31c0",
+          "patch": "48c7c001000000c3"
+        },
+        {
+          "kind": "offset",
+          "name": "NoiseCanceller::Process ret",
+          "offset": "0x00374900",
+          "orig": "55",
+          "patch": "c3"
+        },
+        {
+          "kind": "offset",
+          "name": "ShouldRunNoiseCancellation false",
+          "offset": "0x0038C6C0",
+          "orig": "0fb687000200002401c3",
+          "patch": "31c0c390909090909090"
+        },
+        {
+          "kind": "offset",
+          "name": "MCOpusImpl ctor bitrate 510k",
+          "offset": "0x009C5887",
+          "orig": "007d0000",
+          "patch": "30c80700"
+        },
+        {
+          "kind": "offset",
+          "name": "SdpToConfig bitrate 510k",
+          "offset": "0x00A096D3",
+          "orig": "007d0000",
+          "patch": "30c80700"
+        },
+        {
+          "kind": "offset",
+          "name": "WebRtcOpus_SetBitRate lock 510k",
+          "offset": "0x006C84E5",
+          "orig": "554889e589f2",
+          "patch": "55ba30c80700"
+        },
+        {
+          "kind": "offset",
+          "name": "SetForceChannels->2",
+          "offset": "0x006C88D5",
+          "orig": "4883fa02772e",
+          "patch": "ba0200000090"
+        },
+        {
+          "kind": "offset",
+          "name": "DisableCbr->ret",
+          "offset": "0x006C8790",
+          "orig": "48",
+          "patch": "c3"
+        },
+        {
+          "kind": "offset",
+          "name": "RemixAndResample skip downmix",
+          "offset": "0x0068C8E3",
+          "orig": "765c",
+          "patch": "eb5c"
+        },
+        {
+          "kind": "offset",
+          "name": "OpusConfig application kAudio",
+          "offset": "0x00A09722",
+          "orig": "00",
+          "patch": "01"
         }
       ]
     }
