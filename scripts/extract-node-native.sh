@@ -55,9 +55,9 @@ process.exit(1);
 EOF
 }
 
-catalog() { # $1 = node path
-  local node="$1" base dest
-  base="$(basename "$(dirname "$(dirname "$(dirname "$node")")")")"
+catalog() { # $1 = node path; $2 = explicit "app-<ver>" override (distro fallback)
+  local node="$1" base="${2:-}" dest
+  [ -n "$base" ] || base="$(printf '%s' "$node" | awk -F/ '{print $(NF-4)}')"
   [[ "$base" =~ ^app-[0-9]+\.[0-9]+\.[0-9]+$ ]] || base="unknown-$(date +%Y%m%d)"
   dest="$OUTDIR/$base"
   mkdir -p "$dest"
@@ -76,7 +76,7 @@ EOF
 }
 
 main() {
-  local tmp_root="${TMPDIR:-${TEMP:-/tmp}}" setup="" node=""
+  local tmp_root="${TMPDIR:-${TEMP:-/tmp}}" setup="" node="" catalog_base=""
   setup="$tmp_root/Discord-${CHANNEL}Setup.exe"
   echo "downloading Discord ${CHANNEL} installer..."
   curl -fsSL --retry 2 "$INSTALLER_URL" -o "$setup"
@@ -101,8 +101,9 @@ main() {
     mkdir -p "$OUTDIR/app-$ver"
     node="$OUTDIR/app-$ver/discord_voice.node"
     cp -f "$tmp/discord_voice.node" "$node"
+    catalog_base="app-$ver"
   fi
-  catalog "$node"
+  catalog "$node" "$catalog_base"
 }
 
 main
