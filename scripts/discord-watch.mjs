@@ -7,8 +7,6 @@
 // Usage:
 //   node scripts/discord-watch.mjs check --state state/versions.json \
 //        [--report <path>] [--notify] [--apply-state]
-//   node scripts/discord-watch.mjs note pr --host 1.0.X --md5 H --run-url U \
-//        --auto-v6 <log> --auto-v7 <log> [--platform win|linux --channel stable]
 //   node scripts/discord-watch.mjs note issue --host 1.0.X --md5 H \
 //        [--report R | --reason text] [--platform win|linux --channel stable]
 //   node scripts/discord-watch.mjs tables-differ --head A --tables B   (exit 1 = same patch bytes)
@@ -252,8 +250,8 @@ function noteArguments(argv) {
     return argv[i + 1];
   };
   const kind = argv[0];
-  if (kind !== "pr" && kind !== "issue" && kind !== "report") {
-    throw new Error("usage: discord-watch.mjs note pr|issue|report ...");
+  if (kind !== "issue") {
+    throw new Error("usage: discord-watch.mjs note issue ...");
   }
   const out = {
     kind,
@@ -262,26 +260,10 @@ function noteArguments(argv) {
     platform: get("--platform"),
     channel: get("--channel"),
     runUrl: get("--run-url"),
+    report: get("--report"),
+    reason: get("--reason"),
   };
-  if (kind !== "report" && (!out.host || !out.md5)) throw new Error("note: --host and --md5 are required");
-  if (kind === "pr") {
-    out.autoV6 = get("--auto-v6");
-    out.autoV7 = get("--auto-v7");
-    out.v6Note = get("--v6-note");
-    out.v7Note = get("--v7-note");
-    if (!out.runUrl || (!out.autoV6 && !out.autoV7)) {
-      throw new Error("note pr: --run-url and at least one of --auto-v6/--auto-v7 are required");
-    }
-  } else if (kind === "report") {
-    out.report = get("--report");
-    out.autoLog = get("--auto");
-    if (!out.report || !out.runUrl || !out.autoLog) {
-      throw new Error("note report: --report, --run-url and --auto are required");
-    }
-  } else {
-    out.report = get("--report");
-    out.reason = get("--reason");
-  }
+  if (!out.host || !out.md5) throw new Error("note: --host and --md5 are required");
   return out;
 }
 
@@ -289,42 +271,6 @@ function noteCommand(argv) {
   const args = noteArguments(argv);
   const md5Ref = `\`${args.md5}\``;
   const target = [args.platform, args.channel].filter(Boolean).join("/");
-  if (args.kind === "pr") {
-    const v6 = args.autoV6 && existsSync(args.autoV6) ? JSON.parse(readFileSync(args.autoV6, "utf8")) : null;
-    const v7 = args.autoV7 && existsSync(args.autoV7) ? JSON.parse(readFileSync(args.autoV7, "utf8")) : null;
-    const parts = [];
-    if (v6) parts.push(`v6 ${v6.sites} sites (autopatch exit 0)`);
-    else if (args.v6Note) parts.push(`v6: ${args.v6Note}`);
-    if (v7) parts.push(`v7 ${v7.sites} sites (autopatch exit 0)`);
-    else if (args.v7Note) parts.push(`v7: ${args.v7Note}`);
-    return [
-      "### Candidate patch table",
-      "",
-      `- Build: Discord ${args.platform ?? ""} ${args.host} (\`node md5 ${args.md5}\`)`,
-      `- Coverage: ${parts.join(" · ")}`,
-      `- \`db_version\`: ${(v7 ?? v6)?.db_version ?? "?"}`,
-      `- Run: ${args.runUrl} (artifacts \`discord-watch-reports-*\`)`,
-      "",
-      "Reviewer: revert → analyze → apply in the wizard, then verify hard-left/right on the target platform.",
-      "Merging publishes the table through `patchdb-archive`; clients pick it up on the next launch via `db_version`.",
-      "",
-    ].join("\n");
-  }
-  if (args.kind === "report") {
-    const report = JSON.parse(readFileSync(args.report, "utf8"));
-    const auto = JSON.parse(readFileSync(args.autoLog, "utf8"));
-    return [
-      "### Candidate patch table from app report",
-      "",
-      `- report: \`${report.report_id}\` · goal ${report.goal} · build ${report.os} ${report.discord_dir} (\`node md5 ${report.node_md5}\`)`,
-      `- autopatch: ${auto.sites} sites (exit 0) · \`db_version\` ${auto.db_version}`,
-      `- Run: ${args.runUrl}`,
-      "",
-      "Reviewer: revert → analyze → apply in the wizard, then verify hard-left/right before merging.",
-      "Merging publishes the table through `patchdb-archive`; clients pick it up on the next launch via `db_version`.",
-      "",
-    ].join("\n");
-  }
   const lines = [`### ${args.platform ?? ""} ${args.host} needs manual RE`, "", `- node md5: ${md5Ref}`];
   if (target) lines.push(`- target: \`${target}\``);
   if (args.runUrl) lines.push(`- run: ${args.runUrl}`);
