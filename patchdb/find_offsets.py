@@ -493,6 +493,11 @@ def version_key(discord: str) -> tuple[int, ...]:
     return (int(match.group(1)),) if match else (0,)
 
 
+def app_key(text: str) -> tuple[int, int, int] | None:
+    match = re.search(r"app-(\d+)\.(\d+)\.(\d+)", text)
+    return tuple(int(part) for part in match.groups()) if match else None
+
+
 def node_os(path: Path) -> str:
     """Return "linux", "windows", or "" from the binary magic bytes."""
     try:
@@ -510,7 +515,7 @@ def node_os(path: Path) -> str:
 def choose_reference(
     db: PatchDb, goal: str, node_path: Path, md5: str, ref_md5: str | None = None
 ) -> Table:
-    """Pick a reference table; an explicit ref_md5 wins, otherwise the node's platform is preferred."""
+    """Pick a reference table; an explicit ref_md5 wins, otherwise the closest build on the node's platform."""
     candidates = [table for table in db.tables if table.goal == goal and table.sites]
     if not candidates:
         raise ValueError(f"no tables for goal {goal!r}")
@@ -528,15 +533,21 @@ def choose_reference(
     for table in candidates:
         if table.binary_md5 == md5:
             return table
-    match = re.search(r"app-1\.0\.(\d+)", str(node_path))
-    if match:
-        wanted = match.group(1)
-        matching = [
-            table for table in candidates if table.discord.endswith(f".{wanted}") or table.discord.endswith(wanted)
-        ]
-        if matching:
-            return max(matching, key=lambda table: len(table.sites))
-    return max(candidates, key=lambda table: (version_key(table.discord), len(table.sites)))
+    node_version = app_key(str(node_path))
+    if node_version is None:
+        return max(candidates, key=lambda table: (version_key(table.discord), len(table.sites)))
+
+    def rank(entry: tuple[int, Table]) -> tuple[tuple[int, int, int], int, int]:
+        index, table = entry
+        table_version = app_key(table.discord)
+        distance = (
+            tuple(abs(a - b) for a, b in zip(table_version, node_version))
+            if table_version
+            else (10**9, 10**9, 10**9)
+        )
+        return (distance, -len(table.sites), -index)
+
+    return min(enumerate(candidates), key=rank)[1]
 
 
 def find_table(db: PatchDb, md5: str, goal: str) -> Table | None:
