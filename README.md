@@ -122,7 +122,8 @@ current table, so it works offline, and downloads a newer one when available.
 - A known build gets exact offsets. An unknown build gets a warned compatibility attempt,
   and the app writes only when every site verifies.
 - A build without a verified table is analyzed and never written.
-- CI validates the table on every change.
+- CI validates the table on every change, and new builds publish automatically after an
+  apply/revert check on the clean binary (failures open an issue for manual RE instead).
 
 ## Download
 

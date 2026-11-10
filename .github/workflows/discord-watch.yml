@@ -17,7 +17,6 @@ concurrency:
 permissions:
   contents: write
   issues: write
-  pull-requests: write
 
 jobs:
   watch:
@@ -63,7 +62,11 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           git add state/versions.json
           git commit -m "chore(watch): discord update state"
-          git push
+          if ! git push; then
+            git fetch origin main
+            git rebase origin/main
+            git push
+          fi
 
   extract:
     name: Extract ${{ matrix.build.platform }} ${{ matrix.build.channel }}
@@ -99,7 +102,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
       - name: Download extracted nodes
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:

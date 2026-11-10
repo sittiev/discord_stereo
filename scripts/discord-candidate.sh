@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Turns extracted node artifacts into Patch-DB candidates:
+# Turns extracted node artifacts into Patch-DB tables:
 #   <dir>/discord-node-<platform>-<channel>/app-<ver>/{discord_voice.node,metadata.json}
 # Runs the v6/v7 finder per build, lets autopatch merge only reports with full
-# coverage, opens a PR when the merged tables changed bytes for real and an
-# issue when the build needs manual RE. Never publishes directly.
-# Env: GH_TOKEN (PR/issue; absent = dry run), REPO (owner/name), RUN_URL.
+# coverage, verifies apply/revert on the clean node and pushes the table to
+# main. Opens an issue when a goal needs manual RE or the gate fails.
+# Env: GH_TOKEN (push/issue; absent = dry run), REPO (owner/name), RUN_URL.
 # Usage: discord-candidate.sh <artifacts-dir> [work-dir]
 set -euo pipefail
 
@@ -18,10 +18,9 @@ mkdir -p "$WORK"
 dry=0
 if [ -z "${GH_TOKEN:-}" ] || [ "${DRY_RUN:-0}" = "1" ]; then
   dry=1
-  echo "discord-candidate: dry run (no GH_TOKEN / DRY_RUN=1) - no PR or issue will be created"
+  echo "discord-candidate: dry run (no GH_TOKEN / DRY_RUN=1) - no push or issue will be created"
 fi
 
-base="$(git -C "$ROOT" rev-parse HEAD)"
 shopt -s nullglob
 builds=("$ARTIFACTS"/discord-node-*)
 if [ "${#builds[@]}" -eq 0 ]; then
@@ -47,7 +46,7 @@ for dir in "${builds[@]}"; do
   tag="$platform-$channel-$host"
   echo "== $tag (md5 $md5)"
 
-  git -C "$ROOT" checkout -q "$base" -- patchdb/tables.json
+  git -C "$ROOT" checkout -q HEAD -- patchdb/tables.json
   # One decision per goal: v6 always, v7 only where tables exist for the platform
   # (there is no Linux v7 table yet, so Linux builds skip v7).
   goals=(v6)
@@ -58,6 +57,7 @@ for dir in "${builds[@]}"; do
       >"$WORK/$goal-$tag.finder.log" 2>&1 || true
   done
   declare -A rc_of=()
+  cp "$ROOT/patchdb/tables.json" "$WORK/head-$tag.json"
 
   for goal in "${goals[@]}"; do
     report="$WORK/$goal-$tag.json"
@@ -74,50 +74,46 @@ for dir in "${builds[@]}"; do
   echo "   autopatch v6=${rc_of[v6]:-n/a} v7=${rc_of[v7]:-n/a}"
 
   merged=0
-  for goal in "${goals[@]}"; do [ "${rc_of[$goal]}" = "0" ] && merged=1; done
+  merged_count=0
+  for goal in "${goals[@]}"; do
+    if [ "${rc_of[$goal]}" = "0" ]; then
+      merged=1
+      merged_count=$((merged_count + 1))
+    fi
+  done
 
   if [ "$merged" = "1" ]; then
-    git -C "$ROOT" show "$base":patchdb/tables.json >"$WORK/head-$tag.json" 2>/dev/null || printf '{}\n' >"$WORK/head-$tag.json"
     if node "$ROOT/scripts/discord-watch.mjs" tables-differ --head "$WORK/head-$tag.json" --tables "$ROOT/patchdb/tables.json" >/dev/null 2>&1; then
-      branch="db/auto-$tag"
-      if [ "$dry" = "1" ]; then
-        echo "   [dry] would commit patchdb/tables.json and open PR on $branch"
-      else
-        (
-          cd "$ROOT"
-          git config user.name "stereo-watch-bot"
-          git config user.email "actions@users.noreply.github.com"
-          cp patchdb/tables.json "$WORK/merged-$tag.json"
-          git checkout -q "$base" -- patchdb/tables.json
-          git switch -C "$branch" "$base"
-          cp "$WORK/merged-$tag.json" patchdb/tables.json
-          git add patchdb/tables.json
-          git commit -m "patchdb: tables for $platform $host"
-          git push --force origin "$branch"
-        )
-        body="$WORK/pr-$tag.md"
-        pr_args=(--host "$host" --md5 "$md5" --platform "$platform" --channel "$channel" \
-          --run-url "$RUN_URL")
-        if [ "${rc_of[v6]:-}" = "0" ]; then
-          pr_args+=(--auto-v6 "$WORK/v6-$tag.auto.log")
-        else
-          pr_args+=(--v6-note "manual RE needed (issue opened)")
+      gate_ok=1
+      for goal in "${goals[@]}"; do
+        [ "${rc_of[$goal]}" = "0" ] || continue
+        if ! node "$ROOT/patchdb/verify-table.mjs" "$node" "$md5" "$goal" "$ROOT/patchdb/tables.json" \
+          >"$WORK/$goal-$tag.gate.log" 2>&1; then
+          gate_ok=0
+          rc_of[$goal]="gate"
+          echo "   gate failed for $goal: $(tail -1 "$WORK/$goal-$tag.gate.log")"
         fi
-        if [ "${rc_of[v7]:-}" = "0" ]; then
-          pr_args+=(--auto-v7 "$WORK/v7-$tag.auto.log")
-        elif [ "$platform" = "linux" ]; then
-          pr_args+=(--v7-note "not evaluated (no Linux v7 tables)")
+      done
+      if [ "$gate_ok" = "1" ]; then
+        if [ "$dry" = "1" ]; then
+          echo "   [dry] would commit patchdb/tables.json and push to main"
         else
-          pr_args+=(--v7-note "manual RE needed (issue opened)")
-        fi
-        node "$ROOT/scripts/discord-watch.mjs" note pr "${pr_args[@]}" >"$body"
-        if ! gh pr create --repo "$REPO" --title "patchdb: tables for $platform $host" --body-file "$body" --base main --head "$branch"; then
-          echo "   PR already exists?"
-          gh pr list --repo "$REPO" --head "$branch" --json url --jq '.[].url' || true
+          git -C "$ROOT" config user.name "stereo-watch-bot"
+          git -C "$ROOT" config user.email "actions@users.noreply.github.com"
+          git -C "$ROOT" add patchdb/tables.json
+          word=table
+          [ "$merged_count" -gt 1 ] && word=tables
+          git -C "$ROOT" commit -m "patchdb: add $platform $host $word"
+          if ! git -C "$ROOT" push origin HEAD:main; then
+            git -C "$ROOT" fetch origin main
+            git -C "$ROOT" rebase origin/main
+            git -C "$ROOT" push origin HEAD:main
+          fi
+          echo "   pushed to main"
         fi
       fi
     else
-      echo "   no real byte change (db_version only); PR skipped"
+      echo "   no real byte change (db_version only); push skipped"
     fi
   fi
 
@@ -133,7 +129,10 @@ for dir in "${builds[@]}"; do
       fi
     fi
     body="$WORK/issue-$tag-$goal.md"
-    if [ -f "$WORK/$goal-$tag.json" ]; then
+    if [ "$rc" = "gate" ]; then
+      node "$ROOT/scripts/discord-watch.mjs" note issue --host "$host" --md5 "$md5" --platform "$platform" --channel "$channel" \
+        --run-url "$RUN_URL" --reason "apply/revert gate failed on the clean node" >"$body"
+    elif [ -f "$WORK/$goal-$tag.json" ]; then
       node "$ROOT/scripts/discord-watch.mjs" note issue --host "$host" --md5 "$md5" --platform "$platform" --channel "$channel" \
         --run-url "$RUN_URL" --report "$WORK/$goal-$tag.json" >"$body"
     else
@@ -148,4 +147,4 @@ for dir in "${builds[@]}"; do
   done
 done
 
-git -C "$ROOT" checkout -q "$base" -- patchdb/tables.json
+git -C "$ROOT" checkout -q HEAD -- patchdb/tables.json
