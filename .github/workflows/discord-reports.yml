@@ -12,7 +12,6 @@ concurrency:
 permissions:
   contents: write
   issues: write
-  pull-requests: write
 
 jobs:
   ingest:
@@ -22,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
@@ -58,7 +57,11 @@ jobs:
             git config user.email "actions@users.noreply.github.com"
             git add state/reports.json
             git commit -m "chore(reports): ingest discord traces"
-            git push
+            if ! git push; then
+              git fetch origin main
+              git rebase origin/main
+              git push
+            fi
           fi
       - name: Upload report evidence
         if: steps.gate.outputs.enabled == 'true'

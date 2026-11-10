@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# Processes downloaded schema-2 reports (app traces) into Patch-DB candidates
-# with the same policy as the build pipeline: full coverage -> PR built from
-# the trace; anything else -> issue with the report evidence. Never publishes.
-# Env: GH_TOKEN (PR/issue; absent = dry run), REPO (owner/name), RUN_URL.
+# Processes downloaded schema-2 reports (app traces) into Patch-DB tables with
+# the same policy as the build pipeline: full coverage -> commit and push to
+# main (autopatch validates the merged table); anything else -> issue with the
+# report evidence. Reports carry no node binary, so the apply/revert gate runs
+# only in the build pipeline.
+# Env: GH_TOKEN (push/issue; absent = dry run), REPO (owner/name), RUN_URL.
 # Usage: discord-reports-process.sh <reports-dir> [work-dir]
 set -euo pipefail
 
@@ -16,10 +18,9 @@ mkdir -p "$WORK"
 dry=0
 if [ -z "${GH_TOKEN:-}" ] || [ "${DRY_RUN:-0}" = "1" ]; then
   dry=1
-  echo "discord-reports-process: dry run (no GH_TOKEN / DRY_RUN=1) - no PR or issue will be created"
+  echo "discord-reports-process: dry run (no GH_TOKEN / DRY_RUN=1) - no push or issue will be created"
 fi
 
-base="$(git -C "$ROOT" rev-parse HEAD)"
 shopt -s nullglob
 reports=("$REPORTS"/*.json)
 if [ "${#reports[@]}" -eq 0 ]; then
@@ -43,41 +44,35 @@ for report in "${reports[@]}"; do
   tag="$platform-$host-$short-$rid"
   echo "== report $rid ($platform $host, goal $goal, md5 $md5)"
 
-  git -C "$ROOT" checkout -q "$base" -- patchdb/tables.json
+  git -C "$ROOT" checkout -q HEAD -- patchdb/tables.json
+  cp "$ROOT/patchdb/tables.json" "$WORK/head-$tag.json"
   rc=skip
   node "$ROOT/patchdb/autopatch.mjs" "$report" "$ROOT/patchdb/tables.json" >"$WORK/$tag.auto.log" 2>&1 && rc=0 || rc=$?
   echo "   autopatch rc=$rc"
 
   if [ "$rc" = "0" ]; then
-    git -C "$ROOT" show "$base":patchdb/tables.json >"$WORK/head-$tag.json" 2>/dev/null || printf '{}\n' >"$WORK/head-$tag.json"
-    if ! node "$ROOT/scripts/discord-watch.mjs" tables-differ --head "$WORK/head-$tag.json" --tables "$ROOT/patchdb/tables.json" >/dev/null 2>&1; then
-      echo "   no real byte change (db_version only); PR skipped"
-      continue
-    fi
-    branch="db/report-$tag"
-    if [ "$dry" = "1" ]; then
-      echo "   [dry] would commit patchdb/tables.json and open PR on $branch"
-      continue
-    fi
-    (
-      cd "$ROOT"
-      git config user.name "stereo-watch-bot"
-      git config user.email "actions@users.noreply.github.com"
-      git switch -C "$branch" "$base"
-      git add patchdb/tables.json
-      git commit -m "patchdb: tables from report $rid"
-      git push --force origin "$branch"
-    )
-    body="$WORK/pr-$tag.md"
-    node "$ROOT/scripts/discord-watch.mjs" note report --report "$report" --auto "$WORK/$tag.auto.log" --run-url "$RUN_URL" >"$body"
-    if ! gh pr create --repo "$REPO" --title "patchdb: tables from report $rid" --body-file "$body" --base main --head "$branch"; then
-      echo "   PR already exists?"
-      gh pr list --repo "$REPO" --head "$branch" --json url --jq '.[].url' || true
+    if node "$ROOT/scripts/discord-watch.mjs" tables-differ --head "$WORK/head-$tag.json" --tables "$ROOT/patchdb/tables.json" >/dev/null 2>&1; then
+      if [ "$dry" = "1" ]; then
+        echo "   [dry] would commit patchdb/tables.json and push to main"
+      else
+        git -C "$ROOT" config user.name "stereo-watch-bot"
+        git -C "$ROOT" config user.email "actions@users.noreply.github.com"
+        git -C "$ROOT" add patchdb/tables.json
+        git -C "$ROOT" commit -m "patchdb: add $platform $host table"
+        if ! git -C "$ROOT" push origin HEAD:main; then
+          git -C "$ROOT" fetch origin main
+          git -C "$ROOT" rebase origin/main
+          git -C "$ROOT" push origin HEAD:main
+        fi
+        echo "   pushed to main"
+      fi
+    else
+      echo "   no real byte change (db_version only); push skipped"
     fi
     continue
   fi
 
-  title="patchdb: manual RE for $platform $host ($short)"
+  title="patchdb: manual RE for $platform $host ($short) - $goal"
   if [ "$dry" = "0" ]; then
     open_count="$(gh issue list --repo "$REPO" --state open --search "$title in:title" --json number --jq 'length' || echo 0)"
     if [ "$open_count" != "0" ]; then
@@ -94,4 +89,4 @@ for report in "${reports[@]}"; do
   gh issue create --repo "$REPO" --title "$title" --body-file "$body" || echo "   issue create failed"
 done
 
-git -C "$ROOT" checkout -q "$base" -- patchdb/tables.json
+git -C "$ROOT" checkout -q HEAD -- patchdb/tables.json
