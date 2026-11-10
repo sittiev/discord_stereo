@@ -267,8 +267,10 @@ function noteArguments(argv) {
   if (kind === "pr") {
     out.autoV6 = get("--auto-v6");
     out.autoV7 = get("--auto-v7");
-    if (!out.runUrl || !out.autoV6 || !out.autoV7) {
-      throw new Error("note pr: --run-url, --auto-v6 and --auto-v7 are required");
+    out.v6Note = get("--v6-note");
+    out.v7Note = get("--v7-note");
+    if (!out.runUrl || (!out.autoV6 && !out.autoV7)) {
+      throw new Error("note pr: --run-url and at least one of --auto-v6/--auto-v7 are required");
     }
   } else if (kind === "report") {
     out.report = get("--report");
@@ -288,14 +290,19 @@ function noteCommand(argv) {
   const md5Ref = `\`${args.md5}\``;
   const target = [args.platform, args.channel].filter(Boolean).join("/");
   if (args.kind === "pr") {
-    const v6 = JSON.parse(readFileSync(args.autoV6, "utf8"));
-    const v7 = JSON.parse(readFileSync(args.autoV7, "utf8"));
+    const v6 = args.autoV6 && existsSync(args.autoV6) ? JSON.parse(readFileSync(args.autoV6, "utf8")) : null;
+    const v7 = args.autoV7 && existsSync(args.autoV7) ? JSON.parse(readFileSync(args.autoV7, "utf8")) : null;
+    const parts = [];
+    if (v6) parts.push(`v6 ${v6.sites} sites (autopatch exit 0)`);
+    else if (args.v6Note) parts.push(`v6: ${args.v6Note}`);
+    if (v7) parts.push(`v7 ${v7.sites} sites (autopatch exit 0)`);
+    else if (args.v7Note) parts.push(`v7: ${args.v7Note}`);
     return [
       "### Candidate patch table",
       "",
       `- Build: Discord ${args.platform ?? ""} ${args.host} (\`node md5 ${args.md5}\`)`,
-      `- Coverage: v6 ${v6.sites} sites · v7 ${v7.sites} sites (autopatch exit 0)`,
-      `- \`db_version\`: ${v7.db_version}`,
+      `- Coverage: ${parts.join(" · ")}`,
+      `- \`db_version\`: ${(v7 ?? v6)?.db_version ?? "?"}`,
       `- Run: ${args.runUrl} (artifacts \`discord-watch-reports-*\`)`,
       "",
       "Reviewer: revert → analyze → apply in the wizard, then verify hard-left/right on the target platform.",
