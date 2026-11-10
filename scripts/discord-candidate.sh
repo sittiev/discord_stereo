@@ -48,73 +48,104 @@ for dir in "${builds[@]}"; do
   echo "== $tag (md5 $md5)"
 
   git -C "$ROOT" checkout -q "$base" -- patchdb/tables.json
-  for goal in v6 v7; do
+  # One decision per goal: v6 always, v7 only where tables exist for the platform
+  # (there is no Linux v7 table yet, so Linux builds skip v7).
+  goals=(v6)
+  [ "$platform" = "win" ] && goals=(v6 v7)
+  for goal in "${goals[@]}"; do
     GOAL="$goal" REPORT="$WORK/$goal-$tag.json" \
       bash "$ROOT/scripts/find-offsets.sh" "$node" "$WORK/$goal-$tag.txt" \
       >"$WORK/$goal-$tag.finder.log" 2>&1 || true
   done
+  declare -A rc_of=()
 
-  rc6=skip
-  rc7=skip
-  if [ -f "$WORK/v6-$tag.json" ]; then
-    node "$ROOT/patchdb/autopatch.mjs" "$WORK/v6-$tag.json" "$ROOT/patchdb/tables.json" >"$WORK/v6-$tag.auto.log" 2>&1 && rc6=0 || rc6=$?
-  fi
-  if [ "$rc6" = 0 ] && [ -f "$WORK/v7-$tag.json" ]; then
-    node "$ROOT/patchdb/autopatch.mjs" "$WORK/v7-$tag.json" "$ROOT/patchdb/tables.json" >"$WORK/v7-$tag.auto.log" 2>&1 && rc7=0 || rc7=$?
-  fi
-  echo "   autopatch v6=$rc6 v7=$rc7"
+  for goal in "${goals[@]}"; do
+    report="$WORK/$goal-$tag.json"
+    if [ ! -f "$report" ]; then
+      rc_of[$goal]="missing"
+      continue
+    fi
+    if node "$ROOT/patchdb/autopatch.mjs" "$report" "$ROOT/patchdb/tables.json" >"$WORK/$goal-$tag.auto.log" 2>&1; then
+      rc_of[$goal]=0
+    else
+      rc_of[$goal]=$?
+    fi
+  done
+  echo "   autopatch v6=${rc_of[v6]:-n/a} v7=${rc_of[v7]:-n/a}"
 
-  if [ "$rc6" = 0 ] && [ "$rc7" = 0 ]; then
+  merged=0
+  for goal in "${goals[@]}"; do [ "${rc_of[$goal]}" = "0" ] && merged=1; done
+
+  if [ "$merged" = "1" ]; then
     git -C "$ROOT" show "$base":patchdb/tables.json >"$WORK/head-$tag.json" 2>/dev/null || printf '{}\n' >"$WORK/head-$tag.json"
-    if ! node "$ROOT/scripts/discord-watch.mjs" tables-differ --head "$WORK/head-$tag.json" --tables "$ROOT/patchdb/tables.json" >/dev/null 2>&1; then
+    if node "$ROOT/scripts/discord-watch.mjs" tables-differ --head "$WORK/head-$tag.json" --tables "$ROOT/patchdb/tables.json" >/dev/null 2>&1; then
+      branch="db/auto-$tag"
+      if [ "$dry" = "1" ]; then
+        echo "   [dry] would commit patchdb/tables.json and open PR on $branch"
+      else
+        (
+          cd "$ROOT"
+          git config user.name "stereo-watch-bot"
+          git config user.email "actions@users.noreply.github.com"
+          cp patchdb/tables.json "$WORK/merged-$tag.json"
+          git checkout -q "$base" -- patchdb/tables.json
+          git switch -C "$branch" "$base"
+          cp "$WORK/merged-$tag.json" patchdb/tables.json
+          git add patchdb/tables.json
+          git commit -m "patchdb: tables for $platform $host"
+          git push --force origin "$branch"
+        )
+        body="$WORK/pr-$tag.md"
+        pr_args=(--host "$host" --md5 "$md5" --platform "$platform" --channel "$channel" \
+          --run-url "$RUN_URL")
+        if [ "${rc_of[v6]:-}" = "0" ]; then
+          pr_args+=(--auto-v6 "$WORK/v6-$tag.auto.log")
+        else
+          pr_args+=(--v6-note "manual RE needed (issue opened)")
+        fi
+        if [ "${rc_of[v7]:-}" = "0" ]; then
+          pr_args+=(--auto-v7 "$WORK/v7-$tag.auto.log")
+        elif [ "$platform" = "linux" ]; then
+          pr_args+=(--v7-note "not evaluated (no Linux v7 tables)")
+        else
+          pr_args+=(--v7-note "manual RE needed (issue opened)")
+        fi
+        node "$ROOT/scripts/discord-watch.mjs" note pr "${pr_args[@]}" >"$body"
+        if ! gh pr create --repo "$REPO" --title "patchdb: tables for $platform $host" --body-file "$body" --base main --head "$branch"; then
+          echo "   PR already exists?"
+          gh pr list --repo "$REPO" --head "$branch" --json url --jq '.[].url' || true
+        fi
+      fi
+    else
       echo "   no real byte change (db_version only); PR skipped"
-      continue
     fi
-    branch="db/auto-$tag"
-    if [ "$dry" = "1" ]; then
-      echo "   [dry] would commit patchdb/tables.json and open PR on $branch"
-      continue
-    fi
-    (
-      cd "$ROOT"
-      git config user.name "stereo-watch-bot"
-      git config user.email "actions@users.noreply.github.com"
-      git switch -C "$branch" HEAD
-      git add patchdb/tables.json
-      git commit -m "patchdb: tables for $platform $host"
-      git push --force origin "$branch"
-    )
-    body="$WORK/pr-$tag.md"
-    node "$ROOT/scripts/discord-watch.mjs" note pr --host "$host" --md5 "$md5" --platform "$platform" --channel "$channel" \
-      --run-url "$RUN_URL" --auto-v6 "$WORK/v6-$tag.auto.log" --auto-v7 "$WORK/v7-$tag.auto.log" >"$body"
-    if ! gh pr create --repo "$REPO" --title "patchdb: tables for $platform $host" --body-file "$body" --base main --head "$branch"; then
-      echo "   PR already exists?"
-      gh pr list --repo "$REPO" --head "$branch" --json url --jq '.[].url' || true
-    fi
-    continue
   fi
 
-  title="patchdb: manual RE for $platform $host (${md5:0:8})"
-  if [ "$dry" = "0" ]; then
-    open_count="$(gh issue list --repo "$REPO" --state open --search "$title in:title" --json number --jq 'length' || echo 0)"
-    if [ "$open_count" != "0" ]; then
-      echo "   open issue already exists; skip"
+  for goal in "${goals[@]}"; do
+    rc="${rc_of[$goal]:-missing}"
+    [ "$rc" = "0" ] && continue
+    title="patchdb: manual RE for $platform $host (${md5:0:8}) - $goal"
+    if [ "$dry" = "0" ]; then
+      open_count="$(gh issue list --repo "$REPO" --state open --search "$title in:title" --json number --jq 'length' || echo 0)"
+      if [ "$open_count" != "0" ]; then
+        echo "   open issue already exists for $goal; skip"
+        continue
+      fi
+    fi
+    body="$WORK/issue-$tag-$goal.md"
+    if [ -f "$WORK/$goal-$tag.json" ]; then
+      node "$ROOT/scripts/discord-watch.mjs" note issue --host "$host" --md5 "$md5" --platform "$platform" --channel "$channel" \
+        --run-url "$RUN_URL" --report "$WORK/$goal-$tag.json" >"$body"
+    else
+      node "$ROOT/scripts/discord-watch.mjs" note issue --host "$host" --md5 "$md5" --platform "$platform" --channel "$channel" \
+        --run-url "$RUN_URL" --reason "the finder produced no report for this binary" >"$body"
+    fi
+    if [ "$dry" = "1" ]; then
+      echo "   [dry] would open issue: $title"
       continue
     fi
-  fi
-  body="$WORK/issue-$tag.md"
-  if [ -f "$WORK/v6-$tag.json" ]; then
-    node "$ROOT/scripts/discord-watch.mjs" note issue --host "$host" --md5 "$md5" --platform "$platform" --channel "$channel" \
-      --run-url "$RUN_URL" --report "$WORK/v6-$tag.json" >"$body"
-  else
-    node "$ROOT/scripts/discord-watch.mjs" note issue --host "$host" --md5 "$md5" --platform "$platform" --channel "$channel" \
-      --run-url "$RUN_URL" --reason "the finder produced no report for this binary" >"$body"
-  fi
-  if [ "$dry" = "1" ]; then
-    echo "   [dry] would open issue: $title"
-    continue
-  fi
-  gh issue create --repo "$REPO" --title "$title" --body-file "$body" || echo "   issue create failed"
+    gh issue create --repo "$REPO" --title "$title" --body-file "$body" || echo "   issue create failed"
+  done
 done
 
 git -C "$ROOT" checkout -q "$base" -- patchdb/tables.json
