@@ -1049,15 +1049,15 @@
       <m3e-snackbar id="snackbar" aria-live="polite"></m3e-snackbar>
     </m3e-theme>
     <script>
-      // Before the bundle mounts: apply the saved theme to avoid a flash on open.
+      // Before the bundle mounts: follow the system theme by default (no flash
+      // on open) unless the user pinned light/dark earlier.
       try {
         const t = localStorage.getItem("sw.theme");
-        if (t === "light" || t === "dark" || t === "auto") {
-          document.documentElement.dataset.theme = t;
-        }
-        if (t === "light" || t === "dark") {
-          document.querySelector("m3e-theme").setAttribute("scheme", t);
-          document.documentElement.style.colorScheme = t;
+        const pref = t === "light" || t === "dark" ? t : "auto";
+        document.documentElement.dataset.theme = pref;
+        if (pref !== "auto") {
+          document.querySelector("m3e-theme").setAttribute("scheme", pref);
+          document.documentElement.style.colorScheme = pref;
         }
       } catch {}
     </script>
