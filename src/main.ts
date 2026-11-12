@@ -108,9 +108,7 @@ const ON_ENTER: Record<string, () => void> = {
     renderAbout();
   },
 };
-const steps = [
-  ...document.querySelectorAll<HTMLButtonElement>(".stepper .step-btn"),
-];
+const steps = [...document.querySelectorAll<HTMLButtonElement>(".stepper .step-btn")];
 let currentStep: (typeof ORDER)[number] | null = null;
 
 function gotoStep(id: string): void {
@@ -349,10 +347,22 @@ function installRoot(p: string): string {
 // Real brand mark of each flavor at 24px (Simple Icons, embedded paths so
 // it works offline). Colors only to tell them apart in the list.
 const CLIENT_ICON: Record<ClientKind, { path: string; color: string }> = {
-  stable: { path: "M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z", color: "#5865F2" },
-  ptb: { path: "M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z", color: "#949CF7" },
-  canary: { path: "M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z", color: "#FAA61A" },
-  vencord: { path: "M.613.6v.587h2.4V.6h-1.2zm2.4.587v8.4H3.6v-8.4h-.293zm.587 8.4v.613h.613v-.613h-.306zm.613.613v.587H4.8V10.2h-.293zm.587.587v.613h.613v-.613h-.306zm.613.613v.587H6V11.4h-.293zm.587.587v.613h1.2v-.613h-.6zm1.2 0h.613V11.4H7.2v.293zm.613-.587H8.4V15h-.587v.587H8.4v4.8h.613v-9.6h2.4v-2.4H10.8V10.2H9.6v-.613h-.587v.613H8.4v.587h-.587v.306zM9.6 9.587h.613v-8.4H9.6v4.2zm.613-8.4h2.4V.6h-2.4v.293zm2.4 0V7.8h-1.2v.587H15.6v.32H18v-.32h.614v.32h2.106v-.32h.294V6.893h-.294v-.906h-.32v-.88h-.293V5.4h-.293v.907h-.294V6.6h.294v.587h.293v-.88h.293v.88h.32v.906h-.32v.294h-.586v-.294h.293V7.8h.293v-.613h-.293v.32h-.293V7.8h-.294v.587h-.613V7.8h-.293v-.293h-.294V7.8h-1.813v.293h1.2v.294H15.92v-.294h-1.813V7.8h-.293V6.307h-.294V7.8h-.32V1.187h-.293zm1.2 5.12h.294v-.32h-.294v.16zm.294-.32h.293V5.4h-.293v.293zM14.4 5.4h.614v-.293H14.4v.146zm.614-.293h.586V5.4h.32v-.613h-.906v.16zm.906-.32h.293v-.294h-.293v.147zm.293-.294h.294V4.2h-.294v.147zm.294-.293h.293v-.293h-.293v.146zm.293 0v.587h.32v.32h.293v-.32h.294v.32h-.294V5.4H18v-.613h.32V4.2H18v.293h-.88V4.2h-.16zm1.52 0h.294v-.293h-.294v.146zm.294-.293h.293v-.32h-.293v.16zm.293-.32h.293v-.294h-.293v.147zm.293 0v1.52h.32v-.32h.293v-.294h-.293v-.906h-.16zm.613 1.2v.32h.294v-.32h-.147zm0 .32h-.293V5.4h.293v-.147zM15.6 5.4h-.293v1.2h.293V6zm0 1.2v.587h.32V6.6h-.16zm.32.587v.32h.293v-.32h-.146zm.293.32V7.8h.294v-.293h-.147zm2.694.293h.613v-.293h-.613v.146zm.613-.293h.293v-.32h-.293v.16zm0-.907h-.613v.293h.613v-.146zm-.613.293h-.293v.294h.293V7.04zm2.107 1.494v2.4h2.4V10.2H21.6V8.387h-.293zm2.4 2.4v2.4H24v-2.4h-.293zm0 2.4h-4.8v.613h4.8v-.307zm-4.8 0v-2.4h-4.8v9.6h4.8v-2.4H18V19.8h-3.6v-8.4H18v1.787h.307zm0 4.8h4.8V17.4h-4.8v.293zm4.8 0v2.4H24v-2.4h-.293zm0 2.4h-2.4v2.4h.586V21h1.814v-.306zm-2.4 2.4h-9.6v.613h9.6v-.307zm-9.6 0v-2.4h-2.4V21H10.8v1.787h.307zm-3.6-7.2h-2.4v.613h2.4v-.307zm-2.4 0V15H4.8v.587h.307zM4.8 15v-.613h-.586V15h.293zm-.586-.613V13.8H3.6v.587h.307zM3.6 13.8v-.613h-.587v.613h.294zm-.587-.613V12.6H2.4v.587h.307zM2.4 12.6v-.613h-.587v.613h.294zm-.587-.613V11.4H1.2v.587h.307zM1.2 11.4v-.613H.614v.613h.293zm-.586-.613v-9.6H0v9.6h.307zM13.52.6v.293h1.493v.293h.293V.893h.294V.6h-1.04zm1.493.586h-.293v.32h.293v-.16zm-.293.32h-.32V1.8h.32v-.147zm0 .294v.293h.293V1.8h-.147zm-.32 0h-.294v.293h.294v-.147zm-.294.293h-.293v.293h-.293v.32h2.08v-.32h-1.494V2.24zm.294-.587v-.32h-.294v.32h.147zm2.106.294v.293h.907v.293h.293v-.293H18V1.8h-.747zm.907.586h-.293v.32h-.614V3H18v-.294h-.587v-.16zm-1.2 4.214v.293h.586V6.6h-.293zm.586.293v.293h.907v-.293h-.453zm.907.293v.32H18v-.32h-.146z", color: "#3DB389" },
+  stable: {
+    path: "M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z",
+    color: "#5865F2",
+  },
+  ptb: {
+    path: "M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z",
+    color: "#949CF7",
+  },
+  canary: {
+    path: "M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z",
+    color: "#FAA61A",
+  },
+  vencord: {
+    path: "M.613.6v.587h2.4V.6h-1.2zm2.4.587v8.4H3.6v-8.4h-.293zm.587 8.4v.613h.613v-.613h-.306zm.613.613v.587H4.8V10.2h-.293zm.587.587v.613h.613v-.613h-.306zm.613.613v.587H6V11.4h-.293zm.587.587v.613h1.2v-.613h-.6zm1.2 0h.613V11.4H7.2v.293zm.613-.587H8.4V15h-.587v.587H8.4v4.8h.613v-9.6h2.4v-2.4H10.8V10.2H9.6v-.613h-.587v.613H8.4v.587h-.587v.306zM9.6 9.587h.613v-8.4H9.6v4.2zm.613-8.4h2.4V.6h-2.4v.293zm2.4 0V7.8h-1.2v.587H15.6v.32H18v-.32h.614v.32h2.106v-.32h.294V6.893h-.294v-.906h-.32v-.88h-.293V5.4h-.293v.907h-.294V6.6h.294v.587h.293v-.88h.293v.88h.32v.906h-.32v.294h-.586v-.294h.293V7.8h.293v-.613h-.293v.32h-.293V7.8h-.294v.587h-.613V7.8h-.293v-.293h-.294V7.8h-1.813v.293h1.2v.294H15.92v-.294h-1.813V7.8h-.293V6.307h-.294V7.8h-.32V1.187h-.293zm1.2 5.12h.294v-.32h-.294v.16zm.294-.32h.293V5.4h-.293v.293zM14.4 5.4h.614v-.293H14.4v.146zm.614-.293h.586V5.4h.32v-.613h-.906v.16zm.906-.32h.293v-.294h-.293v.147zm.293-.294h.294V4.2h-.294v.147zm.294-.293h.293v-.293h-.293v.146zm.293 0v.587h.32v.32h.293v-.32h.294v.32h-.294V5.4H18v-.613h.32V4.2H18v.293h-.88V4.2h-.16zm1.52 0h.294v-.293h-.294v.146zm.294-.293h.293v-.32h-.293v.16zm.293-.32h.293v-.294h-.293v.147zm.293 0v1.52h.32v-.32h.293v-.294h-.293v-.906h-.16zm.613 1.2v.32h.294v-.32h-.147zm0 .32h-.293V5.4h.293v-.147zM15.6 5.4h-.293v1.2h.293V6zm0 1.2v.587h.32V6.6h-.16zm.32.587v.32h.293v-.32h-.146zm.293.32V7.8h.294v-.293h-.147zm2.694.293h.613v-.293h-.613v.146zm.613-.293h.293v-.32h-.293v.16zm0-.907h-.613v.293h.613v-.146zm-.613.293h-.293v.294h.293V7.04zm2.107 1.494v2.4h2.4V10.2H21.6V8.387h-.293zm2.4 2.4v2.4H24v-2.4h-.293zm0 2.4h-4.8v.613h4.8v-.307zm-4.8 0v-2.4h-4.8v9.6h4.8v-2.4H18V19.8h-3.6v-8.4H18v1.787h.307zm0 4.8h4.8V17.4h-4.8v.293zm4.8 0v2.4H24v-2.4h-.293zm0 2.4h-2.4v2.4h.586V21h1.814v-.306zm-2.4 2.4h-9.6v.613h9.6v-.307zm-9.6 0v-2.4h-2.4V21H10.8v1.787h.307zm-3.6-7.2h-2.4v.613h2.4v-.307zm-2.4 0V15H4.8v.587h.307zM4.8 15v-.613h-.586V15h.293zm-.586-.613V13.8H3.6v.587h.307zM3.6 13.8v-.613h-.587v.613h.294zm-.587-.613V12.6H2.4v.587h.307zM2.4 12.6v-.613h-.587v.613h.294zm-.587-.613V11.4H1.2v.587h.307zM1.2 11.4v-.613H.614v.613h.293zm-.586-.613v-9.6H0v9.6h.307zM13.52.6v.293h1.493v.293h.293V.893h.294V.6h-1.04zm1.493.586h-.293v.32h.293v-.16zm-.293.32h-.32V1.8h.32v-.147zm0 .294v.293h.293V1.8h-.147zm-.32 0h-.294v.293h.294v-.147zm-.294.293h-.293v.293h-.293v.32h2.08v-.32h-1.494V2.24zm.294-.587v-.32h-.294v.32h.147zm2.106.294v.293h.907v.293h.293v-.293H18V1.8h-.747zm.907.586h-.293v.32h-.614V3H18v-.294h-.587v-.16zm-1.2 4.214v.293h.586V6.6h-.293zm.586.293v.293h.907v-.293h-.453zm.907.293v.32H18v-.32h-.146z",
+    color: "#3DB389",
+  },
 };
 
 function clientIcon(kind: ClientKind): string {
@@ -374,9 +384,7 @@ function selectCard(container: HTMLElement, card: HTMLElement): void {
 async function refreshClients(): Promise<void> {
   const list = document.getElementById("client-list")!;
   if (list.childElementCount === 0) {
-    const progress = document.createElement(
-      "m3e-linear-progress-indicator",
-    );
+    const progress = document.createElement("m3e-linear-progress-indicator");
     progress.setAttribute("indeterminate", "");
     list.append(progress);
   }
@@ -433,7 +441,8 @@ async function loadGoals(): Promise<void> {
   const available = goals.filter(
     (g) => g.id !== "v7" || experimentalBuilds.has(selectedClient?.version_dir ?? ""),
   );
-  if (!available.some((g) => g.id === selectedGoal)) selectedGoal = available[0]?.id ?? "v6";
+  if (!available.some((g) => g.id === selectedGoal))
+    selectedGoal = available[0]?.id ?? "v6";
   for (const g of available) {
     const card = document.createElement("m3e-card");
     card.className = "selectable";
@@ -487,31 +496,42 @@ const SITE_INFO: Record<string, string> = {
   "MonoDownmix bypass (NOP+JMP)": "Pula o downmix mono na captura do microfone.",
   "MCOpusImpl ctor num_channels": "Encoder criado com 2 canais desde o início.",
   "SdpToConfig num_channels": "Negociação SDP fixada em 2 canais.",
-  "SdpToConfig num_channels 48k": "Negociação fixada em 2 canais nesta taxa de amostragem.",
-  "SdpToConfig num_channels 48k (2)": "Negociação fixada em 2 canais nesta taxa de amostragem.",
-  "SdpToConfig num_channels dynamic": "Negociação fixada em 2 canais nesta taxa de amostragem.",
-  "SdpToConfig num_channels 44.1k": "Negociação fixada em 2 canais nesta taxa de amostragem.",
-  "SdpToConfig num_channels 96k": "Negociação fixada em 2 canais nesta taxa de amostragem.",
-  "SdpToConfig num_channels 32k": "Negociação fixada em 2 canais nesta taxa de amostragem.",
-  "SdpToConfig num_channels 24k": "Negociação fixada em 2 canais nesta taxa de amostragem.",
-  "SdpToConfig num_channels 16k": "Negociação fixada em 2 canais nesta taxa de amostragem.",
-  "SdpToConfig num_channels 8k": "Negociação fixada em 2 canais nesta taxa de amostragem.",
+  "SdpToConfig num_channels 48k":
+    "Negociação fixada em 2 canais nesta taxa de amostragem.",
+  "SdpToConfig num_channels 48k (2)":
+    "Negociação fixada em 2 canais nesta taxa de amostragem.",
+  "SdpToConfig num_channels dynamic":
+    "Negociação fixada em 2 canais nesta taxa de amostragem.",
+  "SdpToConfig num_channels 44.1k":
+    "Negociação fixada em 2 canais nesta taxa de amostragem.",
+  "SdpToConfig num_channels 96k":
+    "Negociação fixada em 2 canais nesta taxa de amostragem.",
+  "SdpToConfig num_channels 32k":
+    "Negociação fixada em 2 canais nesta taxa de amostragem.",
+  "SdpToConfig num_channels 24k":
+    "Negociação fixada em 2 canais nesta taxa de amostragem.",
+  "SdpToConfig num_channels 16k":
+    "Negociação fixada em 2 canais nesta taxa de amostragem.",
+  "SdpToConfig num_channels 8k":
+    "Negociação fixada em 2 canais nesta taxa de amostragem.",
   "downmix_and_resample ret": "Desliga o downmix do resampler.",
   "HighPassFilter::Process ret": "Desliga o filtro passa-alta (preserva graves).",
   "OpusConfig IsOk true": "Aceita a configuração estéreo/alta taxa na validação.",
   "NoiseCanceller::Process ret": "Desliga o supressor de ruído (Krisp).",
-  "NoiseCanceller::Process bypass (mutex-safe)": "Pula o processamento do supressor de ruído.",
+  "NoiseCanceller::Process bypass (mutex-safe)":
+    "Pula o processamento do supressor de ruído.",
   "ShouldRunNoiseCancellation false": "Impede o supressor de ruído de ligar.",
   "Krisp NC create bypass (mutex-safe)": "Impede o Krisp de ser criado.",
   "Krisp NC process bypass (mutex-safe)": "Pula o processamento do Krisp.",
   "DisableCbr ret": "Desliga o caminho VBR e mantém CBR.",
-  "ApplySettings_MaxAvgBitrateSelect_Nop4": "Impede o seletor de reduzir o bitrate médio.",
-  "SetTargetBitrate_ClampSelect_Nop3": "Impede a seleção do clamp de bitrate.",
-  "SetTargetBitrate_Mulss_Nop6": "Impede o multiplicador de bitrate.",
-  "ApplySettings_BitrateBase_Mov510k": "Trava o bitrate base em 510 kbps.",
-  "ApplySettings_BitrateBase_Mov208k": "Trava o bitrate base em 208 kbps (experimental 8ch).",
-  "ApplySettings_BitrateSelect_Nop4": "Impede o seletor de reduzir o bitrate.",
-  "ApplySettings_BitrateChannels_Nop4": "Impede o ajuste de bitrate por canais.",
+  ApplySettings_MaxAvgBitrateSelect_Nop4: "Impede o seletor de reduzir o bitrate médio.",
+  SetTargetBitrate_ClampSelect_Nop3: "Impede a seleção do clamp de bitrate.",
+  SetTargetBitrate_Mulss_Nop6: "Impede o multiplicador de bitrate.",
+  ApplySettings_BitrateBase_Mov510k: "Trava o bitrate base em 510 kbps.",
+  ApplySettings_BitrateBase_Mov208k:
+    "Trava o bitrate base em 208 kbps (experimental 8ch).",
+  ApplySettings_BitrateSelect_Nop4: "Impede o seletor de reduzir o bitrate.",
+  ApplySettings_BitrateChannels_Nop4: "Impede o ajuste de bitrate por canais.",
   "MCOpusImpl ctor bitrate 510k": "Trava o bitrate em 510 kbps.",
   "SdpToConfig bitrate 510k": "Trava o bitrate em 510 kbps.",
   "CommitAudioCodec bitrate 510k": "Trava o bitrate em 510 kbps.",
@@ -523,21 +543,23 @@ const SITE_INFO: Record<string, string> = {
   "GetMultipliedBitrate identity": "Remove o multiplicador de bitrate.",
   "RemixAndResample skip downmix": "Pula o downmix dentro do resampler (correção L=R).",
   "OpusConfig application kAudio": "Modo música do Opus (fullband).",
-  "CreateAudioFrame_ChannelAssign_Mov": "Copia a contagem de canais real para o frame (preserva L/R).",
-  "CreateAudioFrame_ChannelAssign_Force8": "Força 8 canais no frame (experimental).",
-  "CapturedAudioProcessor_APMBypass_NopJmp": "Pula o APM/downmix mono na captura.",
-  "CommitAudioCodec_ChannelCount_Imm02": "Inicializa o codec com 2 canais.",
-  "CommitAudioCodec_ChannelCount_Imm08": "Inicializa o codec com 8 canais (experimental).",
-  "OpusSdp_StereoValueBypass_Jmp2": "Força o SDP a negociar estéreo real.",
-  "OpusSdp_MaxPlaybackRate_Keep48k_Nop4": "Mantém 48 kHz na negociação.",
-  "HighPassFilter_Process_Entry_Ret": "Desliga o filtro passa-alta (preserva graves).",
-  "SetVoiceChannelCountCap_Force8_CL": "Sobe o limite de canais da voz para 8 (experimental).",
-  "OpusEncoder_Init_ForceCBR": "Inicializa o encoder em CBR.",
-  "OpusEncoder_SetVBR_ForceCBR": "Impede o encoder de voltar para VBR.",
-  "CELT_Force": "Força o modo CELT (melhor estéreo).",
-  "CELT_DefaultMode": "Define CELT como modo padrão.",
-  "OpusEncodeNative_AnalysisGate_Jmp": "Pula o gate de análise do Opus.",
-  "OpusEncodeFrame_FilterBypass_CopyGain": "Pula o filtro low-pass/downmix e copia L/R.",
+  CreateAudioFrame_ChannelAssign_Mov:
+    "Copia a contagem de canais real para o frame (preserva L/R).",
+  CreateAudioFrame_ChannelAssign_Force8: "Força 8 canais no frame (experimental).",
+  CapturedAudioProcessor_APMBypass_NopJmp: "Pula o APM/downmix mono na captura.",
+  CommitAudioCodec_ChannelCount_Imm02: "Inicializa o codec com 2 canais.",
+  CommitAudioCodec_ChannelCount_Imm08: "Inicializa o codec com 8 canais (experimental).",
+  OpusSdp_StereoValueBypass_Jmp2: "Força o SDP a negociar estéreo real.",
+  OpusSdp_MaxPlaybackRate_Keep48k_Nop4: "Mantém 48 kHz na negociação.",
+  HighPassFilter_Process_Entry_Ret: "Desliga o filtro passa-alta (preserva graves).",
+  SetVoiceChannelCountCap_Force8_CL:
+    "Sobe o limite de canais da voz para 8 (experimental).",
+  OpusEncoder_Init_ForceCBR: "Inicializa o encoder em CBR.",
+  OpusEncoder_SetVBR_ForceCBR: "Impede o encoder de voltar para VBR.",
+  CELT_Force: "Força o modo CELT (melhor estéreo).",
+  CELT_DefaultMode: "Define CELT como modo padrão.",
+  OpusEncodeNative_AnalysisGate_Jmp: "Pula o gate de análise do Opus.",
+  OpusEncodeFrame_FilterBypass_CopyGain: "Pula o filtro low-pass/downmix e copia L/R.",
   "CommitAudioCodec channel count 2": "Inicializa o codec com 2 canais.",
   "OpusSdp force stereo": "Força o SDP a negociar estéreo real.",
   "CreateAudioFrame channel assign 1": "Copia a contagem de canais real para o frame.",
@@ -552,9 +574,9 @@ const SITE_INFO: Record<string, string> = {
 };
 
 function linkButtons(root: HTMLElement): void {
-  root.querySelectorAll<HTMLElement>("[data-url]").forEach((button) =>
-    button.addEventListener("click", () => openExternal(button.dataset.url ?? "")),
-  );
+  root.querySelectorAll<HTMLElement>("[data-url]").forEach((button) => {
+    button.addEventListener("click", () => openExternal(button.dataset.url ?? ""));
+  });
 }
 
 function renderApply(): void {
@@ -651,13 +673,9 @@ function updateApplyButtons(): void {
   const hasActionable = sites.some(([, st]) => st.state === "ok");
   (document.getElementById("btn-analyze") as HTMLButtonElement).disabled =
     !selectedClient;
-  (document.getElementById("btn-revert") as HTMLButtonElement).disabled =
-    !selectedClient;
+  (document.getElementById("btn-revert") as HTMLButtonElement).disabled = !selectedClient;
   (document.getElementById("btn-apply") as HTMLButtonElement).disabled =
-    !selectedClient ||
-    analysis === null ||
-    hasMismatch ||
-    !hasActionable;
+    !selectedClient || analysis === null || hasMismatch || !hasActionable;
 }
 
 // Backend errors cross IPC as English thiserror strings; the known
@@ -685,14 +703,9 @@ async function doAnalyze(): Promise<void> {
       node: selectedClient.node_path,
       goal: selectedGoal,
     });
-    document.getElementById("discord-running")!.hidden =
-      !selectedClient.process_running;
-    const patched = analysis.sites.filter(
-      ([, s]) => s.state === "patched",
-    ).length;
-    const ignored = analysis.sites.filter(
-      ([, s]) => s.state === "ignored",
-    ).length;
+    document.getElementById("discord-running")!.hidden = !selectedClient.process_running;
+    const patched = analysis.sites.filter(([, s]) => s.state === "patched").length;
+    const ignored = analysis.sites.filter(([, s]) => s.state === "ignored").length;
     const suffix = ignored > 0 ? ` · ${ignored} opções mantidas` : "";
     if (analysis.sites.length === 0) {
       snack("Build sem patch conhecido - relatório enviado automaticamente.");
@@ -757,12 +770,8 @@ async function doApply(): Promise<void> {
       goal: selectedGoal,
     });
     analysis = result;
-    const applied = result.sites.filter(
-      ([, s]) => s.state === "patched",
-    ).length;
-    const ignored = result.sites.filter(
-      ([, s]) => s.state === "ignored",
-    ).length;
+    const applied = result.sites.filter(([, s]) => s.state === "patched").length;
+    const ignored = result.sites.filter(([, s]) => s.state === "ignored").length;
     const suffix = ignored > 0 ? ` · ${ignored} opções mantidas` : "";
     snack(
       result.compat
@@ -783,7 +792,8 @@ async function doApply(): Promise<void> {
       void confetti({ particleCount: 40, angle: 60, spread: 60, origin: { x: 0 } });
       void confetti({ particleCount: 40, angle: 120, spread: 60, origin: { x: 1 } });
     }, 250);
-    (document.getElementById("done-dialog") as HTMLElement & { open: boolean }).open = true;
+    (document.getElementById("done-dialog") as HTMLElement & { open: boolean }).open =
+      true;
   } catch (err) {
     snack(`Erro ao aplicar: ${localizeBackendError(String(err))}`);
   }
@@ -805,7 +815,13 @@ async function doRevert(): Promise<void> {
 }
 
 // ---------------------------------------------------------------- about
-const LINKS: Array<{ title: string; desc: string; url: string; aria: string; svg: string }> = [
+const LINKS: Array<{
+  title: string;
+  desc: string;
+  url: string;
+  aria: string;
+  svg: string;
+}> = [
   {
     title: "GitHub",
     desc: "Código-fonte, issues e releases.",
@@ -867,7 +883,10 @@ function enforceShadowCursor(root: ShadowRoot): void {
 
 function installCursorPolicy(): void {
   const attach = Element.prototype.attachShadow;
-  Element.prototype.attachShadow = function (this: Element, init: ShadowRootInit): ShadowRoot {
+  Element.prototype.attachShadow = function (
+    this: Element,
+    init: ShadowRootInit,
+  ): ShadowRoot {
     const root = attach.call(this, init);
     enforceShadowCursor(root);
     return root;
@@ -925,7 +944,9 @@ function snack(msg: string): void {
 
 function openExternal(url: string): void {
   if (!url) return;
-  void openUrl(url).catch((err: unknown) => snack(`Não foi possível abrir: ${String(err)}`));
+  void openUrl(url).catch((err: unknown) =>
+    snack(`Não foi possível abrir: ${String(err)}`),
+  );
 }
 
 async function loadSysInfo(): Promise<void> {

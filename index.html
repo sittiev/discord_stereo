@@ -254,9 +254,10 @@
         left: calc(50% + 25px);
         width: calc(100% - 50px);
         background: var(--sw-line);
+        transition: background-color 240ms cubic-bezier(0.2, 0, 0, 1);
       }
       .stepper li.done:not(:last-child)::after {
-        background: color-mix(in srgb, var(--sw-primary) 55%, var(--sw-line));
+        background: color-mix(in srgb, var(--sw-primary) 60%, var(--sw-line));
       }
       .step-btn {
         display: flex;
@@ -289,7 +290,7 @@
         background: var(--sw-surface);
         color: var(--sw-text-2);
         transition:
-          background 200ms cubic-bezier(0.2, 0, 0, 1),
+          background-color 200ms cubic-bezier(0.2, 0, 0, 1),
           border-color 200ms cubic-bezier(0.2, 0, 0, 1),
           color 200ms cubic-bezier(0.2, 0, 0, 1);
       }
@@ -325,8 +326,9 @@
         background: var(--sw-surface-2);
         color: var(--sw-text-2);
         transition:
-          background 180ms ease,
-          color 180ms ease;
+          background-color 180ms ease,
+          color 180ms ease,
+          scale 120ms ease;
       }
       .close-btn:hover {
         background: color-mix(in srgb, var(--sw-surface-2) 78%, var(--sw-primary) 22%);
@@ -629,11 +631,11 @@
         transform: translateX(-50%);
         z-index: 50;
       }
-      m3e-icon-button svg {
-        pointer-events: none;
-      }
       m3e-theme {
         display: contents;
+      }
+      m3e-icon-button svg {
+        pointer-events: none;
       }
 
       /* ---- shared bits ---- */
