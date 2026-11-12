@@ -410,14 +410,17 @@ function clientIcon(kind: ClientKind): string {
 }
 
 // ---------------------------------------------------------------- clients
-// One card selected at a time (radio semantics on the card group).
+// One card selected at a time. `m3e-card` owns `role="button"` for actionable
+// cards, so the group is a `role="group"` of toggle buttons (`aria-pressed`).
 function selectCard(container: HTMLElement, card: HTMLElement): void {
   for (const sib of container.querySelectorAll("m3e-card")) {
     sib.classList.remove("selected");
-    sib.setAttribute("aria-checked", "false");
+    sib.setAttribute("aria-pressed", "false");
+    sib.querySelector("m3e-radio")?.removeAttribute("checked");
   }
   card.classList.add("selected");
-  card.setAttribute("aria-checked", "true");
+  card.setAttribute("aria-pressed", "true");
+  card.querySelector("m3e-radio")?.setAttribute("checked", "");
 }
 
 async function refreshClients(): Promise<void> {
@@ -442,17 +445,16 @@ async function refreshClients(): Promise<void> {
     card.className = "selectable";
     card.setAttribute("actionable", "");
     card.setAttribute("variant", "outlined");
-    card.setAttribute("role", "radio");
     const isSel = selectedClient?.node_path === c.node_path;
     card.classList.toggle("selected", isSel);
-    card.setAttribute("aria-checked", String(isSel));
+    card.setAttribute("aria-pressed", String(isSel));
     card.innerHTML = `
       <div class="client-row">
         ${clientIcon(c.kind)}
         <div class="client-text">
-          <span class="overline cell" title="${esc(c.version_dir)}">${esc(c.version_dir)}</span>
+          <span class="overline cell">${esc(c.version_dir)}</span>
           <span class="cell">${esc(c.label)}</span>
-          <span class="cell path" title="${esc(c.node_path)}">${esc(installRoot(c.node_path))}</span>
+          <span class="cell path">${esc(installRoot(c.node_path))}</span>
         </div>
       </div>`;
     card.addEventListener("click", () => {
@@ -487,10 +489,9 @@ async function loadGoals(): Promise<void> {
     card.className = "selectable";
     card.setAttribute("actionable", "");
     card.setAttribute("variant", "outlined");
-    card.setAttribute("role", "radio");
     const isSel = g.id === selectedGoal;
     card.classList.toggle("selected", isSel);
-    card.setAttribute("aria-checked", String(isSel));
+    card.setAttribute("aria-pressed", String(isSel));
     card.innerHTML = `
       <div class="goal-body">
         <div class="goal-head">
