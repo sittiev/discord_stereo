@@ -15,6 +15,22 @@ import "@m3e/web/progress-indicator";
 import "@m3e/web/segmented-button";
 import "@m3e/web/snackbar";
 import "@m3e/web/tooltip";
+import "@m3e/web/icon";
+
+// Real Material Symbols, registered per icon (side-effect modules). Importing
+// only what the UI uses keeps the registry small and the icons offline.
+import "@m3e/icons/outlined/close";
+import "@m3e/icons/outlined/arrow_back";
+import "@m3e/icons/outlined/arrow_forward";
+import "@m3e/icons/outlined/graphic_eq";
+import "@m3e/icons/outlined/check_circle";
+import "@m3e/icons/outlined/radio_button_unchecked";
+import "@m3e/icons/outlined/error";
+import "@m3e/icons/outlined/do_not_disturb_on";
+import "@m3e/icons/outlined/info";
+import "@m3e/icons/outlined/brightness_auto";
+import "@m3e/icons/outlined/light_mode";
+import "@m3e/icons/outlined/dark_mode";
 
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -162,6 +178,14 @@ let slideCleanup: (() => void) | null = null;
 
 function slide(outEl: HTMLElement, inEl: HTMLElement, forward: boolean): void {
   slideCleanup?.();
+  slideCleanup = null;
+  // Respect reduced motion: swap without the carousel.
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    for (const panel of document.querySelectorAll<HTMLElement>("section.pane")) {
+      panel.hidden = panel.id !== inEl.id;
+    }
+    return;
+  }
   const wrap = document.getElementById("panels")!;
   const dx = forward ? 1 : -1;
   const hFrom = wrap.offsetHeight;
@@ -221,11 +245,14 @@ function slide(outEl: HTMLElement, inEl: HTMLElement, forward: boolean): void {
   // Fast navigation cancels `finished`; allSettled covers both cases.
   Promise.allSettled([outAnim.finished, inAnim.finished]).then(done);
   window.setTimeout(done, SLIDE_MS + 400);
-  window.setTimeout(() => {
-    if (slideCleanup !== done) return;
-    outAnim.cancel();
-    outEl.style.opacity = "0";
-  }, (SLIDE_MS * 7) / 10 + 20);
+  window.setTimeout(
+    () => {
+      if (slideCleanup !== done) return;
+      outAnim.cancel();
+      outEl.style.opacity = "0";
+    },
+    (SLIDE_MS * 7) / 10 + 20,
+  );
 }
 
 // Stepper clicks navigate; footer Back/Next have their own handlers in boot.
@@ -253,11 +280,11 @@ const THEME_LABEL: Record<ThemePref, string> = {
   light: "claro",
   dark: "escuro",
 };
-// Embedded Material Symbols (offline, like the client icons).
+// Material Symbols names (registered above), not hand-rolled paths.
 const THEME_ICON: Record<ThemePref, string> = {
-  auto: `<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M10.85 12.65h2.3L12 9l-1.15 3.65zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69zM14.3 16l-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9h-1.9z"/></svg>`,
-  light: `<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z"/></svg>`,
-  dark: `<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/></svg>`,
+  auto: `<m3e-icon name="brightness_auto"></m3e-icon>`,
+  light: `<m3e-icon name="light_mode"></m3e-icon>`,
+  dark: `<m3e-icon name="dark_mode"></m3e-icon>`,
 };
 
 function nextTheme(v: ThemePref): ThemePref {
@@ -291,7 +318,19 @@ function loadThemePref(): ThemePref {
 
 let themePref = loadThemePref();
 
+// A theme flip repaints nearly every element; without this the transitions on
+// color and background smear the switch. Kill transitions, force a reflow,
+// restore on the next frame.
+function suppressTransitions(): void {
+  const style = document.createElement("style");
+  style.textContent = "*,*::before,*::after{transition:none !important}";
+  document.head.append(style);
+  void document.body.offsetHeight;
+  requestAnimationFrame(() => style.remove());
+}
+
 function applyThemePref(): void {
+  suppressTransitions();
   themeEl.setAttribute("scheme", themePref);
   document.documentElement.style.colorScheme =
     themePref === "auto" ? "light dark" : themePref;
@@ -455,7 +494,6 @@ async function loadGoals(): Promise<void> {
     card.innerHTML = `
       <div class="goal-body">
         <div class="goal-head">
-          <span class="goal-icon" aria-hidden="true">${WAVE_SVG(30)}</span>
           <div class="goal-text">
             <div class="goal-title-row">
               <strong>${esc(loc(g.title))}</strong>
@@ -649,15 +687,15 @@ function renderApply(): void {
 
 function stateIcon(st: SiteState): string {
   if (st.state === "ok") {
-    return `<span class="site-state" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/></svg></span>`;
+    return `<span class="site-state" aria-hidden="true"><m3e-icon name="radio_button_unchecked"></m3e-icon></span>`;
   }
   if (st.state === "patched") {
-    return `<span class="site-state state-pat" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M12 4a8 8 0 100 16 8 8 0 000-16zm-2.2 11.5-3.3-3.3 1.4-1.4 1.9 1.9 4.3-4.3 1.4 1.4-5.7 5.7z"/></svg></span>`;
+    return `<span class="site-state state-pat" aria-hidden="true"><m3e-icon name="check_circle" filled></m3e-icon></span>`;
   }
   if (st.state === "ignored") {
-    return `<span class="site-state state-skip" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l9 9-9 9-9-9z"/></svg></span>`;
+    return `<span class="site-state state-skip" aria-hidden="true"><m3e-icon name="do_not_disturb_on"></m3e-icon></span>`;
   }
-  return `<span class="site-state state-bad" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></span>`;
+  return `<span class="site-state state-bad" aria-hidden="true"><m3e-icon name="error"></m3e-icon></span>`;
 }
 
 function stateText(st: SiteState): string {
@@ -868,16 +906,16 @@ function renderAbout(): void {
 }
 
 // ---------------------------------------------------------------- misc
-// m3e sets `cursor: pointer` on hosts nested inside its own shadow trees
-// (expansion header, dialog close). Document CSS cannot reach those, so every
-// shadow root inherits the cursor from its light-DOM host instead.
-const SHADOW_CURSOR = "* { cursor: inherit !important; }";
+// m3e sets `cursor: pointer` and selectable text inside its own shadow trees
+// (expansion header, dialog copy). Document CSS cannot reach those, so every
+// shadow root inherits the cursor and loses text selection.
+const SHADOW_POLICY = "* { cursor: inherit !important; user-select: none !important; }";
 
 function enforceShadowCursor(root: ShadowRoot): void {
   if (root.querySelector("style[data-cursor-policy]")) return;
   const style = document.createElement("style");
   style.dataset.cursorPolicy = "";
-  style.textContent = SHADOW_CURSOR;
+  style.textContent = SHADOW_POLICY;
   root.append(style);
 }
 
@@ -905,22 +943,13 @@ function installCursorPolicy(): void {
 installCursorPolicy();
 
 // ---------------------------------------------------------------- identity
-// Static waveform used in the identity panels and goal cards; the Discord
-// mark reuses the stable client path (one source for the brand glyph).
-function WAVE_SVG(size: number): string {
-  return `<svg viewBox="0 0 32 24" width="${size}" height="${Math.round(size * 0.75)}" fill="currentColor" aria-hidden="true"><rect x="1" y="10" width="3" height="4" rx="1"/><rect x="6" y="7" width="3" height="10" rx="1"/><rect x="11" y="3" width="3" height="18" rx="1"/><rect x="16" y="1" width="3" height="22" rx="1"/><rect x="21" y="6" width="3" height="12" rx="1"/><rect x="26" y="9" width="3" height="6" rx="1"/></svg>`;
-}
-
+// The Discord brand mark (Simple Icons path, shared with the client rows)
+// inside every identity panel; the waveform next to it is the Material
+// `graphic_eq` icon in the markup.
 function renderIdentity(): void {
-  for (const aside of document.querySelectorAll<HTMLElement>("aside.identity")) {
-    const mark = aside.querySelector(".brand-mark");
-    if (mark && mark.childElementCount === 0) {
-      mark.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="${CLIENT_ICON.stable.path}"/></svg>`;
-    }
-    const wave = aside.querySelector(".brand-wave");
-    if (wave && wave.childElementCount === 0) wave.innerHTML = WAVE_SVG(24);
-    const mini = aside.querySelector(".mini-wave");
-    if (mini && mini.childElementCount === 0) mini.innerHTML = WAVE_SVG(18);
+  const brand = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="${CLIENT_ICON.stable.path}"/></svg>`;
+  for (const mark of document.querySelectorAll<HTMLElement>(".brand-mark")) {
+    if (mark.childElementCount === 0) mark.innerHTML = brand;
   }
 }
 

@@ -34,6 +34,18 @@
         scrollbar-color: color-mix(in srgb, var(--sw-text-2) 55%, transparent)
           transparent;
       }
+      /* Cursor policy: arrow everywhere, hand only on links. m3e declares
+         `cursor: pointer` on component hosts from inside the shadow styles,
+         so this outer rule overrides it with `!important`; slotted content
+         inherits the host cursor. */
+      body,
+      body * {
+        cursor: default !important;
+      }
+      [data-url],
+      [data-url] * {
+        cursor: pointer !important;
+      }
       [hidden] {
         display: none !important;
       }
@@ -286,12 +298,12 @@
         border-color: var(--sw-primary-ct);
         color: var(--sw-on-primary-ct);
       }
-      .step-btn[aria-current="step"] .step-label {
-        font-weight: 600;
-      }
       .step-label {
         font-size: 13px;
         line-height: 1.2;
+      }
+      .step-btn[aria-current="step"] .step-label {
+        font-weight: 600;
       }
       .close-btn {
         width: 44px;
@@ -313,9 +325,15 @@
         background: color-mix(in srgb, var(--sw-surface-2) 78%, var(--sw-primary) 22%);
         color: var(--sw-text);
       }
+      .close-btn:active {
+        scale: 0.96;
+      }
       .close-btn:focus-visible {
         outline: 2px solid var(--sw-primary);
         outline-offset: 2px;
+      }
+      .close-btn m3e-icon {
+        font-size: 22px;
       }
 
       /* ---- body: two-column bento ---- */
@@ -427,14 +445,15 @@
         gap: 10px;
         padding: 12px 18px;
         border-radius: 999px;
-        background: color-mix(in srgb, var(--sw-surface) 55%, transparent);
         border: 1px solid var(--sw-outline);
+        background: var(--sw-glass);
+        backdrop-filter: blur(10px);
         color: var(--sw-text-2);
         font-size: 13px;
       }
-      .identity-card .mini-wave {
+      .identity-card m3e-icon {
+        font-size: 20px;
         color: var(--sw-primary);
-        display: inline-flex;
       }
 
       .config {
@@ -456,9 +475,13 @@
         --m3e-card-container-color: var(--sw-surface-2);
         --m3e-card-shape: 28px;
         border-radius: 28px;
+        transition: scale 120ms ease;
       }
       m3e-card.selectable:hover {
         --m3e-card-container-color: color-mix(in srgb, var(--sw-surface-2) 70%, var(--sw-primary) 12%);
+      }
+      m3e-card.selectable:active {
+        scale: 0.995;
       }
       m3e-card.selectable.selected {
         --m3e-card-container-color: color-mix(in srgb, var(--sw-surface-2) 55%, var(--sw-primary) 16%);
@@ -478,21 +501,6 @@
         display: flex;
         align-items: flex-start;
         gap: 18px;
-      }
-      .goal-icon {
-        width: 56px;
-        height: 56px;
-        border-radius: 18px;
-        flex-shrink: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: var(--sw-primary-ct);
-        color: var(--sw-primary);
-      }
-      .goal-icon svg {
-        width: 30px;
-        height: 30px;
       }
       .goal-text {
         flex: 1;
@@ -566,7 +574,11 @@
       }
       .site-state {
         display: inline-flex;
+        align-items: center;
         color: var(--sw-primary);
+      }
+      .site-state m3e-icon {
+        font-size: 20px;
       }
       .site-state.state-pat {
         color: #23a55a;
@@ -596,6 +608,15 @@
         height: 46px;
         border-radius: 999px;
         font-weight: 600;
+        transition: scale 120ms ease;
+      }
+      #btn-back:active,
+      #btn-next:active {
+        scale: 0.96;
+      }
+      #btn-back m3e-icon[slot="icon"],
+      #btn-next m3e-icon[slot="trailing-icon"] {
+        font-size: 18px;
       }
 
       m3e-snackbar#snackbar {
@@ -704,17 +725,20 @@
         width: 100%;
       }
 
-      /* Cursor policy: arrow everywhere, hand only on links. m3e declares
-         `cursor: pointer` on component hosts from inside the shadow styles,
-         so this outer rule overrides it with `!important`; slotted content
-         inherits the host cursor. */
-      body,
-      body * {
-        cursor: default !important;
-      }
-      [data-url],
-      [data-url] * {
-        cursor: pointer !important;
+      /* ---- motion preferences ---- */
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          transition-duration: 0.01ms !important;
+          animation-duration: 0.01ms !important;
+        }
+        .close-btn:active,
+        #btn-back:active,
+        #btn-next:active,
+        m3e-card.selectable:active {
+          scale: 1;
+        }
       }
 
       /* ---- narrow: single column, compact identity ---- */
@@ -747,15 +771,14 @@
         .blob {
           display: none;
         }
-        .wizard-header {
-          padding: 16px 16px 6px 22px;
-          gap: 10px;
+        .brand-mark {
+          width: 38px;
+          height: 38px;
+          border-radius: 12px;
         }
-        .wizard-body {
-          padding: 4px 18px 18px;
-        }
-        .wizard-footer {
-          padding: 10px 16px;
+        .brand-mark svg {
+          width: 22px;
+          height: 22px;
         }
         #btn-back,
         #btn-next {
