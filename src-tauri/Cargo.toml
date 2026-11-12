@@ -1,6 +1,6 @@
 [package]
 name = "stereo-wizard"
-version = "0.3.0"
+version = "0.4.0"
 description = "Discord stereo voice patch wizard multi-client"
 authors = ["rafael"]
 license = "MIT"

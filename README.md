@@ -160,7 +160,7 @@ cd src-tauri && cargo check --locked && cargo test
 
 | Part | Status |
 |---|---|
-| v6 true stereo | Tested end to end with a remote-listener stereo pass on Windows (native and Wine), Linux, and Canary; the 0.3.0 release matrix is still being expanded. macOS is preview: table included, audio pass pending |
+| v6 true stereo | Tested end to end with a remote-listener stereo pass on Windows (native and Wine), Linux, and Canary; the 0.4.0 release matrix is still being expanded. macOS is preview: table included, audio pass pending |
 | v7 8ch surround | Static apply/revert only; audio untested; experimental and may break voice |
 | Research/backup tables | Kept in the Patch-DB, hidden from the public UI; not part of the public support claim |
 | Cross-build compatibility | Unknown builds get a warned compatibility attempt; apply only after every site verifies |
