@@ -528,27 +528,18 @@
         font-weight: 600;
         white-space: nowrap;
       }
-      .radio {
-        width: 22px;
-        height: 22px;
-        border-radius: 50%;
+      /* Real M3E radio (state layer, ripple, focus ring) mirroring the card
+         selection; the card is the control, so the radio is decorative. */
+      .goal-head m3e-radio {
+        --m3e-radio-container-size: 26px;
+        --m3e-radio-icon-size: 20px;
+        margin-top: 2px;
         flex-shrink: 0;
-        margin-top: 4px;
-        border: 2px solid var(--sw-outline);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: border-color 200ms cubic-bezier(0.2, 0, 0, 1);
+        pointer-events: none;
       }
-      m3e-card.selectable.selected .radio {
-        border-color: var(--sw-primary);
-      }
-      m3e-card.selectable.selected .radio::after {
-        content: "";
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        background: var(--sw-primary);
+      #btn-analyze m3e-circular-progress-indicator {
+        width: 18px;
+        height: 18px;
       }
       .goal-foot {
         display: flex;

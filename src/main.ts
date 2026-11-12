@@ -12,6 +12,7 @@ import "@m3e/web/heading";
 import "@m3e/web/icon-button";
 import "@m3e/web/list";
 import "@m3e/web/progress-indicator";
+import "@m3e/web/radio-group";
 import "@m3e/web/segmented-button";
 import "@m3e/web/snackbar";
 import "@m3e/web/tooltip";
@@ -502,7 +503,7 @@ async function loadGoals(): Promise<void> {
             </div>
             <div class="muted">${esc(loc(g.description))}</div>
           </div>
-          <span class="radio" aria-hidden="true"></span>
+          <m3e-radio tabindex="-1" aria-hidden="true"${isSel ? " checked" : ""}></m3e-radio>
         </div>
         <div class="goal-foot">
           <m3e-chip variant="assist">${g.sites} ${g.sites === 1 ? "patch" : "patches"}</m3e-chip>
@@ -735,8 +736,21 @@ function localizeBackendError(msg: string): string {
   return msg;
 }
 
+// Long IPC work keeps the button disabled with a real circular progress
+// indicator in the icon slot, plus a text cue: motion alone is not feedback.
+function beginBusy(btn: HTMLElement, label: string): () => void {
+  const original = btn.innerHTML;
+  btn.setAttribute("disabled", "");
+  btn.innerHTML = `<m3e-circular-progress-indicator slot="icon" indeterminate></m3e-circular-progress-indicator>${label}…`;
+  return () => {
+    btn.innerHTML = original;
+    btn.removeAttribute("disabled");
+  };
+}
+
 async function doAnalyze(): Promise<void> {
   if (!selectedClient) return;
+  const restore = beginBusy(document.getElementById("btn-analyze")!, "Analisando");
   try {
     analysis = await invoke<Analysis>("analyze_node", {
       node: selectedClient.node_path,
@@ -757,6 +771,8 @@ async function doAnalyze(): Promise<void> {
     }
   } catch (err) {
     snack(`Erro: ${localizeBackendError(String(err))}`);
+  } finally {
+    restore();
   }
   renderApply();
   void maybeAutoReport();
